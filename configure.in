@@ -1,6 +1,6 @@
 #                              -*- Mode: Sh -*- 
 # configure.in
-# Copyright © 2000-03 Laboratoire de Biologie Informatique et Théorique.
+# Copyright © 2000-04 Laboratoire de Biologie Informatique et Théorique.
 #                     Université de Montréal.
 # Author           : Martin Larose
 # Created On       : Tue Sep 19 18:21:58 2000
@@ -33,7 +33,7 @@ AC_INIT(annotate.h)
 AC_CONFIG_HEADER(config.h)
 
 PACKAGE=annotate
-VERSION=1.1
+VERSION=1.2
 AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE")
 AC_DEFINE_UNQUOTED(VERSION, "$VERSION")
 
