@@ -3,9 +3,9 @@
 // Copyright © 2001, 2002, 2003, 2004 Laboratoire de Biologie Informatique et Théorique.
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
-// Last Modified By : Patrick Gendron
-// Last Modified On : Fri Jan  9 16:29:47 2004
-// Update Count     : 203
+// Last Modified By : Philippe Thibault
+// Last Modified On : Thu May 27 13:42:10 2004
+// Update Count     : 204
 // Status           : Unknown.
 // 
 
@@ -116,36 +116,28 @@ AnnotatedModel::annotate ()
       
       Relation rel(&*i, &*j);
 
-      if (!rel.annotate ()) {  // Misses adjacent pairings between non standards residues
-	set< const PropertyType* > ts;
-	set< const PropertyType* >::iterator tsi;
-	//ts = Relation::areHBonded (&*i, &*j);
-	
-	for (tsi=ts.begin (); tsi!=ts.end (); ++tsi) {
-	  rel.addLabel (*tsi);	
-	}
-      }	
 
-      if (rel.getLabels ().size ()) {
-	if (rel.is (PropertyType::pDIR_5p)) {
-	  relations.push_back (rel);
-	  seq.push_back (relations.size () - 1);	  	    
-// 	  Relation reli(&*j, &*i);
-// 	  reli.isAdjacent ();
-// 	  reli.isPairing ();
-// 	  reli.isStacking ();
-// 	  relations.push_back (reli);
-	} else if (rel.is (PropertyType::pDIR_3p)) {
-// 	  relations.push_back (rel);
-	  Relation reli(&*j, &*i);
-	  reli.annotate ();
-	  relations.push_back (reli);
-	  seq.push_back (relations.size () - 1);
-	} else {
-	  relations.push_back (rel);
-	} 
-      }
+      if (rel.annotate ())
+	{
+	  if (rel.is (PropertyType::pDIR_5p))
+	    {
+	      relations.push_back (rel);
+	      seq.push_back (relations.size () - 1);	  	    
+	    }
+	  else if (rel.is (PropertyType::pDIR_3p))
+	    {
+	      relations.push_back (rel.invert ());
+	      seq.push_back (relations.size () - 1);
+	    }
+	  else
+	    {
+	      relations.push_back (rel);
+	    } 
+	}
+      
     }
+  
+  
 
   // Selection sort of the sequence.
   while (seq.size () > 0) {
