@@ -32,7 +32,7 @@
 #include "mccore/Relation.h"
 #include "mccore/PropertyType.h"
 #include "mccore/stlio.h"
-#include "mccore/CException.h"
+#include "mccore/Exception.h"
 
 #include "AnnotatedModel.h"
 
@@ -107,191 +107,191 @@ int main (int argc, char* argv[])
   gOut.setVerboseLevel (1);
 
   if ( argc == 1 )
-    {
-      __usage ();
-      exit (EXIT_SUCCESS);
-    }
+  {
+    __usage ();
+    exit (EXIT_SUCCESS);
+  }
 
   while ((__current_option = getopt (argc, argv, __shortopts)) != EOF)
+  {
+    switch (__current_option)
     {
-      switch (__current_option)
-	{
-	case 'e':
-	  selection = ResIdSet (optarg);
-	  cerr << "selection = " << selection << endl;
-	  extract = true;
-	  break;
-	case 'f':
-	  selection_file = optarg;
-	  extract = true;
-	  break;
-	case 'h': case 'H':
-	  __usage (); __help (); exit (EXIT_SUCCESS); break;
-	case 'm':
-	  mcsym_file = true;
-	  break;
-	case 's':
-	  size = atoi (optarg);
-	  break;	
-	case 'v':
-	  verbose = true;
-	  break;  	  
-	default:
-	  cerr << "Usage: " << argv[0] << " [-e selection] pdbfile+" << endl;
-	  exit (EXIT_FAILURE);
-	}
+    case 'e':
+      selection = ResIdSet (optarg);
+      cerr << "selection = " << selection << endl;
+      extract = true;
+      break;
+    case 'f':
+      selection_file = optarg;
+      extract = true;
+      break;
+    case 'h': case 'H':
+      __usage (); __help (); exit (EXIT_SUCCESS); break;
+    case 'm':
+      mcsym_file = true;
+      break;
+    case 's':
+      size = atoi (optarg);
+      break;	
+    case 'v':
+      verbose = true;
+      break;  	  
+    default:
+      cerr << "Usage: " << argv[0] << " [-e selection] pdbfile+" << endl;
+      exit (EXIT_FAILURE);
     }
+  }
   
   
   clock_t startTime, endTime;
   startTime = clock();
   
   try
-    {
+  {
   
-      while (optind<argc) {
+    while (optind<argc) {
     
-	//     {
-	//       izfPdbstream fin (argv[optind]);
+      //     {
+      //       izfPdbstream fin (argv[optind]);
       
-	//       if (fin.good ()) {
-	// 	MolecularComplex *m = new MolecularComplex;
-	// 	fin >> *m;
+      //       if (fin.good ()) {
+      // 	MolecularComplex *m = new MolecularComplex;
+      // 	fin >> *m;
 	
-	// 	cout << *m << endl;
-	//       }
-	//       fin.close ();
-	//     }
+      // 	cout << *m << endl;
+      //       }
+      //       fin.close ();
+      //     }
 
-	//xit (0);
+      //xit (0);
     
-	izfPdbstream fin (argv[optind]);
-	PdbFileHeader header;
-	Model model, model_orig;
+      izfPdbstream fin (argv[optind]);
+      PdbFileHeader header;
+      Model model, model_orig;
     
-	if (verbose) cout << argv[optind];
+      if (verbose) cout << argv[optind];
 
-	if (!fin) {
-	  cerr << "File could not be opened" << endl;
-	  exit (EXIT_FAILURE); 
-	}
-	header = fin.getHeader ();
-	fin >> model;
-	
-	model.validate ();
-	model.keepNucleicAcid ();
-	model.removeWater ();
-	model.addHLP ();
-	fin.close ();
-    
-	if (verbose) cout << " (" << model.size () << " residues) " << flush;
-    
-    
-    
-	if (model.size () > 0) {    	      
-	  AnnotatedModel amodel (&model);      
-	  if (verbose) cerr << "Annotating..." << flush;
-	  amodel.annotate ();      
-      
-      
-	  if (mcsym_file == true) 
-	    {
-	      amodel.dumpMcc (header.getPdbId ().c_str ());
-	    } 
-	  else if (extract) 
-	    {
-	      Model model_sel, model_sel_orig;
-	      if (verbose) cout << "Extracting " << size << endl;
-	
-	      if (selection_file) {
-		izfPdbstream fin (selection_file);
-		if (!fin) {
-		  cerr << "File could not be opened" << endl;
-		}
-		Model::iterator i;
-		fin >> model_sel;
-		fin.close ();
-	  
-		model_sel_orig = model_sel;
-		model_sel.keepNucleicAcid ();
-		model_sel.validate ();
-	  
-		for (i=model_sel.begin (); i!=model_sel.end (); ++i) {
-		  selection.insert (i->getResId ());
-		}
-	      }
-	      ResIdSet ext_selection;
-	      ext_selection = amodel.extract (selection, size);
-	
-	      ResIdSet::iterator i;
-	      Model::iterator j;
-	      oPdbstream fout (cout.rdbuf ());
-	      fout << "REMARK Selection: " << selection << endl;
-	      fout << "REMARK Extended selection: " << ext_selection << endl;
-	      // 	  fout << "REMARK Original residues: " << endl;
-	      // 	  fout << model_sel_orig;
-	      fout << "REMARK Extracted from " << argv[optind] << ":" << endl;
-	      for (i=ext_selection.begin (); i!=ext_selection.end (); ++i) {
-		j = model.find (*i);
-		if (j!=model.end ()) {
-		  fout << *j;
-		}
-	      }
-	      fout << "END\n";	 
-	    } 
-	  else 
-	    {	  	  
-	      if (verbose) cerr << "Finding helices..." << flush;
-	      amodel.findHelices ();
-	      if (verbose) cerr << "done." << endl;
-	      if (verbose) cerr << "Finding strands..." << flush;
-	      amodel.findStrands ();
-	      amodel.classifyStrands ();
-	  
-	      cout << "Residue conformations -------------------------------------------" << endl;      
-	      amodel.dumpConformations ();
-	      cout << endl;      
-	  
-	      amodel.dumpStacks ();
-	      cout << endl;
-	  
-	      cout << "Base-pairs ------------------------------------------------------" << endl;	    
-	      amodel.findKissingHairpins ();
-	      cout << endl;     
-	  
-	      cout << "Triples ---------------------------------------------------------" << endl;
-	      amodel.dumpTriples ();      
-	      cout << endl;
-	  
-	      cout << "Helices ---------------------------------------------------------" << endl;
-	      amodel.dumpHelices ();
-	      cout << endl;
-	  
-	      cout << "Strands ---------------------------------------------------------" << endl;
-	      amodel.dumpStrands ();
-	      cout << endl;
-	  
-	      cout << "Various features ------------------------------------------------" << endl;
-	  
-	      if (verbose) cerr << "Finding pseudoknots..." << endl;
-	      amodel.findPseudoknots ();
-	      cout << endl;
-	  
-	      cout << "Sequences -------------------------------------------------------" << endl;
-	      amodel.dumpSequences ();
-	      cout << endl;	 	  
-	    }
-	}
-    
-	optind++;
+      if (!fin) {
+	cerr << "File could not be opened" << endl;
+	exit (EXIT_FAILURE); 
       }
+      header = fin.getHeader ();
+      fin >> model;
+	
+      model.validate ();
+      model.keepNucleicAcid ();
+      model.removeWater ();
+      model.addHLP ();
+      fin.close ();
+    
+      if (verbose) cout << " (" << model.size () << " residues) " << flush;
+    
+    
+    
+      if (model.size () > 0) {    	      
+	AnnotatedModel amodel (&model);      
+	if (verbose) cerr << "Annotating..." << flush;
+	amodel.annotate ();      
+      
+      
+	if (mcsym_file == true) 
+	{
+	  amodel.dumpMcc (header.getPdbId ().c_str ());
+	} 
+	else if (extract) 
+	{
+	  Model model_sel, model_sel_orig;
+	  if (verbose) cout << "Extracting " << size << endl;
+	
+	  if (selection_file) {
+	    izfPdbstream fin (selection_file);
+	    if (!fin) {
+	      cerr << "File could not be opened" << endl;
+	    }
+	    Model::iterator i;
+	    fin >> model_sel;
+	    fin.close ();
+	  
+	    model_sel_orig = model_sel;
+	    model_sel.keepNucleicAcid ();
+	    model_sel.validate ();
+	  
+	    for (i=model_sel.begin (); i!=model_sel.end (); ++i) {
+	      selection.insert (i->getResId ());
+	    }
+	  }
+	  ResIdSet ext_selection;
+	  ext_selection = amodel.extract (selection, size);
+	
+	  ResIdSet::iterator i;
+	  Model::iterator j;
+	  oPdbstream fout (cout.rdbuf ());
+	  fout << "REMARK Selection: " << selection << endl;
+	  fout << "REMARK Extended selection: " << ext_selection << endl;
+	  // 	  fout << "REMARK Original residues: " << endl;
+	  // 	  fout << model_sel_orig;
+	  fout << "REMARK Extracted from " << argv[optind] << ":" << endl;
+	  for (i=ext_selection.begin (); i!=ext_selection.end (); ++i) {
+	    j = model.find (*i);
+	    if (j!=model.end ()) {
+	      fout << *j;
+	    }
+	  }
+	  fout << "END\n";	 
+	} 
+	else 
+	{	  	  
+	  if (verbose) cerr << "Finding helices..." << flush;
+	  amodel.findHelices ();
+	  if (verbose) cerr << "done." << endl;
+	  if (verbose) cerr << "Finding strands..." << flush;
+	  amodel.findStrands ();
+	  amodel.classifyStrands ();
+	  
+	  cout << "Residue conformations -------------------------------------------" << endl;      
+	  amodel.dumpConformations ();
+	  cout << endl;      
+	  
+	  amodel.dumpStacks ();
+	  cout << endl;
+	  
+	  cout << "Base-pairs ------------------------------------------------------" << endl;	    
+	  amodel.findKissingHairpins ();
+	  cout << endl;     
+	  
+	  cout << "Triples ---------------------------------------------------------" << endl;
+	  amodel.dumpTriples ();      
+	  cout << endl;
+	  
+	  cout << "Helices ---------------------------------------------------------" << endl;
+	  amodel.dumpHelices ();
+	  cout << endl;
+	  
+	  cout << "Strands ---------------------------------------------------------" << endl;
+	  amodel.dumpStrands ();
+	  cout << endl;
+	  
+	  cout << "Various features ------------------------------------------------" << endl;
+	  
+	  if (verbose) cerr << "Finding pseudoknots..." << endl;
+	  amodel.findPseudoknots ();
+	  cout << endl;
+	  
+	  cout << "Sequences -------------------------------------------------------" << endl;
+	  amodel.dumpSequences ();
+	  cout << endl;	 	  
+	}
+      }
+    
+      optind++;
+    }
 
-    }
-  catch (CException ex)
-    {
-      cerr << argv[0] << ": " << ex << endl;
-      return EXIT_FAILURE;
-    }
+  }
+  catch (Exception ex)
+  {
+    cerr << argv[0] << ": " << ex << endl;
+    return EXIT_FAILURE;
+  }
   
   return EXIT_SUCCESS;
 }

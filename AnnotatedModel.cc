@@ -27,7 +27,7 @@
 #include "AnnotatedModel.h"
 
 #include "mccore/Algo.h"
-#include "mccore/CException.h"
+#include "mccore/Exception.h"
 #include "mccore/Graph.h"
 #include "mccore/Relation.h"
 #include "mccore/PropertyType.h"
