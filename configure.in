@@ -4,9 +4,9 @@
 #                     Université de Montréal.
 # Author           : Martin Larose
 # Created On       : Tue Sep 19 18:21:58 2000
-# Last Modified By : Patrick Gendron
-# Last Modified On : Wed Nov 12 12:38:02 2003
-# Update Count     : 11
+# Last Modified By : Philippe Thibault
+# Last Modified On : Tue Jul  6 14:56:34 2004
+# Update Count     : 12
 # Status           : Ok.
 # 
 #  This file is part of mccore.
@@ -81,7 +81,6 @@ fi
 AC_CHECK_LIB(z, main)
 AC_CHECK_LIB(m, main)
 AC_CHECK_LIB(mccore, main)
-AC_CHECK_LIB(pdf, main)
 
 if eval "test -z \"`echo $GXX`\""; then # not gnu compiler
     case "$host" in
