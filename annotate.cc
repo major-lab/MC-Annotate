@@ -1,12 +1,13 @@
 //                              -*- Mode: C++ -*- 
-// annotate.cc
-// Copyright © 2001-04 Laboratoire de Biologie Informatique et Théorique.
-//                     Université de Montréal
+// annote.cc
+// Copyright © 2001, 2002, 2003, 2004 Laboratoire de Biologie Informatique et Théorique.
 // Author           : Patrick Gendron
 // Created On       : Fri May 18 09:38:07 2001
-// $Revision$
-// $Id$
-
+// Last Modified By : Philippe Thibault
+// Last Modified On : Wed Oct 20 16:11:14 2004
+// Update Count     : 129
+// Status           : Unknown.
+// 
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -14,32 +15,28 @@
 
 
 #include <iostream>
-#include <cstdlib>
-#include <string>
-#include <unistd.h>
+#include <stdlib.h>
+#include <malloc.h>
+#include <getopt.h>
 
-//#include "mccore/Algo.h"
-//#include "mccore/Binstream.h"
-#include "mccore/Exception.h"
-#include "mccore/Messagestream.h"
-#include "mccore/Model.h"
-#include "mccore/Molecule.h"
+#include "annotate.h"
+
 #include "mccore/Pdbstream.h"
-//#include "mccore/Relation.h"
-//#include "mccore/Residue.h"
-#include "mccore/RnamlReader.h"
-//#include "mccore/PropertyType.h"
-//#include "mccore/Vector3D.h"
-//#include "mccore/stlio.h"
-//#include "mccore/zstream.h"
+#include "mccore/Binstream.h"
+#include "mccore/Residue.h"
+#include "mccore/Model.h"
+#include "mccore/Algo.h"
+#include "mccore/Vector3D.h"
+#include "mccore/Messagestream.h"
+#include "mccore/zstream.h"
+#include "mccore/Relation.h"
+#include "mccore/PropertyType.h"
+#include "mccore/stlio.h"
+#include "mccore/Exception.h"
 
-#include "AnnotateModule.h"
-//#include "AnnotatedModel.h"
-//#include "MolecularComplex.h"
+#include "AnnotatedModel.h"
 
-using namespace mcannotate;
-using namespace mccore;
-using namespace std;
+#include "MolecularComplex.h"
 
 #define NONE_MARK  0
 #define HELIX_MARK 1
@@ -47,168 +44,267 @@ using namespace std;
 #define BULGE_MARK 3
 #define LOOP_MARK  4
 
-const char *shortopts = "Ve:f:hms:v";
+int __current_option;
+const char* __shortopts = "e:f:hHms:vV?";
 ResIdSet selection;
-string selection_file;
+char* selection_file = 0;
 int size = 0;
+bool verbose = false;
+bool extract = false;
 bool mcsym_file = false;
 
-
-
-void
-version ()
+/**
+ * @short Version function
+ * @author Patrick Gendron
+ * -----------------------------------------------------------------------------
+ */
+void __version (void)
 {
-  gOut (0) << PACKAGE << " " << VERSION << " (" << __DATE__ << ")" << endl;
+  cout << prog_name << " " << prog_major_version << "." << prog_minor_version
+       << " (" << __DATE__ << ")" << endl
+       << "  using lib" << "mccore" << " " << VERSION << endl;
 }
 
 
-void
-usage ()
+/**
+ * @short Usage function
+ * @author Patrick Gendron
+ * -----------------------------------------------------------------------------
+ */
+void __usage (void)
 {
-  gOut (0) << "usage: " << PACKAGE
-	   << " [-hmvV] [-e selection -f file_sel -s size] [structure file]" << endl;
+  cout << "usage: " << prog_name 
+       << " [-hHmvV?] [-e selection -f file_sel -s size] [structure file]" << endl;
+}
+
+/**
+ * @short Help function
+ * @author Patrick Gendron
+ * -----------------------------------------------------------------------------
+ */
+void __help (void)
+{
+  cout << "This program annotates a structure (and more)." << endl
+       << "  -e sel  extract these residues from the structure" << endl 
+       << "  -f pdb  extract residues found in this pdb file from the structure" << endl 
+       << "  -h      help      print this help" << endl
+       << "  -m      produce an output in McSym format (with backtrack)" << endl
+       << "  -s N    extend the selection stated with -e or -f by N connected residues in the graph" << endl
+       << "  -v      verbose   be verbose" << endl
+       << "  -V      version   print the software version info" << endl;
 }
 
 
-void
-help ()
-{
-  gOut (0) << "This program annotates a structure (and more)." << endl
-	   << "  -e sel  extract these residues from the structure" << endl 
-	   << "  -f pdb  extract residues found in this pdb file from the structure" << endl 
-	   << "  -h      help      print this help" << endl
-	   << "  -m      produce an output in McSym format (with backtrack)" << endl
-	   << "  -s N    extend the selection stated with -e or -f by N connected residues in the graph" << endl
-	   << "  -v      verbose   be verbose" << endl
-	   << "  -V      version   print the software version info" << endl;
-}
 
 
-void
-read_options (int argc, char *argv[])
+/**
+ * @short Annotate main algorithm.
+ * @author Patrick Gendron
+ * -----------------------------------------------------------------------------
+ */
+int main (int argc, char* argv[])
 {
-  int c;
-  
-  while ((c = getopt (argc, argv, shortopts)) != EOF)
+  gOut.setVerboseLevel (1);
+
+  if ( argc == 1 )
+  {
+    __usage ();
+    exit (EXIT_SUCCESS);
+  }
+
+  while ((__current_option = getopt (argc, argv, __shortopts)) != EOF)
+  {
+    switch (__current_option)
     {
-      switch (c)
-	{
-	case 'V':
-	  version ();
-	  exit (EXIT_SUCCESS);
-	  break;
-	case 'e':
-	  selection = ResIdSet (optarg);
-	  break;
-	case 'f':
-	  selection_file = optarg;
-	  break;
-	case 'h':
-	  usage ();
-	  help ();
-	  exit (EXIT_SUCCESS);
-	  break;
-	case 'm':
-	  mcsym_file = true;
-	  break;
-	case 's':
-	  size = atoi (optarg);
-	  break;	
-	case 'v':
-	  gOut.setVerboseLevel (gOut.getVerboseLevel () + 1);
-	  break;
-	default:
-	  usage ();
-	  exit (EXIT_FAILURE);
-	}
-    }
-  if (argc <= optarg)
-    {
-      usage ();
+    case 'e':
+      selection = ResIdSet (optarg);
+      cerr << "selection = " << selection << endl;
+      extract = true;
+      break;
+    case 'f':
+      selection_file = optarg;
+      extract = true;
+      break;
+    case 'h': case 'H':
+      __usage (); __help (); exit (EXIT_SUCCESS); break;
+    case 'm':
+      mcsym_file = true;
+      break;
+    case 's':
+      size = atoi (optarg);
+      break;	
+    case 'v':
+      gOut.setVerboseLevel (3);
+      verbose = true;
+      break;  	  
+    default:
+      cerr << "Usage: " << argv[0] << " [-e selection] pdbfile+" << endl;
       exit (EXIT_FAILURE);
     }
-}
-
-
-void
-addFile (AnnotateModule *module, const char *name)
-{
-  RnamlReader reader (name);
-  Molecule *molecule;
+  }
   
-  if (0 == (molecule = reader.read ()))
-    {
-      izfPdbstream fin (name);
-      PdbFileHeader header;
-
-      if (! fin)
-	{
-	  cerr << "File could not be opened" << endl;
-	  exit (EXIT_FAILURE); 
-	}
-      header = fin.getHeader ();
-      while (!fin)
-	{
-	  fin >> model;
-	  model.removeWater ();
-	  model.addHLP ();
-	  module->add (name, header, model);
-	}
-      fin.close ();
-    }
-  else
-    {
-      Molecule::iterator it;
-      
-      for (it = molecule->begin (); molecule->end () != it; ++it, ++count)
-	{
-	  it->removeWater ();
-	  it->addHLP ();
-	  module->add (name, header, *it);
-	}
-      delete molecule;
-    }
-  reader.close ();
-}
   
-
-int
-main (int argc, char* argv[])
-{
-  read_options (argc, argv);
-
+//   clock_t startTime, endTime;
+//   startTime = clock();
+  
   try
+  {
+  
+    while (optind < argc)
     {
-      AnnotateModule *module;
-      View *view;
+    
+      //     {
+      //       izfPdbstream fin (argv[optind]);
       
-      module = new AnnotateModule (selection, selection_file, size);
+      //       if (fin.good ()) {
+      // 	MolecularComplex *m = new MolecularComplex;
+      // 	fin >> *m;
+	
+      // 	cout << *m << endl;
+      //       }
+      //       fin.close ();
+      //     }
+
+      //xit (0);
+    
+      izfPdbstream fin (argv[optind]);
+      PdbFileHeader header;
+      Model model, model_orig;
+    
+      if (verbose)
+	cout << argv[optind];
+
+      if (!fin)
+      {
+	cerr << "File could not be opened" << endl;
+	exit (EXIT_FAILURE); 
+      }
+      header = fin.getHeader ();
+      fin >> model;
+	
+      model.removeWater ();
+      model.addHLP ();
+      fin.close ();
+    
+      if (verbose)
+	cout << " (" << model.size () << " residues) " << flush;
+    
+      if (model.size () > 0)
+      {
+	AnnotatedModel amodel (&model);      
+	if (verbose) cerr << "Annotating..." << flush;
+	amodel.annotate ();      
       
-      while (optind < argc)
+	if (mcsym_file == true) 
 	{
-	  addFile (module, argv[optind++]);
-	}
-      module->exec ();
-
-      if (mcsym_file)
+	  amodel.dumpMcc (header.getPdbId ().c_str ());
+	} 
+	else if (extract) 
 	{
-	  module->writeMCSym (cout);
+	  Model model_sel, model_sel_orig;
+	  
+	  if (verbose)
+	    cout << "Extracting " << size << endl;
+	
+	  if (selection_file)
+	  {
+	    izfPdbstream fin (selection_file);
+	    if (!fin)
+	    {
+	      cerr << "File could not be opened" << endl;
+	    }
+	    
+	    Model::iterator i;
+	    fin >> model_sel;
+	    fin.close ();
+	  
+	    model_sel_orig = model_sel;
+	    model_sel.keepNucleicAcid ();
+	    model_sel.validate ();
+	  
+	    for (i=model_sel.begin (); i!=model_sel.end (); ++i)
+	    {
+	      selection.insert (i->getResId ());
+	    }
+	    
+	  }
+	  
+	  ResIdSet ext_selection;
+	  ext_selection = amodel.extract (selection, size);
+	
+	  ResIdSet::iterator i;
+	  Model::iterator j;
+	  
+	  oPdbstream fout (cout.rdbuf ());
+	  fout << "REMARK Selection: " << selection << endl;
+	  fout << "REMARK Extended selection: " << ext_selection << endl;
+	  // 	  fout << "REMARK Original residues: " << endl;
+	  // 	  fout << model_sel_orig;
+	  fout << "REMARK Extracted from " << argv[optind] << ":" << endl;
+	  for (i=ext_selection.begin (); i!=ext_selection.end (); ++i)
+	  {
+	    j = model.find (*i);
+	    if (j!=model.end ())
+	    {
+	      fout << *j;
+	    }
+	  }
+	  fout << "END\n";
+	  
+	} 
+	else 
+	{	  	  
+	  if (verbose) cerr << "Finding helices..." << flush;
+	  amodel.findHelices ();
+	  if (verbose) cerr << "done." << endl;
+	  if (verbose) cerr << "Finding strands..." << flush;
+	  amodel.findStrands ();
+	  amodel.classifyStrands ();
+	  
+	  cout << "Residue conformations -------------------------------------------" << endl;      
+	  amodel.dumpConformations ();
+	  cout << endl;      
+	  
+	  amodel.dumpStacks ();
+	  cout << endl;
+	  
+	  cout << "Base-pairs ------------------------------------------------------" << endl;	    
+	  amodel.findKissingHairpins ();
+	  cout << endl;     
+	  
+	  cout << "Triples ---------------------------------------------------------" << endl;
+	  amodel.dumpTriples ();      
+	  cout << endl;
+	  
+	  cout << "Helices ---------------------------------------------------------" << endl;
+	  amodel.dumpHelices ();
+	  cout << endl;
+	  
+	  cout << "Strands ---------------------------------------------------------" << endl;
+	  amodel.dumpStrands ();
+	  cout << endl;
+	  
+	  cout << "Various features ------------------------------------------------" << endl;
+	  
+	  if (verbose) cerr << "Finding pseudoknots..." << endl;
+	  amodel.findPseudoknots ();
+	  cout << endl;
+	  
+	  cout << "Sequences -------------------------------------------------------" << endl;
+	  amodel.dumpSequences ();
+	  cout << endl;	 	  
 	}
-      if (! rnamlOutput.empty ())
-	{
-	  module->writeRNAML (rnamlOutput);
-	}
-      view = new TerminalView (module, gOut);
-      view->show ();
-
-      delete view;
-      delete module;
+      }
+    
+      optind++;
     }
+
+  }
   catch (Exception& ex)
-    {
-      gOut (1) << PACKAGE << ": " << ex << endl;
-      return EXIT_FAILURE;
-    }
+  {
+    cerr << argv[0] << ": " << ex << endl;
+    return EXIT_FAILURE;
+  }
   
   return EXIT_SUCCESS;
 }
