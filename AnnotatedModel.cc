@@ -4,8 +4,8 @@
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
 // Last Modified By : Philippe Thibault
-// Last Modified On : Thu Jun 10 09:16:20 2004
-// Update Count     : 205
+// Last Modified On : Tue Jul  6 14:58:23 2004
+// Update Count     : 206
 // Status           : Unknown.
 // 
 
@@ -962,7 +962,9 @@ void AnnotatedModel::dumpSequences (bool detailed)
 	    cout.setf (ios::left, ios::adjustfield);
 	    cout << setw (5) << getResId (i+j).getResNo () << " " << flush;
 	  }
-	  cout << getType (i+j)->toString () << flush;
+	  
+	  cout << (strlen (getType (i+j)->toString ()) == 1 ? getType (i+j)->toString () : "X") << flush;
+	  
 	  if ((j+1)%10==0) cout << " " << flush;
 	}
 	cout << endl;
@@ -1213,7 +1215,7 @@ void AnnotatedModel::dumpHelices ()
     cout << setw (6) << getResId ((*i)[0].first) << "-" << flush;
     for (k=0; k<(int)i->size (); ++k) {
       if ((*i)[k].first >=0)
-	cout << getType ((*i)[k].first)->toString () << flush;
+	cout << (strlen (getType ((*i)[k].first)->toString ()) == 1 ? getType ((*i)[k].first)->toString () : "X") << flush;
       else {
 	if (- (*i)[k].first -1 == 0) {
 	  cout << "-" << setw (max ((int)floor(log10 ((double)-(*i)[k].first)), (int)floor(log10 ((double)-(*i)[k].second)))+1) 
@@ -1231,7 +1233,7 @@ void AnnotatedModel::dumpHelices ()
 
     for (k=0; k<(int)i->size (); ++k) {
       if ((*i)[k].first >=0)
-	cout << getType ((*i)[k].second)->toString () << flush;
+	cout << (strlen (getType ((*i)[k].second)->toString ()) == 1 ? getType ((*i)[k].second)->toString () : "X") << flush;
       else {
 	if (- (*i)[k].second -1 == 0) {
 	  cout << "-" << setw (max ((int)floor(log10 ((double)-(*i)[k].first)), (int)floor(log10 ((double)-(*i)[k].second)))+1) 
@@ -1317,7 +1319,7 @@ AnnotatedModel::dumpStrands ()
     
     cout << getResId (strands[j].first) << "-" << flush;
     for (k=strands[j].first; k<=strands[j].second; ++k) {
-      cout << getType (k)->toString () << flush;
+      cout << (strlen (getType (k)->toString ()) == 1 ? getType (k)->toString () : "X") << flush;
     }
     cout << "-" << getResId (strands[j].second);
     
@@ -1325,7 +1327,7 @@ AnnotatedModel::dumpStrands ()
       cout << " -- " << flush;
       cout << getResId (strands[strands[j].ref].first) << "-" << flush;
       for (k=strands[strands[j].ref].first; k<=strands[strands[j].ref].second; ++k) {
-	cout << getType (k)->toString () << flush;
+	cout << (strlen (getType (k)->toString ()) == 1 ? getType (k)->toString () : "X") << flush;
       }
       cout << "-" << getResId (strands[strands[j].ref].second);
     }
