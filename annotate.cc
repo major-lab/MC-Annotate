@@ -177,7 +177,9 @@ int main (int argc, char* argv[])
 	}
 	header = fin.getHeader ();
 	fin >> model;
+	
 	model.validate ();
+	model.keepNucleicAcid ();
 	model.removeWater ();
 	model.addHLP ();
 	fin.close ();
