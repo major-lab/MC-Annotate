@@ -3,9 +3,9 @@
 // Copyright © 2001, 2002 Laboratoire de Biologie Informatique et Théorique.
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
-// Last Modified By : 
-// Last Modified On : 
-// Update Count     : 0
+// Last Modified By : Philippe Thibault
+// Last Modified On : Thu Mar  7 18:31:19 2002
+// Update Count     : 1
 // Status           : Unknown.
 // 
 
@@ -20,11 +20,13 @@
 #include <unistd.h>
 #include <vector.h>
 #include <list.h>
+#include <set.h>
 
 #include "AnnotatedModel.h"
 #include "Graph.h"
 
 #include "mccore/Algo.h"
+#include "mccore/CException.h"
 #include "mcpl/mcpl.h"
 #include "mcpl/Relation.h"
 #include "mcpl/Conformation.h"
@@ -1219,6 +1221,58 @@ AnnotatedModel::dumpMcc (const char* pdbname)
 	treated.push_front (tmp);
       }
     }
+
+    // correction pass to keep a valid backtrack statement
+
+    size_t placed_sz = 0;
+    set< int > placed;
+
+    for (y = treated.begin ()->begin (); y != treated.begin ()->end (); ++y)
+      placed.insert (*y);
+
+    if (treated.size () > 1)
+      {
+	x = treated.begin ();
+	x++;
+	for (; x != treated.end (); ++x) 
+	  {
+	    placed_sz = placed.size ();
+	    placed.insert (*x->begin ());
+
+	    if (placed.size () > placed_sz)
+	      {
+		// oups! reference residue not placed yet!
+		// What if we just flip the sub-list over...
+		placed_sz = placed.size ();
+		placed.insert (x->back ());
+
+		if (placed.size () > placed_sz)
+		  {
+		    // hum...something is really wrong here!
+		    cerr << "Fatal Error: unable to build a valid backtrack statement" << endl;
+		    exit (EXIT_FAILURE);
+		  }
+
+		// update placed residues set, then flip the sub-list over
+		list< int > tmp;
+		for (y = x->begin (); y != x->end (); ++y)
+		  {
+		    placed.insert (*y);
+		    tmp.push_front (*y);
+		  }
+		x->clear ();
+		for (y = tmp.begin (); y != tmp.end (); ++y)
+		  x->push_back (*y);
+	      }
+	    else
+	      {
+		// just update placed residues set
+		for (y = x->begin (); y != x->end (); ++y)
+		  placed.insert (*y);
+	      }
+
+	  }
+      }
     
     for (x=treated.begin (); x!=treated.end (); ++x) {
       cout << "  ( ";
