@@ -82,6 +82,22 @@ int main (int argc, char* argv[])
 
   cerr << "found " << prot.size () << " amino acid residues." << endl;
 
+
+  cout << "Loading... " << flush;
+  clock_t startTime, endTime;
+  startTime = clock();
+
+  vector< pair< Model::iterator, Model::iterator > > possibleContacts;
+  possibleContacts = 
+    Algo::ExtractContact_AABB (model->begin (), model->end (), 2.0);
+
+  cout <<  possibleContacts.size () << endl;
+
+  endTime = clock();
+  cout << (float)(endTime - startTime) / (float)CLOCKS_PER_SEC << " sec." << endl;
+
+
+
   if (model->size () > 0) {
 
     if (strncmp (argv[0]+strlen(argv[0])-7, "pdb2mcc", 7) == 0) {
@@ -141,8 +157,3 @@ int main (int argc, char* argv[])
 
   return EXIT_SUCCESS;
 }
-
-
-
-
-

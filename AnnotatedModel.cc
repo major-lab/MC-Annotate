@@ -302,7 +302,7 @@ AnnotatedModel::findHelices ()
 //  		       << "bulge length " << gk->first - ga->first << endl;
 
 		  if (isHelixPairing (ga->second) &&
-		      //gk->first - ga->first <= 3 && 
+		      gk->first - ga->first <= 3 && 
 		      (gb = gk->second.find (ga->first)) != gk->second.end () &&
 		      relations[gb->second].isStacking ()) {
 		    helix.push_back (make_pair (-1, ga->first-gk->first));
@@ -324,7 +324,7 @@ AnnotatedModel::findHelices ()
 //  			 << ga->first - gi->first << endl;
 
 		    if (isHelixPairing (ga->second) &&
-			//ga->first - gi->first <= 3 && 
+			ga->first - gi->first <= 3 && 
 			(gb = gi->second.find (ga->first)) != gi->second.end () &&
 			relations[gb->second].isStacking ()) {
 		      helix.push_back (make_pair (gi->first-ga->first, -1));
