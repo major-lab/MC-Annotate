@@ -4,8 +4,8 @@
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
 // Last Modified By : Philippe Thibault
-// Last Modified On : Tue Jul  6 14:58:23 2004
-// Update Count     : 206
+// Last Modified On : Wed Oct 20 16:11:08 2004
+// Update Count     : 207
 // Status           : Unknown.
 // 
 
@@ -21,7 +21,6 @@
 #include <list>
 #include <set>
 
-#include <pdflib.h>
 #include "mccore/stlio.h"
 
 #include "AnnotatedModel.h"
@@ -32,6 +31,7 @@
 #include "mccore/Relation.h"
 #include "mccore/PropertyType.h"
 #include "mccore/Relation.h"
+#include "mccore/Pdbstream.h"
 
 
 bool Contact (Residue &a, Residue &b, float min_cut, float max_cut) {
@@ -649,8 +649,8 @@ void AnnotatedModel::findKissingHairpins ()
 	
 	edge e = graph.getEdge (*gi, *gj);
 	
-	cout << getType (*gi)->toPdbString () << "-" << flush
-	     << getType (*gj)->toPdbString () << " " << flush;
+	cout << Pdbstream::stringifyResidueType (getType (*gi)) << "-" << flush
+	     << Pdbstream::stringifyResidueType (getType (*gj)) << " " << flush;
 	
 	if (relations[e].getRefFace ())
 	  cout << relations[e].getRefFace () << "/" << flush
@@ -963,7 +963,7 @@ void AnnotatedModel::dumpSequences (bool detailed)
 	    cout << setw (5) << getResId (i+j).getResNo () << " " << flush;
 	  }
 	  
-	  cout << (strlen (getType (i+j)->toString ()) == 1 ? getType (i+j)->toString () : "X") << flush;
+	  cout << (getType (i+j)->isNucleicAcid () ? Pdbstream::stringifyResidueType (getType (i+j)) : "X") << flush;
 	  
 	  if ((j+1)%10==0) cout << " " << flush;
 	}
@@ -1046,7 +1046,7 @@ void AnnotatedModel::dumpConformations ()
   
   for (i=graph.begin (); i!=graph.end (); ++i) {
     cout << getResId (*i) << " : " 
-	 << getType (*i)->toPdbString () << " " 
+	 << (const char*)*getType (*i) << " " 
 	 << conformations[*i]->getPucker () << " " 
 	 << conformations[*i]->getGlycosyl () << endl; 
   }
@@ -1071,8 +1071,8 @@ void AnnotatedModel::dumpPairs ()
 
 	edge e = graph.getEdge (*i, *j);
 
-	cout << getType (*i)->toPdbString () << "-" << flush
-	     << getType (*j)->toPdbString () << " " << flush;
+	cout << Pdbstream::stringifyResidueType (getType (*i)) << "-" << flush
+	     << Pdbstream::stringifyResidueType (getType (*j)) << " " << flush;
 	  
 	if (relations[e].getRefFace ())
 	  cout << relations[e].getRefFace () << "/" << flush
@@ -1215,7 +1215,7 @@ void AnnotatedModel::dumpHelices ()
     cout << setw (6) << getResId ((*i)[0].first) << "-" << flush;
     for (k=0; k<(int)i->size (); ++k) {
       if ((*i)[k].first >=0)
-	cout << (strlen (getType ((*i)[k].first)->toString ()) == 1 ? getType ((*i)[k].first)->toString () : "X") << flush;
+	cout << (getType ((*i)[k].first)->isNucleicAcid () ? Pdbstream::stringifyResidueType (getType ((*i)[k].first)) : "X") << flush;
       else {
 	if (- (*i)[k].first -1 == 0) {
 	  cout << "-" << setw (max ((int)floor(log10 ((double)-(*i)[k].first)), (int)floor(log10 ((double)-(*i)[k].second)))+1) 
@@ -1233,7 +1233,7 @@ void AnnotatedModel::dumpHelices ()
 
     for (k=0; k<(int)i->size (); ++k) {
       if ((*i)[k].first >=0)
-	cout << (strlen (getType ((*i)[k].second)->toString ()) == 1 ? getType ((*i)[k].second)->toString () : "X") << flush;
+	cout << (getType ((*i)[k].second)->isNucleicAcid () ? Pdbstream::stringifyResidueType (getType ((*i)[k].second)) : "X") << flush;
       else {
 	if (- (*i)[k].second -1 == 0) {
 	  cout << "-" << setw (max ((int)floor(log10 ((double)-(*i)[k].first)), (int)floor(log10 ((double)-(*i)[k].second)))+1) 
@@ -1319,7 +1319,7 @@ AnnotatedModel::dumpStrands ()
     
     cout << getResId (strands[j].first) << "-" << flush;
     for (k=strands[j].first; k<=strands[j].second; ++k) {
-      cout << (strlen (getType (k)->toString ()) == 1 ? getType (k)->toString () : "X") << flush;
+      cout << (getType (k)->isNucleicAcid () ? Pdbstream::stringifyResidueType (getType (k)) : "X") << flush;
     }
     cout << "-" << getResId (strands[j].second);
     
@@ -1327,7 +1327,7 @@ AnnotatedModel::dumpStrands ()
       cout << " -- " << flush;
       cout << getResId (strands[strands[j].ref].first) << "-" << flush;
       for (k=strands[strands[j].ref].first; k<=strands[strands[j].ref].second; ++k) {
-	cout << (strlen (getType (k)->toString ()) == 1 ? getType (k)->toString () : "X") << flush;
+	cout << (getType (k)->isNucleicAcid () ? Pdbstream::stringifyResidueType (getType (k)) : "X") << flush;
       }
       cout << "-" << getResId (strands[strands[j].ref].second);
     }

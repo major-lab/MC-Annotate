@@ -3,9 +3,9 @@
 // Copyright © 2001, 2002, 2003, 2004 Laboratoire de Biologie Informatique et Théorique.
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
-// Last Modified By : Patrick Gendron
-// Last Modified On : Fri Jan  9 16:11:07 2004
-// Update Count     : 42
+// Last Modified By : Philippe Thibault
+// Last Modified On : Wed Oct 20 16:11:11 2004
+// Update Count     : 43
 // Status           : Unknown.
 // 
 
@@ -161,13 +161,14 @@ private :
   }
   
   const ResidueType* getType (node i) {
-    const ResidueType* t = conformations[i]->getType ();
-    if (t->isA ()) return ResidueType::rA;
-    else if (t->isC ()) return ResidueType::rC;
-    else if (t->isG ()) return ResidueType::rG;
-    else if (t->isT ()) return ResidueType::rT;
-    else if (t->isU ()) return ResidueType::rU;
-    else return t;
+//     const ResidueType* t = conformations[i]->getType ();
+//     if (t->isA ()) return ResidueType::rA;
+//     else if (t->isC ()) return ResidueType::rC;
+//     else if (t->isG ()) return ResidueType::rG;
+//     else if (t->isT ()) return ResidueType::rT;
+//     else if (t->isU ()) return ResidueType::rU;
+//    else return t;
+    return conformations[i]->getType ();
   }
 
   bool isPairing (edge e) {

@@ -4,8 +4,8 @@
 // Author           : Patrick Gendron
 // Created On       : Fri May 18 09:38:07 2001
 // Last Modified By : Philippe Thibault
-// Last Modified On : Tue Jul  6 14:57:34 2004
-// Update Count     : 128
+// Last Modified On : Wed Oct 20 16:11:14 2004
+// Update Count     : 129
 // Status           : Unknown.
 // 
 
@@ -134,6 +134,7 @@ int main (int argc, char* argv[])
       size = atoi (optarg);
       break;	
     case 'v':
+      gOut.setVerboseLevel (3);
       verbose = true;
       break;  	  
     default:
@@ -143,13 +144,14 @@ int main (int argc, char* argv[])
   }
   
   
-  clock_t startTime, endTime;
-  startTime = clock();
+//   clock_t startTime, endTime;
+//   startTime = clock();
   
   try
   {
   
-    while (optind<argc) {
+    while (optind < argc)
+    {
     
       //     {
       //       izfPdbstream fin (argv[optind]);
@@ -169,9 +171,11 @@ int main (int argc, char* argv[])
       PdbFileHeader header;
       Model model, model_orig;
     
-      if (verbose) cout << argv[optind];
+      if (verbose)
+	cout << argv[optind];
 
-      if (!fin) {
+      if (!fin)
+      {
 	cerr << "File could not be opened" << endl;
 	exit (EXIT_FAILURE); 
       }
@@ -182,15 +186,14 @@ int main (int argc, char* argv[])
       model.addHLP ();
       fin.close ();
     
-      if (verbose) cout << " (" << model.size () << " residues) " << flush;
+      if (verbose)
+	cout << " (" << model.size () << " residues) " << flush;
     
-    
-    
-      if (model.size () > 0) {    	      
+      if (model.size () > 0)
+      {
 	AnnotatedModel amodel (&model);      
 	if (verbose) cerr << "Annotating..." << flush;
 	amodel.annotate ();      
-      
       
 	if (mcsym_file == true) 
 	{
@@ -199,13 +202,18 @@ int main (int argc, char* argv[])
 	else if (extract) 
 	{
 	  Model model_sel, model_sel_orig;
-	  if (verbose) cout << "Extracting " << size << endl;
+	  
+	  if (verbose)
+	    cout << "Extracting " << size << endl;
 	
-	  if (selection_file) {
+	  if (selection_file)
+	  {
 	    izfPdbstream fin (selection_file);
-	    if (!fin) {
+	    if (!fin)
+	    {
 	      cerr << "File could not be opened" << endl;
 	    }
+	    
 	    Model::iterator i;
 	    fin >> model_sel;
 	    fin.close ();
@@ -214,28 +222,35 @@ int main (int argc, char* argv[])
 	    model_sel.keepNucleicAcid ();
 	    model_sel.validate ();
 	  
-	    for (i=model_sel.begin (); i!=model_sel.end (); ++i) {
+	    for (i=model_sel.begin (); i!=model_sel.end (); ++i)
+	    {
 	      selection.insert (i->getResId ());
 	    }
+	    
 	  }
+	  
 	  ResIdSet ext_selection;
 	  ext_selection = amodel.extract (selection, size);
 	
 	  ResIdSet::iterator i;
 	  Model::iterator j;
+	  
 	  oPdbstream fout (cout.rdbuf ());
 	  fout << "REMARK Selection: " << selection << endl;
 	  fout << "REMARK Extended selection: " << ext_selection << endl;
 	  // 	  fout << "REMARK Original residues: " << endl;
 	  // 	  fout << model_sel_orig;
 	  fout << "REMARK Extracted from " << argv[optind] << ":" << endl;
-	  for (i=ext_selection.begin (); i!=ext_selection.end (); ++i) {
+	  for (i=ext_selection.begin (); i!=ext_selection.end (); ++i)
+	  {
 	    j = model.find (*i);
-	    if (j!=model.end ()) {
+	    if (j!=model.end ())
+	    {
 	      fout << *j;
 	    }
 	  }
-	  fout << "END\n";	 
+	  fout << "END\n";
+	  
 	} 
 	else 
 	{	  	  
@@ -285,7 +300,7 @@ int main (int argc, char* argv[])
     }
 
   }
-  catch (Exception ex)
+  catch (Exception& ex)
   {
     cerr << argv[0] << ": " << ex << endl;
     return EXIT_FAILURE;
