@@ -3,9 +3,9 @@
 // Copyright © 2002 Laboratoire de Biologie Informatique et Théorique.
 // Author           : Patrick Gendron
 // Created On       : Mon Feb 18 16:07:09 2002
-// Last Modified By : 
-// Last Modified On : 
-// Update Count     : 0
+// Last Modified By : Labo Lbit
+// Last Modified On : Wed Apr  3 15:49:26 2002
+// Update Count     : 1
 // Status           : Unknown.
 // 
 
@@ -221,7 +221,7 @@ bool Graph< Node, Edge >::isConnected (int a, int b) const // a=origin, b=destin
 
   
 template< class Node, class Edge >
-int Graph< Node, Edge >::addNode (const Node &n, const int v = 0)
+int Graph< Node, Edge >::addNode (const Node &n, const int v)
 {
   // TODO : check redundancy
   unsigned int size = mNodes.size();
@@ -232,7 +232,7 @@ int Graph< Node, Edge >::addNode (const Node &n, const int v = 0)
 
 template< class Node, class Edge >
 int Graph< Node, Edge >::addEdgeById (int a, int b, const Edge &e, 
-				      bool oriented = true, const int v = 0)
+				      bool oriented, const int v)
 {
   // TODO : Careful about redundancy...
   unsigned int size = mEdges.size();
@@ -250,7 +250,7 @@ int Graph< Node, Edge >::addEdgeById (int a, int b, const Edge &e,
   
 template< class Node, class Edge >
 int Graph< Node, Edge >::addEdge (const Node &a, const Node &b, const Edge &e, 
-				  bool oriented = true, const int v = 0)
+				  bool oriented, const int v)
 {
   int ida = getNodeIndex (a);
   int idb = getNodeIndex (b);
