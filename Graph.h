@@ -14,7 +14,7 @@
 #define _Graph_h_
 
 #include <iostream.h>
-#include <hash_map.h>
+#include <map.h>
 
 /**
  * @short Description
@@ -90,7 +90,6 @@ ostream &operator<< (ostream &out, const Path< Node > &path)
 
 
 
-
 /**
  * @short Description
  *
@@ -99,11 +98,12 @@ ostream &operator<< (ostream &out, const Path< Node > &path)
  * @author Patrick Gendron
  */
 template< class Node, class Edge >
-class Graph
+class Graph : public map< int, map< int, int > >
 {
 public:
-  typedef hash_map< int, int > adjlist;    // Adjacency List
-  typedef hash_map< int, adjlist > adjgraph;  // Adjacency Graph  
+
+typedef map< int, int > adjlist;    // Adjacency List
+typedef map< int, adjlist > adjgraph;  // Adjacency Graph  
 
 protected:
 
@@ -113,8 +113,6 @@ protected:
   vector< Edge > mEdges;
   vector< int >  mEdgeValues;
   vector< pair< int, int > > mEdgeNodes;
-
-  adjgraph mAdj;
 
 public:
 
@@ -199,13 +197,15 @@ public:
   vector< Edge > minimum_spanning_tree (void) const;
 
   // I/O  -----------------------------------------------------------------
+  ostream &output (ostream &out) const;
 
 };
 
 template< class Node, class Edge >
-ostream &operator<< (ostream &out, const Graph< Node, Edge > &gr);
-
-
+ostream &operator<< (ostream &out, const Graph< Node, Edge > &gr)
+{
+  return gr.output (out);
+}
 
 #include "Graph.cc"
 

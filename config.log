@@ -3,21 +3,51 @@ running configure, to aid debugging if configure makes a mistake.
 
 configure:541: checking whether make sets ${MAKE}
 configure:576: checking whether byte ordering is bigendian
+configure:594: g++ -c   conftest.C 1>&5
+configure:609: g++ -c   conftest.C 1>&5
+configure: In function `int main()':
+configure:604: `not' undeclared (first use this function)
+configure:604: (Each undeclared identifier is reported only once
+configure:604: for each function it appears in.)
+configure:604: parse error before `endian'
+configure: failed program was:
+#line 598 "configure"
+#include "confdefs.h"
+#include <sys/types.h>
+#include <sys/param.h>
+int main() {
+
+#if BYTE_ORDER != BIG_ENDIAN
+ not big endian
+#endif
+; return 0; }
 configure:673: checking for c++
 configure:705: checking whether the C++ compiler (c++  ) works
 configure:721: c++ -o conftest    conftest.C  1>&5
 configure:747: checking whether the C++ compiler (c++  ) is a cross-compiler
 configure:752: checking whether we are using GNU C++
+configure:761: c++ -E conftest.C
 configure:780: checking whether c++ accepts -g
 configure:837: checking host system type
 configure:870: checking for a BSD compatible install
 configure:925: checking for ar
 configure:960: checking for strsep
+configure:991: c++ -o conftest -g -O2   conftest.C  1>&5
 configure:1018: checking for isfdtype
+configure:1049: c++ -o conftest -g -O2   conftest.C  1>&5
 configure:1076: checking for acosf
+configure:1107: c++ -o conftest -g -O2   conftest.C  1>&5
 configure:1134: checking for sqrtf
+configure:1165: c++ -o conftest -g -O2   conftest.C  1>&5
+configure:1149: warning: declaration of `char sqrtf(...)'
+configure:1149: warning: conflicts with built-in declaration `float sqrtf(float)'
 configure:1191: checking for fstreambase
+configure:1203: c++ -c -g -O2  conftest.C 1>&5
 configure:1224: checking for main in -lz
+configure:1239: c++ -o conftest -g -O2   conftest.C -lz   1>&5
 configure:1267: checking for main in -lm
+configure:1282: c++ -o conftest -g -O2   conftest.C -lm  -lz  1>&5
 configure:1310: checking for main in -lmccore
+configure:1325: c++ -o conftest -g -O2   conftest.C -lmccore  -lm -lz  1>&5
 configure:1353: checking for main in -lmcpl
+configure:1368: c++ -o conftest -g -O2   conftest.C -lmcpl  -lmccore -lm -lz  1>&5

@@ -18,6 +18,8 @@
 #include <iomanip.h>
 #include <iostream.h>
 #include <unistd.h>
+#include <vector.h>
+#include <list.h>
 
 #include "AnnotatedModel.h"
 #include "Graph.h"
@@ -199,10 +201,9 @@ AnnotatedModel::annotate ()
 	**j = resid;
 	
 	Conformation confo (&**j);
-	adjlist al;
 
   	conformations.push_back (confo);
-	graph[conformations.size () - 1] = al;
+	graph.addNode (conformations.size () - 1);
 	
 	newcorresp[(const CResId&)(conformations.back ().getRes ())] = 
 	  conformations.size () - 1;
@@ -217,13 +218,13 @@ AnnotatedModel::annotate ()
 
     for (k=0; k<(int)relations.size (); ++k) {
       if (relations[k].getDirection () == p_DIR_ANY) {
-	graph[newcorresp[(const CResId&)relations[k].getRef ()]]
-	  [newcorresp[(const CResId&)relations[k].getRes ()]] = k;
-	graph[newcorresp[(const CResId&)relations[k].getRes ()]]
-	  [newcorresp[(const CResId&)relations[k].getRef ()]] = k;
+	graph.addEdge (newcorresp[(const CResId&)relations[k].getRef ()],
+		       newcorresp[(const CResId&)relations[k].getRes ()],
+		       k, false);
       } else {
-	graph[newcorresp[(const CResId&)relations[k].getRef ()]]
-	  [newcorresp[(const CResId&)relations[k].getRes ()]] = k;
+  	graph.addEdge (newcorresp[(const CResId&)relations[k].getRef ()],
+  		       newcorresp[(const CResId&)relations[k].getRes ()],
+  		       k, true);
       }
       if (relations[k].isPairing ()) {
 	marks[newcorresp[(const CResId&)relations[k].getRef ()]] = 'b';
@@ -240,8 +241,8 @@ AnnotatedModel::annotate ()
 void 
 AnnotatedModel::findHelices ()
 {
-  adjgraph::iterator gi, gk, gip, gkp;
-  adjlist::iterator gj, gjp;
+  Graph< node, edge >::adjgraph::iterator gi, gk, gip, gkp;
+  Graph< node, edge >::adjlist::iterator gj, gjp;
   Helix helix;
 
   gi = graph.begin ();
@@ -290,7 +291,7 @@ AnnotatedModel::findHelices ()
 
 		//		cout << "Trying bulge in second part" << endl;
 		// There may be a bulge in one of the two chains
- 		adjlist::iterator ga, gb;
+ 		Graph< node, edge >::adjlist::iterator ga, gb;
 		bool found = false;
 		for (ga=gip->second.begin (); ga!=gip->second.end (); ++ga) {
 
@@ -366,7 +367,7 @@ AnnotatedModel::findHelices ()
 void AnnotatedModel::findStrands ()
 {
   int i;
-  adjgraph::iterator gi, gk;
+  Graph< node, edge >::adjgraph::iterator gi, gk;
   Strand strand;
 
   for (gi=graph.begin (); gi!=graph.end (); ) {
@@ -472,8 +473,8 @@ void AnnotatedModel::classifyStrands ()
 
 void AnnotatedModel::findKissingHairpins ()
 {
-  adjgraph::iterator gi;
-  adjlist::iterator gj;
+  Graph< node, edge >::adjgraph::iterator gi;
+  Graph< node, edge >::adjlist::iterator gj;
   int check = 0;
 
   cout << "Tertiary base-pairs ---------------------------------------------" << endl;
@@ -717,8 +718,8 @@ void AnnotatedModel::dumpSequences ()
 
 void AnnotatedModel::dumpGraph () 
 {
-  adjgraph::iterator i;
-  adjlist::iterator j;
+  Graph< node, edge >::adjgraph::iterator i;
+  Graph< node, edge >::adjlist::iterator j;
   PropertySet::iterator k;
 
   cout << "Graph of relations ----------------------------------------------" << endl;
@@ -739,7 +740,7 @@ void AnnotatedModel::dumpGraph ()
 
 void AnnotatedModel::dumpConformations () 
 {
-  adjgraph::iterator i;
+  Graph< node, edge >::adjgraph::iterator i;
   cout << "Residue conformations -------------------------------------------" << endl;
   for (i=graph.begin (); i!=graph.end (); ++i) {
     cout << getResId (i->first) << " : " 
@@ -752,8 +753,8 @@ void AnnotatedModel::dumpConformations ()
 
 void AnnotatedModel::dumpPairs () 
 {
-  adjgraph::iterator i;
-  adjlist::iterator j;
+  Graph< node, edge >::adjgraph::iterator i;
+  Graph< node, edge >::adjlist::iterator j;
   PropertySet::iterator k;
 
   cout << "Base-pairs ------------------------------------------------------" << endl;
@@ -786,8 +787,8 @@ void AnnotatedModel::dumpPairs ()
 
 void AnnotatedModel::dumpStacks () 
 {
-  adjgraph::iterator i, k;
-  adjlist::iterator j;
+  Graph< node, edge >::adjgraph::iterator i, k;
+  Graph< node, edge >::adjlist::iterator j;
   PropertySet::iterator l;
 
   cout << "Adjacent relations ----------------------------------------------" << endl;
@@ -919,8 +920,8 @@ void AnnotatedModel::dumpHelices ()
 
 void AnnotatedModel::dumpTriples () 
 {
-  adjgraph::iterator gi;
-  adjlist::iterator gj;
+  Graph< node, edge >::adjgraph::iterator gi;
+  Graph< node, edge >::adjlist::iterator gj;
   int count;
   int nb = 1;
   set< node > nodes;
@@ -1055,8 +1056,9 @@ AnnotatedModel::dumpMcc (const char* pdbname)
   cout << "// inferior to 20nm for them to be considered adjacent.               " << endl;
   cout << "//" << endl;
   {
+    Graph< node, edge >::adjgraph::iterator i;
+
     cout << "residue(" << endl;
-    adjgraph::iterator i;
     for (i=graph.begin (); i!=graph.end (); ++i) {
       cout << setw(8) << getResId (i->first) << " { ";
       cout.setf (ios::left, ios::adjustfield);
@@ -1072,8 +1074,8 @@ AnnotatedModel::dumpMcc (const char* pdbname)
   cout << "//" << endl;
  
   {
-    adjgraph::iterator i;
-    adjlist::iterator j;
+    Graph< node, edge >::adjgraph::iterator i;
+    Graph< node, edge >::adjlist::iterator j;
     PropertySet::iterator k;
 
     cout << "pair(" << endl;
@@ -1111,8 +1113,8 @@ AnnotatedModel::dumpMcc (const char* pdbname)
   cout << "//" << endl;
 
   {
-    adjgraph::iterator i;
-    adjlist::iterator j;
+    Graph< node, edge >::adjgraph::iterator i;
+    Graph< node, edge >::adjlist::iterator j;
     PropertySet::iterator k;
     
     cout << "connect(" << endl;
@@ -1164,35 +1166,57 @@ AnnotatedModel::dumpMcc (const char* pdbname)
   {
     cout << "global = backtrack(" << endl;
 
-    adjgraph::iterator i;
-    adjlist::iterator j;
-
-    Graph< node, edge > gr;
-
-    for (i=graph.begin (); i!=graph.end (); ++i) {
-      gr.addNode (i->first);
-    }
+    Graph< node, edge >::adjgraph::iterator i;
+    Graph< node, edge >::adjlist::iterator j;
     
     for (i=graph.begin (); i!=graph.end (); ++i) {
       for (j=i->second.begin (); j!=i->second.end (); ++j) {
 	if (isPairing (j->second))
-	  gr.addEdge (i->first, j->first, j->second, true, 1);
+	  graph.setEdgeValue (j->second, 1);
 	else
-	  gr.addEdge (i->first, j->first, j->second, true, 2);
+	  graph.setEdgeValue (j->second, 2);
       }
     }
 
     vector< edge > edges;
-    vector< edge >::iterator k;
+    vector< edge >::reverse_iterator k;
 
-    edges = gr.minimum_spanning_tree ();
+    edges = graph.minimum_spanning_tree ();
 
-    for (k=edges.begin (); k!=edges.end (); ++k) {
-      cout << "  ( "
-	   << translation[(const CResId&)(relations[*k].getRef ())]
-	   << " "
-	   << translation[(const CResId&)(relations[*k].getRes ())]
-	   << " )" << endl;
+    list< list< node > > treated;
+    list< list< node > >::iterator x;
+    list< node >::iterator y;
+
+    for (k=edges.rbegin (); k!=edges.rend (); ++k) {
+      node a, b;
+      a = graph.getNodes (*k).first;
+      b = graph.getNodes (*k).second;
+
+      bool done = false;
+      for (x=treated.begin (); x!=treated.end (); ++x) {
+	if (x->front () == b) {
+	  x->push_front (a);
+	  done = true;
+	} else if (x->back () == a) {
+	  x->push_back (b);
+	  done = true;
+	}
+	if (done) break;
+      }
+      if (!done) {
+	list< node > tmp;
+	tmp.push_back (a);
+	tmp.push_back (b);
+	treated.push_front (tmp);
+      }
+    }
+    
+    for (x=treated.begin (); x!=treated.end (); ++x) {
+      cout << "  ( ";
+      for (y=x->begin (); y!=x->end (); ++y) {
+	cout << getResId (*y) << " ";
+      }
+      cout << ")" << endl;
     }
     
     cout << ")" << endl;
@@ -1200,7 +1224,7 @@ AnnotatedModel::dumpMcc (const char* pdbname)
   
   cout << "//" << endl;
   cout << "// Molecule cache -----------------------------------------------" << endl;
-  cout << "// A memory cache is normally placed on top of the backtrack so  " << endl;
+  cout << "// A cache is normally placed on top of the backtrack so         " << endl;
   cout << "// generated models are kept only if they are different enough   " << endl;
   cout << "// from previously generated models."                              << endl;
   cout << "//" << endl;

@@ -46,33 +46,6 @@
 #define LOOP_MARK  4
 
 
-void 
-GetDonAcc (const CResidue &res, GroupVec &donor, GroupVec &acceptor) 
-{
-  CResidue::const_iterator i, j;
-
-  for (i = res.begin (); i != res.end (); ++i) 
-    {
-      //if (i->GetType ()->is_SideChain ())
-	for (j = res.begin (); j != res.end (); ++j) {
-	  t_Atom *t_i = i->GetType ();
-	  t_Atom *t_j = j->GetType ();
-	  if (t_i->is_connected (t_j, res.GetType ()) &&
-	      (t_i->is_Carbon () || t_i->is_Nitrogen () || t_i->is_Oxygen ())) {
-	    if (t_j->is_Hydrogen ())
-	      donor.push_back (make_pair (i, j));
-	    else if (t_j->is_LonePair ()) {
-	      acceptor.push_back (make_pair (i, j));
-	    }
-	    if (t_i->is_Oxygen () && t_j->is_Hydrogen ()) {
-	      acceptor.push_back (make_pair (i, j));
-	    }
-	  }
-	}
-    }
-}
-
-
 int main (int argc, char* argv[])
 {
   McCoreInit ();
@@ -81,7 +54,7 @@ int main (int argc, char* argv[])
   gOut.setVerboseLevel (1);
 
   if (argc < 2) {
-    cerr << "Usage: annote pdbfile" << endl;
+    cerr << "Usage: " << argv[0] << " pdbfile" << endl;
     exit (EXIT_FAILURE);
   }
 

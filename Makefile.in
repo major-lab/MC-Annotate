@@ -132,9 +132,9 @@ clean: mostlyclean
 
 distclean: clean
 	@ rm -f Makefile
+	@ rm -f config.cache config.log config.h
 
 topclean: distclean
-	@ echo "Project is getting _top_ clean\!"
 
 
 release: static

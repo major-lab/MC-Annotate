@@ -24,6 +24,7 @@
 
 template< class Node, class Edge >
 Graph< Node, Edge >::Graph (const Graph &other)
+  : adjgraph (other)
 {
   if (other.mNode.size() > 0) 
     {
@@ -32,7 +33,6 @@ Graph< Node, Edge >::Graph (const Graph &other)
       mEdges = other.mEdges;  
       mEdgeValues = other.mEdgeValues;
       mEdgeNodes = other.mEdgeNodes;
-      mAdj = other.mAdj;
     }
 }
 
@@ -45,7 +45,7 @@ Graph< Node, Edge >::~Graph ()
   mEdges.erase (mEdges.begin(), mEdges.end());
   mEdgeValues.erase (mEdgeValues.begin(), mEdgeValues.end());
   mEdgeNodes.erase (mEdgeNodes.begin(), mEdgeNodes.end());
-  mAdj.erase (mAdj.begin(), mAdj.end()); 
+  erase (begin(), end()); 
 }
 
 
@@ -55,12 +55,12 @@ Graph< Node, Edge >& Graph< Node, Edge >::operator= (const Graph &other)
   if  (this != &other) { 
     if  (other.mNodes.size() > 0) 
       {
+	adjgraph::operator= (other);
 	mNodes = other.mNodes;  
 	mNodeValues = other.mNodeValues;
 	mEdges = other.mEdges;  
 	mEdgeValues = other.mEdgeValues;
 	mEdgeNodes = other.mEdgeNodes;
-	mAdj = other.mAdj;
       }
   }
   return *this;
@@ -105,7 +105,7 @@ void Graph< Node, Edge >::setNodeValue (int v)
 template< class Node, class Edge >
 int Graph< Node, Edge >::getNodeIndex (const Node &n) const
 {
-  vector< Node >::const_iterator i = find (mNodes.begin(), mNodes.end(), n);
+  vector< Node >::const_iterator i = ::find (mNodes.begin(), mNodes.end(), n);
   if  (i == mNodes.end()) return -1;
   return  (i - mNodes.begin());
 }
@@ -130,8 +130,8 @@ Edge &Graph< Node, Edge >::getEdge (int index)
 template< class Node, class Edge >
 const Edge &Graph< Node, Edge >::getEdge (int a, int b) const
 {
-  adjgraph::const_iterator i = mAdj.find (a);
-  if  (i == mAdj.end()) {
+  adjgraph::const_iterator i = (*this).find (a);
+  if  (i == end()) {
     cerr << "Index out of range" << endl;
     exit (EXIT_FAILURE);
   }
@@ -147,15 +147,15 @@ const Edge &Graph< Node, Edge >::getEdge (int a, int b) const
 template< class Node, class Edge >
 Edge &Graph< Node, Edge >::getEdge (int a, int b)
 {
-  adjgraph::const_iterator i = mAdj.find (a);
-  if  (i == mAdj.end()) {
+  adjgraph::const_iterator i = (*this).find (a);
+  if  (i == end()) {
     cerr << "Index out of range" << endl;
-    exit ();
+    exit (EXIT_FAILURE);
   }
   adjlist::const_iterator j = i->second.find (b);
   if  (j == i->second.end()) {
     cerr << "Index out of range" << endl;
-    exit ();
+    exit (EXIT_FAILURE);
   }
   return mEdges[ j->second ];
 }
@@ -164,8 +164,8 @@ Edge &Graph< Node, Edge >::getEdge (int a, int b)
 template< class Node, class Edge >
 const pair< int, int > Graph< Node, Edge >::getNodes (const Edge &e) const
 {
-  vector< Edge >::const_iterator i = find (mEdges.begin(), mEdges.end(), e);
-  if  (i == mEdge.end()) return make_pair (-1, -1);
+  vector< Edge >::const_iterator i = ::find (mEdges.begin(), mEdges.end(), e);
+  if  (i == mEdges.end()) return make_pair (-1, -1);
   return mEdgeNodes[(i-mEdges.begin ())];
 }
 
@@ -182,7 +182,7 @@ int Graph< Node, Edge >::getEdgeValue (int index) const
 template< class Node, class Edge >
 void Graph< Node, Edge >::setEdgeValue (int index, int v)
 {
-  assert (index >= 0 && index < (int)mEdgesValues.size ());
+  assert (index >= 0 && index < (int)mEdgeValues.size ());
   mEdgeValues[ index ] = v; 
 }
 
@@ -190,7 +190,7 @@ void Graph< Node, Edge >::setEdgeValue (int index, int v)
 template< class Node, class Edge >
 int Graph< Node, Edge >::getEdgeIndex (const Edge &e) const
 {
-  vector< Edge >::const_iterator i = find (mEdges.begin(), mEdges.end(), e);
+  vector< Edge >::const_iterator i = ::find (mEdges.begin(), mEdges.end(), e);
   if  (i == mEdge.end()) return -1;
   return  (i - mEdge.begin());
 }
@@ -199,8 +199,8 @@ int Graph< Node, Edge >::getEdgeIndex (const Edge &e) const
 template< class Node, class Edge >
 int Graph< Node, Edge >::getEdgeIndex (int a, int b) const
 {
-  adjgraph::const_iterator i = mAdj.find (a);
-  if  (i == mAdj.end()) return -1;
+  adjgraph::const_iterator i = (*this).find (a);
+  if  (i == end()) return -1;
   adjlist::const_iterator j = i->second.find (b);
   if  (j == i->second.end()) return -1;
   return j->second;
@@ -212,8 +212,8 @@ int Graph< Node, Edge >::getEdgeIndex (int a, int b) const
 template< class Node, class Edge >
 bool Graph< Node, Edge >::isConnected (int a, int b) const // a=origin, b=destination
 { 
-  adjgraph::const_iterator i = mAdj.find (a);
-  if  (i == mAdj.end()) return false;
+  adjgraph::const_iterator i = (*this).find (a);
+  if  (i == end()) return false;
   adjlist::const_iterator j = i->second.find (b);
   if  (j == i->second.end()) return false;
   return true;
@@ -241,9 +241,9 @@ int Graph< Node, Edge >::addEdgeById (int a, int b, const Edge &e,
   mEdgeNodes.push_back (make_pair (a,b));
   mEdgeValues.push_back (v);
   
-  mAdj[ a ][ b ] = size;
+  (*this)[ a ][ b ] = size;
   if  (!oriented) {
-    mAdj[ b ][ a ] = size;
+    (*this)[ b ][ a ] = size;
   }
   return size;
 }
@@ -362,27 +362,27 @@ vector< Edge > Graph< Node, Edge >::minimum_spanning_tree (void) const
 
 
 template< class Node, class Edge >
-ostream &operator<< (ostream &out, const Graph< Node, Edge > &gr)
+ostream &Graph< Node, Edge >::output (ostream &out) const 
 {
   if  (size() == 0) return out;
   unsigned int i, j;
   int id;
   
-  for  (i=0; i<gr.mNodes.size(); i++) {
-    out << "Node[ " << i << " ]: " << gr.mNodes[ i ] 
-	<< " (value: " << gr.mNodeValues[ i ] << ") " << endl;
+  for  (i=0; i<mNodes.size(); i++) {
+    out << "Node[ " << i << " ]: " << mNodes[ i ] 
+	<< " (value: " << mNodeValues[ i ] << ") " << endl;
   }
   out << endl;
-  for  (j=0; j<gr.mEdges.size(); j++) {
-    out << "Edge[ " << j << " ]: " << gr.mEdges[ j ] 
-	<< " (value: " << gr.mEdgeValues[ j ] << ") " << endl; 
+  for  (j=0; j<mEdges.size(); j++) {
+    out << "Edge[ " << j << " ]: " << mEdges[ j ] 
+	<< " (value: " << mEdgeValues[ j ] << ") " << endl; 
   }
   out << endl;
   
   out << "Matrix:" << endl;
-  for (i=0 ; i<gr.mNodes.size() ; i++) {
-    for (j=0 ; j<gr.mNodes.size() ; j++) {
-      id = gr.getEdgeIndex (i, j);
+  for (i=0 ; i<mNodes.size() ; i++) {
+    for (j=0 ; j<mNodes.size() ; j++) {
+      id = getEdgeIndex (i, j);
       if  (id != -1)
 	out << setw (2) << id << " ";
       else

@@ -30,14 +30,13 @@
 #include "mcpl/MaximumFlow.h"
 #include "mcpl/PairAnnote.h"
 
+#include "Graph.h"
+
 typedef int node;
 typedef int edge;
 typedef int strandid;
 
 enum stype { BULGE_OUT, BULGE, INTERNAL_LOOP, LOOP, OTHER };
-
-typedef map< node, edge > adjlist;
-typedef map< node, adjlist > adjgraph;
 
 
 struct Helix : public vector< pair< node, node > > {
@@ -80,7 +79,7 @@ class AnnotatedModel
    */
   vector< Relation > relations;
 
-  adjgraph graph;
+  Graph< node, edge > graph;
   vector< char > marks;
 
   map< CResId, CResId > translation;
@@ -112,10 +111,10 @@ public:
     return translation[(const CResId&)(conformations[i].getRes ())]; 
   }
   CResId & getRefId (node i, node j) { 
-    return translation[(const CResId&)(relations[graph[i][j]].getRef ())]; 
+    return translation[(const CResId&)(relations[graph.getEdge(i, j)].getRef ())]; 
   }
   CResId & getResId (node i, node j) { 
-    return translation[(const CResId&)(relations[graph[i][j]].getRes ())]; 
+    return translation[(const CResId&)(relations[graph.getEdge(i, j)].getRes ())]; 
   }
   
   t_Residue* getType (node i) {
@@ -148,13 +147,16 @@ public:
   }
 
   bool isPairing (node i, node j) {
-    adjgraph::iterator gi;
-    adjlist::iterator gj;
-    gi = graph.find (i);
-    if (gi == graph.end ()) return false;
-    gj = gi->second.find (j);
-    if (gj == gi->second.end ()) return false;
-    return relations[gj->second].isPairing ();
+    if (graph.isConnected (i, j))
+      return relations[graph.getEdge (i, j)].isPairing ();
+    return false;
+//      adjgraph::iterator gi;
+//      adjlist::iterator gj;
+//      gi = graph.find (i);
+//      if (gi == graph.end ()) return false;
+//      gj = gi->second.find (j);
+//      if (gj == gi->second.end ()) return false;
+//      return relations[gj->second].isPairing ();
   }
 
   // METHODS --------------------------------------------------------------
