@@ -1,13 +1,11 @@
-############################ -*- Mode: Makefile -*- ###########################
-## Makefile.in
-## Copyright © 2001, 2002, 2003 Laboratoire de Biologie Informatique et Théorique.
-## Author           : Martin Larose <larosem@iro.umontreal.ca>
-## Created On       : Mon May 14 19:22:30 2001
-## Last Modified By : Patrick Gendron
-## Last Modified On : Thu Oct 23 13:22:52 2003
-## Update Count     : 6
-## Status           : Unknown.
-###############################################################################
+#                           -*- Mode: Makefile -*-
+# Makefile.in
+# Copyright © 2001-04 Laboratoire de Biologie Informatique et Théorique.
+#                     Université de Montréal
+# Author           : Martin Larose <larosem@iro.umontreal.ca>
+# Created On       : Mon May 14 19:22:30 2001
+# $Revision$
+# $Id$
 
 
 PACKAGE = @PACKAGE@
@@ -38,23 +36,27 @@ INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
-.SUFFIXES:
-.SUFFIXES: .cc .o .d
 
-.cc.d:
+.SUFFIXES:
+
+%.d: %.cc
 	@ $(SHELL) -ec '$(CXX) $(DEPFLAGS) $(CXXFLAGS) $(DEFS) -I. -I$(srcdir) $< \
 	    | sed '\''s/\($*\)\.o[ :]*/\1.o $@ : /g'\'' > $@; \
 	      [ -s $@ ] || rm -f $@'
 
-.cc.o:
+%.o: %.cc
 	$(CXX) $(CXXFLAGS) $(DEFS) -I. -I$(srcdir) -c $<
 
-SOURCES = MolecularUnit.cc \
+
+
+SOURCES = AnnotateModel.cc \
+	  AnnotateModule.cc \
 	  MolecularComplex.cc \
-	  AnnotatedModel.cc \
+	  MolecularUnit.cc \
+	  TerminalView.cc \
 	  annotate.cc
 
-HEADERS = $(SOURCES:.cc=.h)
+HEADERS = $(SOURCES:.cc=.h) Module.h View.h
 
 OBJECTS = $(SOURCES:.cc=.o)
 
@@ -67,7 +69,7 @@ SUBDIRS =
 RELEASESUBDIRS =
 
 PROGRAM = annotate
-ALT_PROGRAM = pdb2mcc
+
 
 all: $(PROGRAM) TAGS
 
