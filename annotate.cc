@@ -4,8 +4,8 @@
 // Author           : Patrick Gendron
 // Created On       : Fri May 18 09:38:07 2001
 // Last Modified By : Philippe Thibault
-// Last Modified On : Thu May 27 13:42:23 2004
-// Update Count     : 127
+// Last Modified On : Tue Jul  6 14:57:34 2004
+// Update Count     : 128
 // Status           : Unknown.
 // 
 
@@ -178,8 +178,6 @@ int main (int argc, char* argv[])
       header = fin.getHeader ();
       fin >> model;
 	
-      model.validate ();
-      model.keepNucleicAcid ();
       model.removeWater ();
       model.addHLP ();
       fin.close ();
