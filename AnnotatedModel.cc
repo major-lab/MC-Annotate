@@ -3,9 +3,9 @@
 // Copyright © 2001, 2002, 2003, 2004 Laboratoire de Biologie Informatique et Théorique.
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
-// Last Modified By : Philippe Thibault
-// Last Modified On : Wed Oct 20 16:11:08 2004
-// Update Count     : 207
+// Last Modified By : Martin Larose
+// Last Modified On : Wed Dec  8 17:23:29 2004
+// Update Count     : 208
 // Status           : Unknown.
 // 
 
@@ -14,282 +14,259 @@
 #include <config.h>
 #endif
 
-#include <iomanip>
-#include <iostream>
-#include <unistd.h>
-#include <vector>
+// #include <iomanip>
+#include <algorithm>
 #include <list>
-#include <set>
+#include <utility>
 
+#include "mccore/Algo.h"
+// #include "mccore/Exception.h"
+#include "mccore/Pdbstream.h"
 #include "mccore/stlio.h"
 
 #include "AnnotatedModel.h"
 
-#include "mccore/Algo.h"
-#include "mccore/Exception.h"
-#include "mccore/Graph.h"
-#include "mccore/Relation.h"
-#include "mccore/PropertyType.h"
-#include "mccore/Relation.h"
-#include "mccore/Pdbstream.h"
 
 
-bool Contact (Residue &a, Residue &b, float min_cut, float max_cut) {
-  min_cut *= min_cut;
-  max_cut *= max_cut;
-
-  for (Residue::iterator i = a.begin (); i != a.end (); ++i)
-    for (Residue::iterator j = b.begin (); j != b.end (); ++j) {
-      float d = i->squareDistance(*j);
-      if (d < min_cut) return true;
-      else if (d > max_cut) return false;
-    }
-  return false;
-}
-
-
-AnnotatedModel::AnnotatedModel (Model *m)
-  : Model (*m)
+namespace annotate
 {
-  nb_pairings = 0;
-  nb_connect = 0;
-}
-
-AnnotatedModel::~AnnotatedModel ()
-{}
-
-
-void 
-AnnotatedModel::annotate ()
-{
-  Model::iterator i, j;
-  list< edge > seq;
-  list< edge >::iterator sj;
-
-  map< ResId, ResId > table;
-  map< ResId, Model::iterator > corresp;
   
-  vector< vector< Model::iterator > > sequences;
+  bool
+  Contact (Residue &a, Residue &b, float min_cut, float max_cut) {
+    min_cut *= min_cut;
+    max_cut *= max_cut;
+    
+    for (Residue::iterator i = a.begin (); i != a.end (); ++i)
+      for (Residue::iterator j = b.begin (); j != b.end (); ++j) {
+	float d = i->squareDistance(*j);
+	if (d < min_cut) return true;
+	else if (d > max_cut) return false;
+      }
+    return false;
+  }
 
-  // Standardization of ResIDs
-  // This is needed for the extractContacts algo to work correctly when
-  // there are multiple residues of the same resid.
-  { 
+
+  void
+  AnnotatedModel::sequenceSort (list< unsigned int > &seq, vector< vector< Residue* > > &sequences)
+  {
+    while (! seq.empty ())
+      {
+	unsigned int sj;
+	list< unsigned int > sorted_seq;
+	list< unsigned int >::iterator it;
+	
+	sj = seq.front ();
+	seq.pop_front ();
+	sorted_seq.push_back (sj);
+	for (it = seq.begin (); seq.end () != it; ++it)
+	  {
+	    if (internalGetEdge (*it).getRes ()->getResId () == internalGetEdge (sj).getRef ()->getResId ())
+	      {
+		sj = *it;
+		sorted_seq.push_front (sj);
+		seq.erase (it);
+		it = seq.begin ();
+	      }
+	  }
+
+	sj = sorted_seq.back ();
+	for (it = seq.begin (); seq.end () != it; ++it)
+	  {
+	    if (internalGetEdge (*it).getRef ()->getResId () == internalGetEdge (sj).getRes ()->getResId ())
+	      {
+		sj = *it;
+		sorted_seq.push_back (sj);
+		seq.erase (it);
+		it = seq.begin ();
+	      }
+	  }
+
+	sequences.push_back (vector< Residue* > ());
+	vector< Residue* > &actual_seq = sequences.back ();
+	
+	it = sorted_seq.begin ();
+	actual_seq.push_back (internalGetEdge (*it).getRef ());
+	while (sorted_seq.end () != it)
+	  {
+	    actual_seq.push_back (internalGetEdge (*it).getRes ());
+	    it++;
+	  }
+      }
+  }
+
+
+  void
+  AnnotatedModel::findLoneResidues (vector< vector< Residue* > > &sequences)
+  {
     Model::iterator i;
-    int a;
-    for (i=begin (), a=1; i!=end (); ++i, ++a) {
-      ResId resid (a);
-      table[resid] = i->getResId ();  
-      i->setResId (resid);
-      corresp[resid] = i;
-    }
+    ResIdSet modelSet;
+    vector< vector< Residue* > >::iterator vvit;
+    ResIdSet sequenceSet;
+    ResIdSet tmp;
+    ResIdSet::iterator risIt;
+
+    for (i = begin (); end () != i; ++i)
+      {
+	modelSet.insert (i->getResId ());
+      }
+    for (vvit = sequences.begin (); sequences.end () != vvit; ++vvit)
+      {
+	vector< Residue* >::iterator vit;
+
+	for (vit = vvit->begin (); vvit->end () != vit; ++vit)
+	  {
+	    sequenceSet.insert ((*vit)->getResId ());
+	  }
+      }
+    set_difference (modelSet.begin (), modelSet.end (),
+		    sequenceSet.begin (), sequenceSet.end (),
+		    inserter (tmp, tmp.begin ()));
+
+    for (risIt = tmp.begin (); tmp.end () != risIt; ++risIt)
+      {
+	sequences.push_back (vector< Residue* > ());
+	vector< Residue* > &seq = sequences.back ();
+	seq.push_back (&internalGetNode (risIt->getResNo ()));
+      }
   }
   
-  //  cout << *this << endl;
-
-  // Extraction of possible relations based on the Axis Aligned Bounding Box method
-  vector< pair< Model::iterator, Model::iterator > > contacts;
-  vector< pair< Model::iterator, Model::iterator > >::iterator l;
   
-  contacts = Algo::extractContacts (begin (), end (), 5.0);
-
-//    cout << "DETECTING CLASHES" << endl;
-//    for (l=possibleContacts.begin (); l!=possibleContacts.end (); ++l)
-//      {
-//        i = l->first;
-//        j = l->second;
-
-//        cout << (CTransfo&)*i << endl;
-//        cout << (CTransfo&)*j << endl;
-
-//      }
+  AnnotatedModel::AnnotatedModel (string &name, PdbFileHeader &header, Model &m)
+    : name (name), fileHeader (header), nb_pairings (0), nb_connect (0)
+  {
+    Model::iterator i;
+    unsigned int a;
+    vector< pair< Model::iterator, Model::iterator > > contacts;
+    vector< pair< Model::iterator, Model::iterator > >::iterator l;
+    stack< unsigned int > seq;
+    vector< vector< Residue* > > sequences;
   
-  cerr << "Found " << contacts.size () << " possible contacts " << endl;
-  
-  for (l=contacts.begin (); l!=contacts.end (); ++l)
+    // Standardization of ResIDs
+    // This is needed for the extractContacts algo to work correctly when
+    // there are multiple residues of the same resid.
+    for (i = m.begin (), a = 1; m.end () != i; ++i, ++a)
+      {
+	ResId resid (a);
+	
+	int2ResIdMap[a] = i->getResId ();  
+	i->setResId (resid);
+	insert (*i);
+      }
+    // Extraction of possible relations based on the Axis Aligned Bounding
+    // Box method
+    contacts = Algo::extractContacts (begin (), end (), 5.0);
+    for (l = contacts.begin (); contacts.end () != l; ++l)
+      {
+	Relation rel (&*l->first, &*l->second);
+	
+	if (rel.annotate ())
+	  {
+	    if (rel.is (PropertyType::pDIR_3p))
+	      {
+		connect (*l->first, *l->second, rel.invert ());
+		seq.push_back (edgeSize () - 1);
+	      }
+	    else
+	      {
+		connect (*l->first, *l->second, rel);
+		if (rel.is (PropertyType::pDIR_5p))
+		  {
+		    seq.push_back (edgeSize () - 1);	  	    
+		  }
+	      }
+	  }
+      }
+    // Selection sort of the sequence.
+    sequenceSort (seq, sequences);
+    findLoneResidues (seq);
+  }
+
+
+  void 
+  AnnotatedModel::annotate ()
+  {
+    // Create graph...
     {
-      i = l->first;
-      j = l->second;
+      map< ResId, node > newcorresp;
+      vector< vector< Residue* > >::iterator i;
+      vector< Residue* >::iterator j;
+      int k = 0;
       
-      //       cout << (CResId&)*i << " " << (CResId&)*j << endl;
-      
-      Relation rel(&*i, &*j);
-
-
-      if (rel.annotate ())
-	{
-	  if (rel.is (PropertyType::pDIR_5p))
+      for (i = sequences.begin (); sequences.end () != i; ++i)
+	{	  
+	  sequence_length.push_back (i->size ());
+	  for (j = i->begin (); i->end () != j; ++j)
 	    {
-	      relations.push_back (rel);
-	      seq.push_back (relations.size () - 1);	  	    
+	      ResId resid (k++);
+	      
+	      translation[resid] = table[(**j).getResId ()];  
+	      (*j)->setResId (resid);
+	      
+	      conformations.push_back (*j);
+	      
+	      graph.insert (conformations.size () - 1);
+	      
+	      newcorresp[conformations.back ()->getResId ()] = conformations.size () - 1;
+	      sequence_mask.push_back (i-sequences.begin ());
 	    }
-	  else if (rel.is (PropertyType::pDIR_3p))
+	}
+      
+      marks.resize ((int)conformations.size (), '-');
+      helix_mask.resize ((int)conformations.size (), -1);
+      strand_mask.resize ((int)conformations.size (), -1);
+      tertiary_mask.resize ((int)conformations.size (), -1);
+      
+      for (k=0; k<(int)relations.size (); ++k)
+	{
+	  if (relations[k].is (PropertyType::pDIR_ANY))
 	    {
-	      relations.push_back (rel.invert ());
-	      seq.push_back (relations.size () - 1);
+	      graph.connect (newcorresp[internalGetEdge (k).getRef ()->getResId ()],
+			     newcorresp[internalGetEdge (k).getRes ()->getResId ()],
+			     k);
 	    }
 	  else
 	    {
-	      relations.push_back (rel);
-	    } 
+	      graph.connect (newcorresp[relations[k].getRef ()->getResId ()],
+			     newcorresp[relations[k].getRes ()->getResId ()],
+			     k); // p_DIR_5p || p_DIR_3p
+	      nb_connect++;
+	    }
+	  if (relations[k].is (PropertyType::pPairing))
+	    {
+	      marks[newcorresp[relations[k].getRef ()->getResId ()]] = 'b';
+	      marks[newcorresp[relations[k].getRes ()->getResId ()]] = 'b';
+	      
+	      nb_pairings++;
+	    }
 	}
-      
     }
-  
-  
-
-  // Selection sort of the sequence.
-  while (seq.size () > 0) {
-    list< edge > sorted_seq;
-    sj = seq.begin ();
-    sorted_seq.push_back (*sj);
-    seq.erase (sj);
-    
-    while (true) {
-      for (sj=seq.begin (); sj!=seq.end (); ++sj) {
-	if (relations[*sj].getRes ()->getResId () == 
-	    relations[sorted_seq.front ()].getRef ()->getResId ()) {
-	  break;
-	} 
-      }
-      if (sj != seq.end ()) {
-	sorted_seq.push_front (*sj);
-	seq.erase (sj);
-      } else {
-	break;
-      }
-    }
-    
-    while (true) {
-      for (sj=seq.begin (); sj!=seq.end (); ++sj) {
-	if (relations[*sj].getRef ()->getResId () == 
-	    relations[sorted_seq.back ()].getRes ()->getResId ()) {
-	  break;
-	} 
-      }
-      if (sj != seq.end ()) {
-	sorted_seq.push_back (*sj);
-	seq.erase (sj);
-      } else {
-	break;
-      }
-    }
-    
-    vector< Model::iterator > actual_seq;
-    
-    sj=sorted_seq.begin ();
-    actual_seq.push_back (corresp[relations[*sj].getRef ()->getResId ()]);
-    while (sj!=sorted_seq.end ()) {
-      actual_seq.push_back (corresp[relations[*sj].getRes ()->getResId ()]);
-      sj++;
-    }
-
-    sequences.push_back (actual_seq);
   }
-
-  // Dump lone residues.
+  
+  
+  void 
+  AnnotatedModel::findHelices ()
   {
-    Model::iterator i;
-    for (i=begin (); i!=end (); ++i) {
-      bool found = false;
-      for (int j=0; j<(int)sequences.size (); ++j) {
-	if (std::find (sequences[j].begin (), sequences[j].end (), i)
-	    != sequences[j].end ()) {
-	  found = true;
-	  break;
-	}
-      }
-      if (!found) { 
-	vector< Model::iterator > actual_seq;
-	actual_seq.push_back (i);
-  	sequences.push_back (actual_seq);
-      }
-    }
-  }
-  
-  map< ResId, node > newcorresp;
-
-  // Create graph...
-  {
-    vector< vector< Model::iterator > >::iterator i;
-    vector< Model::iterator >::iterator j;
-    int k = 0;
-
-    for (i=sequences.begin (); i!=sequences.end (); ++i) {
-      
-      sequence_length.push_back (i->size ());
-
-      for (j=i->begin (); j!=i->end (); ++j) {
-
-    	ResId resid (k++);
- 	translation[resid] = table[(**j).getResId ()];  
-	(*j)->setResId (resid);
-	
-  	conformations.push_back (*j);
-
-	graph.insert (conformations.size () - 1);
-	
-	newcorresp[conformations.back ()->getResId ()] = 
-	  conformations.size () - 1;
-  	sequence_mask.push_back (i-sequences.begin ());
-      }
-    }
-
-    marks.resize ((int)conformations.size (), '-');
-    helix_mask.resize ((int)conformations.size (), -1);
-    strand_mask.resize ((int)conformations.size (), -1);
-    tertiary_mask.resize ((int)conformations.size (), -1);
-
-    for (k=0; k<(int)relations.size (); ++k) {
-      if (relations[k].is (PropertyType::pDIR_ANY)) {
-	graph.connect (newcorresp[relations[k].getRef ()->getResId ()],
-		       newcorresp[relations[k].getRes ()->getResId ()],		      
-		       k);
-      } else {
-  	graph.connect (newcorresp[relations[k].getRef ()->getResId ()],
-  		       newcorresp[relations[k].getRes ()->getResId ()],
-  		       k); // p_DIR_5p || p_DIR_3p
-	nb_connect++;
-      }
-      if (relations[k].is (PropertyType::pPairing)) {
-	marks[newcorresp[relations[k].getRef ()->getResId ()]] = 'b';
-	marks[newcorresp[relations[k].getRes ()->getResId ()]] = 'b';
-
-	nb_pairings++;
-
-      }
-    }
-  }
-}
-
-
-
-
-
-void 
-AnnotatedModel::findHelices ()
-{
-  UndirectedGraph< node, edge >::iterator gi, gk, gip, gkp;
-  list< node >::iterator gj, gjp;
-  Helix helix;
-  list< node > neigh;
-
-  int min_size = 3;
-
-  gi = graph.begin ();
-
-  while (gi!=graph.end ()) {
+    UndirectedGraph< node, edge >::iterator gi, gk, gip, gkp;
+    list< node >::iterator gj, gjp;
+    Helix helix;
+    list< node > neigh;
     
-    //cout << "( " << getResId (*gi) << " " << flush;
-
-    // Find a pairing involving gi
-    neigh = graph.getNeighbors (*gi);
-    for (gj=neigh.begin (); gj!=neigh.end (); ++gj) {
-      if (isHelixPairing (graph.getEdge (*gi, *gj))) break;
-    }
+    int min_size = 3;
+    
+    gi = graph.begin ();
+    
+    while (gi!=graph.end ()) {
       
-    if (gj != neigh.end ()) 
-      {
+      //cout << "( " << getResId (*gi) << " " << flush;
+      
+      // Find a pairing involving gi
+      neigh = graph.getNeighbors (*gi);
+      for (gj=neigh.begin (); gj!=neigh.end (); ++gj) {
+	if (isHelixPairing (graph.getEdge (*gi, *gj))) break;
+      }
+      
+      if (gj != neigh.end ()) 
+	{
 	if (*gj > *gi &&
 	    marks[*gj] != '(' && marks[*gj] != ')') {
 	  // Find counterpart of gi.
