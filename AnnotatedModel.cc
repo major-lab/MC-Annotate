@@ -4,12 +4,11 @@
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
 // Last Modified By : Philippe Thibault
-// Last Modified On : Thu May 27 13:42:10 2004
-// Update Count     : 204
+// Last Modified On : Thu Jun 10 09:16:20 2004
+// Update Count     : 205
 // Status           : Unknown.
 // 
 
-// added this line!
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
