@@ -342,17 +342,21 @@ vector< Edge > Graph< Node, Edge >::minimum_spanning_tree (void) const
       }
     }
 
-    T.push_back (getEdge (nearest[k], k));
-    
-    mindist[k] = -1;
-
-    for (j=1; j<(int)size (); ++j) {
-      int val = getEdgeValue (getEdgeIndex (j, k));
-      if (val < mindist[j]) {
-	mindist[j] = val;
-	nearest[j] = k;
+    // This is a test to see if we stay in the same connected component
+    if (k!=-1) 
+      {  
+	T.push_back (getEdge (nearest[k], k));
+	
+	mindist[k] = -1;
+	
+	for (j=1; j<(int)size (); ++j) {
+	  int val = getEdgeValue (getEdgeIndex (j, k));
+	  if (val < mindist[j]) {
+	    mindist[j] = val;
+	    nearest[j] = k;
+	  }
+	}
       }
-    }
   }
   
   return T;

@@ -38,6 +38,7 @@ AnnotatedModel::AnnotatedModel (Model *m)
   : model (m)
 {
   nb_pairings = 0;
+  nb_connect = 0;
 }
 
 AnnotatedModel::~AnnotatedModel ()
@@ -219,16 +220,18 @@ AnnotatedModel::annotate ()
     for (k=0; k<(int)relations.size (); ++k) {
       if (relations[k].getDirection () == p_DIR_ANY) {
 	graph.addEdge (newcorresp[(const CResId&)relations[k].getRef ()],
-		       newcorresp[(const CResId&)relations[k].getRes ()],
-		       k, false);
+		       newcorresp[(const CResId&)relations[k].getRes ()],		      
+		       k, false);	
       } else {
   	graph.addEdge (newcorresp[(const CResId&)relations[k].getRef ()],
   		       newcorresp[(const CResId&)relations[k].getRes ()],
   		       k, true);
+	nb_connect++;
       }
       if (relations[k].isPairing ()) {
 	marks[newcorresp[(const CResId&)relations[k].getRef ()]] = 'b';
 	marks[newcorresp[(const CResId&)relations[k].getRes ()]] = 'b';
+	nb_pairings++;
       }
     }
   }
@@ -763,9 +766,6 @@ void AnnotatedModel::dumpPairs ()
     for (j=i->second.begin (); j!=i->second.end (); ++j) {
       if (i->first < j->first && 
 	  isPairing (j->second)) {
-	
-	nb_pairings++;
-
 	cout << getResId (i->first) << "-" 
 	     << getResId (j->first) << " : ";
 	cout << (const char*)(*getType (i->first)) << "-" << flush
@@ -1062,7 +1062,7 @@ AnnotatedModel::dumpMcc (const char* pdbname)
     for (i=graph.begin (); i!=graph.end (); ++i) {
       cout << setw(8) << getResId (i->first) << " { ";
       cout.setf (ios::left, ios::adjustfield);
-      cout << setw(8) << *conformations[i->first].getPucker () << " " 
+      cout << setw(8) << *conformations[i->first].getPucker () << " && " 
 	   << setw(4) << *conformations[i->first].getGlycosyl () << " }" << "  100%" << endl; 
       cout.setf (ios::right, ios::adjustfield);
     }
@@ -1078,36 +1078,42 @@ AnnotatedModel::dumpMcc (const char* pdbname)
     Graph< node, edge >::adjlist::iterator j;
     PropertySet::iterator k;
 
-    cout << "pair(" << endl;
-    for (i=graph.begin (); i!=graph.end (); ++i) {
-      for (j=i->second.begin (); j!=i->second.end (); ++j) {
-	if (i->first < j->first && 
-	    !isAdjacent (j->second)) {
-	  
-	  nb_pairings++;
-	  
-	  cout << setw(8) << getResId (i->first) 
-	       << setw(8) << getResId (j->first) << " { ";
-	  if (isPairing (j->second))
-	    cout << (const char*)(*relations[j->second].getRefProp ()) << "/" << flush
-		 << (const char*)(*relations[j->second].getResProp ()) << " " << flush;
-	  
-	  for (k=relations[j->second].getGlobalProp ().begin (); 
-	       k!=relations[j->second].getGlobalProp ().end (); ++k) {
-	    if ((**k).is_reverse () || 
-		(**k).is_cis () ||
-		(**k).is_trans () ||
-		(**k).is_stack ())
-	      cout << (const char*)**k << " " ;
+    if (nb_pairings > 0) {
+      cout << "pair(" << endl;
+      for (i=graph.begin (); i!=graph.end (); ++i) {
+	for (j=i->second.begin (); j!=i->second.end (); ++j) {
+	  if (i->first < j->first && 
+	      !isAdjacent (j->second)) {
+	    
+	    cout << setw(8) << getResId (i->first) 
+		 << setw(8) << getResId (j->first) << " { ";
+	    
+	    bool useand = false;
+	    if (isPairing (j->second)) {
+	      cout << (const char*)(*relations[j->second].getRefProp ()) << "/" << flush
+		   << (const char*)(*relations[j->second].getResProp ()) << " " << flush;
+	      useand = true;
+	    }
+	    for (k=relations[j->second].getGlobalProp ().begin (); 
+		 k!=relations[j->second].getGlobalProp ().end (); ++k) {
+	      if ((**k).is_reverse () || 
+		  (**k).is_cis () ||
+		  (**k).is_trans () ||
+		  (**k).is_stack ()) {      
+		if (useand) cout << "&& ";
+		cout << (const char*)**k << " " ;
+		useand = true;
+	      }
+	    }
+	    
+	    cout << "}" << "  100%" << endl; 
 	  }
-	  
-	  cout << "}" << "  100%" << endl; 
-	}
-      } 
+	} 
+      }
+      cout << ")" << endl;
     }
-    cout << ")" << endl;
   }
-
+  
   cout << "//" << endl;
   cout << "// Adjacent relations -------------------------------------------" << endl;
   cout << "//" << endl;
@@ -1116,40 +1122,43 @@ AnnotatedModel::dumpMcc (const char* pdbname)
     Graph< node, edge >::adjgraph::iterator i;
     Graph< node, edge >::adjlist::iterator j;
     PropertySet::iterator k;
-    
-    cout << "connect(" << endl;
-    for (i=graph.begin (); i!=graph.end (); ++i) {
-      for (j=i->second.begin (); j!=i->second.end (); ++j) {
-	if (i->first < j->first && 
-	    isAdjacent (j->second)) {
-	  
-	  nb_pairings++;
-	  
-	  cout << setw(8) << getResId (i->first) 
-	       << setw(8) << getResId (j->first) << " { ";
-	  if (isPairing (j->second))
-	    cout << (const char*)(*relations[j->second].getRefProp ()) << "/" << flush
-		 << (const char*)(*relations[j->second].getResProp ()) << " " << flush;
-	  
-	  if (isStacking (j->second))
-	    cout << "stack" << " ";
-	  else 
-	    cout << "!stack" << " ";
-	  
-	  for (k=relations[j->second].getGlobalProp ().begin (); 
-	       k!=relations[j->second].getGlobalProp ().end (); ++k) {
-	    if ((**k).is_reverse () || 
-		(**k).is_cis () ||
-		(**k).is_trans () ||
-		(**k).is_pairing ())
-	      cout << (const char*)**k << " " ;
+  
+    if (nb_connect > 0) {
+      cout << "connect(" << endl;
+      for (i=graph.begin (); i!=graph.end (); ++i) {
+	for (j=i->second.begin (); j!=i->second.end (); ++j) {
+	  if (i->first < j->first && 
+	      isAdjacent (j->second)) {
+	    
+	    cout << setw(8) << getResId (i->first) 
+		 << setw(8) << getResId (j->first) << " { ";
+	    
+	    if (isPairing (j->second)) {
+	      cout << (const char*)(*relations[j->second].getRefProp ()) << "/" << flush
+		   << (const char*)(*relations[j->second].getResProp ()) << " " << flush;
+	      cout << "&& ";
+	    }
+	    
+	    if (isStacking (j->second))
+	      cout << "stack" << " ";
+	    else 
+	      cout << "!stack" << " ";
+	    
+	    for (k=relations[j->second].getGlobalProp ().begin (); 
+		 k!=relations[j->second].getGlobalProp ().end (); ++k) {
+	      if ((**k).is_reverse () || 
+		  (**k).is_cis () ||
+		  (**k).is_trans () ||
+		  (**k).is_pairing ())
+		cout << "&& " << (const char*)**k << " " ;
+	    }
+	    
+	    cout << "}" << "  100%" << endl; 
 	  }
-	  
-	  cout << "}" << "  100%" << endl; 
-	}
-      } 
+	} 
+      }
+      cout << ")" << endl;    
     }
-    cout << ")" << endl;    
   }
 
   cout << "//" << endl;

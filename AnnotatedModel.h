@@ -85,6 +85,7 @@ class AnnotatedModel
   map< CResId, CResId > translation;
 
   int nb_pairings;
+  int nb_connect;
 
 public:
 

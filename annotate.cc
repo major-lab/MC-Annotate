@@ -20,6 +20,8 @@
 
 #include "mccore/McCore.h"
 #include "mccore/zfPdbstream.h"
+#include "mccore/fPdbstream.h"
+#include "mccore/zfBinstream.h"
 #include "mccore/CResidue.h"
 #include "mccore/Model.h"
 #include "mccore/Algo.h"
