@@ -1,0 +1,188 @@
+############################ -*- Mode: Makefile -*- ###########################
+## Makefile.in
+## Copyright © 2001, 2002 Laboratoire de Biologie Informatique et Théorique.
+## Author           : Martin Larose <larosem@iro.umontreal.ca>
+## Created On       : Mon May 14 19:22:30 2001
+## Last Modified By : Martin Larose
+## Last Modified On : Mon May 14 19:52:06 2001
+## Update Count     : 2
+## Status           : Unknown.
+###############################################################################
+
+
+PACKAGE = @PACKAGE@
+VERSION = @VERSION@
+
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+datadir = @datadir@
+includedir = @includedir@
+libdir = @libdir@
+
+CXX = @CXX@
+CXXFLAGS = @CXXFLAGS@
+DEPFLAGS = @DEPFLAGS@
+DEFS = @DEFS@
+LD = @CXX@
+LDFLAGS = @LDFLAGS@
+LINKOPTIONS = @LINKOPTIONS@
+LIBS = @LIBS@
+
+AR = @AR@
+
+INSTALL = @INSTALL@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+
+.SUFFIXES:
+.SUFFIXES: .cc .o .d
+
+.cc.d:
+	@ $(SHELL) -ec '$(CXX) $(DEPFLAGS) $(CXXFLAGS) $(DEFS) -I. -I$(srcdir) $< \
+	    | sed '\''s/\($*\)\.o[ :]*/\1.o $@ : /g'\'' > $@; \
+	      [ -s $@ ] || rm -f $@'
+
+.cc.o:
+	$(CXX) $(CXXFLAGS) $(DEFS) -I. -I$(srcdir) -c $<
+
+SOURCES = AnnotatedModel.cc \
+	  annotate.cc
+
+HEADERS = $(SOURCES:.cc=.h)
+
+OBJECTS = $(SOURCES:.cc=.o)
+
+DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(SOURCES) $(HEADERS) \
+config.guess config.h.in config.sub configure configure.in install-sh \
+mkinstalldirs
+
+SUBDIRS =
+
+RELEASESUBDIRS =
+
+PROGRAM = annotate
+ALT_PROGRAM = pdb2mcc
+
+all: $(PROGRAM) TAGS
+
+all-static static: $(PROGRAM)-static TAGS
+
+$(PROGRAM): $(OBJECTS)
+	@ echo Linking $(PROGRAM)
+	$(LD) -o $(PROGRAM) $(OBJECTS) $(LINKOPTIONS) $(LIBS)
+	cp -f $(PROGRAM) $(ALT_PROGRAM)
+
+$(PROGRAM)-static: $(OBJECTS)
+	$(LD) $(LDFLAGS) -o $@ $(OBJECTS) $(LINKOPTIONS) $(LIBS)
+	cp -f $(PROGRAM)-static $(ALT_PROGRAM)-static
+
+TAGS: $(SOURCES) $(HEADERS)
+	@ etags --c++ $^
+
+
+
+doc: html texi docbook
+
+
+html: $(HEADERS)
+	@ kdoc -f html -d html -p --strip-h-path -lmccore -z $^
+
+texi: $(HEADERS)
+	@ kdoc -f texinfo -d texi -p --strip-h-path -lmccore $^
+
+docbook: $(HEADERS)
+	@ kdoc -f docbook -d docbook -p --strip-h-path -lmccore $^
+
+
+
+install: $(PROGRAM) $(WIDGETS)
+	@ echo Installing $(PROGRAM) in $(bindir)
+	$(LD) -L$(libdir) -o $(PROGRAM) $(OBJECTS) $(WIDGETS) $(LIBS)
+	@ $(srcdir)/mkinstalldirs $(bindir)
+	@ $(INSTALL_PROGRAM) $(PROGRAM) $(bindir)/$(PROGRAM)
+
+install-static: static
+	@ echo Installing $(bindir)/$(PROGRAM)-$(VERSION)
+	@ $(srcdir)/mkinstalldirs $(bindir)
+	@ $(INSTALL_PROGRAM) -s $(PROGRAM)-static $(bindir)/$(PROGRAM)-$(VERSION)
+	@ echo Creating symbolic link $(bindir)/$(PROGRAM)
+	@ ln -f -s $(bindir)/$(PROGRAM)-$(VERSION) $(bindir)/$(PROGRAM)
+
+
+uninstall:
+	@ rm -f $(bindir)/$(PROGRAM)-$(VERSION)
+	@ rm -f $(bindir)/$(PROGRAM)
+
+
+
+mostlyclean:
+	@ rm -f *~
+
+clean: mostlyclean
+	@ echo Cleaning project
+	@ rm -f $(OBJECTS) $(WIDGETS)
+	@ rm -f $(PROGRAM) $(PROGRAM)-static
+	@ rm -f $(ALT_PROGRAM) $(ALT_PROGRAM)-static
+	@ rm -f *.d TAGS
+	@- rm -rf ii_files
+
+distclean: clean
+	@ rm -f Makefile
+
+topclean: distclean
+	@ echo "Project is getting _top_ clean\!"
+
+
+release: static
+	@ $(INSTALL_PROGRAM) -s $(PROGRAM)-static ../mcsym-3.3.0/bin/$(PROGRAM)
+	@ for subdir in $(RELEASESUBDIRS); do \
+	   mkdir ../mcsym-3.3.0/$$subdir; \
+	   chmod 777 ../mcsym-3.3.0/$$subdir; \
+	  done
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+
+dist:
+	@ rm -fr $(PACKAGE)-$(VERSION)
+	@ mkdir $(PACKAGE)-$(VERSION)
+	@ chmod 777 $(PACKAGE)-$(VERSION)
+	@ echo Copying distribution files
+	@ for file in $(DISTFILES); do \
+	   ln $(srcdir)/$$file $(PACKAGE)-$(VERSION) 2> /dev/null \
+	     || cp -p $(srcdir)/$$file $(PACKAGE)-$(VERSION); \
+	  done
+	@ for subdir in $(SUBDIRS); do \
+	   echo Making $@ in $$subdir; \
+	   mkdir $(PACKAGE)-$(VERSION)/$$subdir; \
+	   chmod 777 $(PACKAGE)-$(VERSION)/$$subdir; \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+	@ chmod -R a+r $(PACKAGE)-$(VERSION)
+	@ tar chof $(PACKAGE)-$(VERSION).tar $(PACKAGE)-$(VERSION)
+	@ gzip -9 $(PACKAGE)-$(VERSION).tar
+	@ rm -fr $(PACKAGE)-$(VERSION)
+
+
+
+Makefile: $(srcdir)/Makefile.in ./config.status
+	@ CONFIG_FILES=$@ CONFIG_HEADERS= ./config.status
+
+config.status: configure
+	@ ./config.status --recheck
+
+config.h: $(srcdir)/config.h.in
+	@ CONFIG_FILES= CONFIG_HEADERS=$@ ./config.status
+
+configure: $(srcdir)/configure.in
+	@ cd $(srcdir) && autoconf configure.in > configure
+
+# Tell versions [3.59,3.63) of GNU make not to export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:
+
+-include $(SOURCES:.cc=.d) $(PROGRAM).d

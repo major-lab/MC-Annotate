@@ -1,0 +1,23 @@
+This file contains any messages produced by compilers while
+running configure, to aid debugging if configure makes a mistake.
+
+configure:541: checking whether make sets ${MAKE}
+configure:576: checking whether byte ordering is bigendian
+configure:673: checking for c++
+configure:705: checking whether the C++ compiler (c++  ) works
+configure:721: c++ -o conftest    conftest.C  1>&5
+configure:747: checking whether the C++ compiler (c++  ) is a cross-compiler
+configure:752: checking whether we are using GNU C++
+configure:780: checking whether c++ accepts -g
+configure:837: checking host system type
+configure:870: checking for a BSD compatible install
+configure:925: checking for ar
+configure:960: checking for strsep
+configure:1018: checking for isfdtype
+configure:1076: checking for acosf
+configure:1134: checking for sqrtf
+configure:1191: checking for fstreambase
+configure:1224: checking for main in -lz
+configure:1267: checking for main in -lm
+configure:1310: checking for main in -lmccore
+configure:1353: checking for main in -lmcpl
