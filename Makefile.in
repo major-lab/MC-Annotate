@@ -3,9 +3,9 @@
 ## Copyright © 2001, 2002 Laboratoire de Biologie Informatique et Théorique.
 ## Author           : Martin Larose <larosem@iro.umontreal.ca>
 ## Created On       : Mon May 14 19:22:30 2001
-## Last Modified By : Martin Larose
-## Last Modified On : Mon May 14 19:52:06 2001
-## Update Count     : 2
+## Last Modified By : Labo Lbit
+## Last Modified On : Fri Feb 22 15:16:08 2002
+## Update Count     : 3
 ## Status           : Unknown.
 ###############################################################################
 
@@ -138,10 +138,12 @@ topclean: distclean
 
 
 release: static
-	@ $(INSTALL_PROGRAM) -s $(PROGRAM)-static ../mcsym-3.3.0/bin/$(PROGRAM)
+	@ $(srcdir)/mkinstalldirs ../mcsym-release/bin
+	@ $(INSTALL_PROGRAM) -s $(PROGRAM)-static ../mcsym-release/bin/$(PROGRAM)
+	@ $(INSTALL_PROGRAM) -s $(ALT_PROGRAM)-static ../mcsym-release/bin/$(ALT_PROGRAM)
 	@ for subdir in $(RELEASESUBDIRS); do \
-	   mkdir ../mcsym-3.3.0/$$subdir; \
-	   chmod 777 ../mcsym-3.3.0/$$subdir; \
+	   mkdir ../mcsym-release/$$subdir; \
+	   chmod 777 ../mcsym-release/$$subdir; \
 	  done
 	@ for subdir in $(SUBDIRS); do \
 	   (cd $$subdir && $(MAKE) $@) || exit 1; \
