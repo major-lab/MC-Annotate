@@ -4,8 +4,8 @@
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
 // Last Modified By : Patrick Gendron
-// Last Modified On : Fri Jan  9 15:11:26 2004
-// Update Count     : 200
+// Last Modified On : Fri Jan  9 16:29:47 2004
+// Update Count     : 203
 // Status           : Unknown.
 // 
 
@@ -716,57 +716,60 @@ void AnnotatedModel::findPseudoknots ()
 
 
 
-// CResIdSet
-// AnnotatedModel::extract (CResIdSet &seed, int size)
-// {
-//   set< int > query;
-//   set< int > result;
-//   set< int > visited;
-//   set< int >::iterator s;
-//   CResIdSet::iterator r;
-//   map< CResId, CResId >::iterator i;
+ResIdSet
+AnnotatedModel::extract (ResIdSet &seed, int size)
+{
+  set< int > query;
+  set< int > result;
+  set< int > visited;
+  set< int >::iterator s;
+  ResIdSet::iterator r;
+  map< ResId, ResId >::iterator i;
 
-//   for (r=seed.begin (); r!=seed.end (); ++r) {
-//     for (i=translation.begin (); i!=translation.end (); ++i) {
-//       if (i->second == *r) break;
-//     }
+  for (r=seed.begin (); r!=seed.end (); ++r) {
+    for (i=translation.begin (); i!=translation.end (); ++i) {
+      if (i->second == *r) break;
+    }
     
-//     if (i!=translation.end ()) {
-//       query.insert (i->first.GetResNo ());
-//       visited.insert (i->first.GetResNo ());
-//     }
-//   }
+    if (i!=translation.end ()) {
+      query.insert (i->first.getResNo ());
+      visited.insert (i->first.getResNo ());
+    }
+  }
 
-//   while (size-->0) {
-//     result.clear ();
-//     for (s=query.begin (); s!=query.end (); ++s) {
-//       int id = *s;
-//       Graph< int, int >::adjlist li;
-//       Graph< int, int >::adjlist::iterator j;
+  while (size-->0) {
+    result.clear ();
+    for (s=query.begin (); s!=query.end (); ++s) {
+      int id = *s;
+      list< node > neigh;
+      list< node >::iterator i;
       
-//       li = graph.getNeighborIds (id);
-//       for (j=li.begin (); j!=li.end (); ++j) {
-// 	result.insert (j->first);
-//       }
-//     }
+      neigh = graph.getNeighbors (id);
+      for (i=neigh.begin (); i!=neigh.end (); ++i) {
+	result.insert (*i);
+      }
+    }
 
-//     set< int > tmp;
-//     set_difference (result.begin (), result.end (), visited.begin (), visited.end (),
-// 		    inserter (tmp, tmp.begin ()));
-//     query = tmp;
-//     tmp.clear ();
-
-//     set_union (visited.begin (), visited.end (), result.begin (), result.end (),
-// 	       inserter (tmp, tmp.begin ()));
-//     visited = tmp;
-//   }
-
-//   CResIdSet outset;
+    set< int > tmp;
+    set_difference (result.begin (), result.end (), visited.begin (), visited.end (),
+		    inserter (tmp, tmp.begin ()));
+    query = tmp;
+    tmp.clear ();
+    
+    set_union (visited.begin (), visited.end (), result.begin (), result.end (),
+	       inserter (tmp, tmp.begin ()));
+    visited = tmp;
+  }
   
-//   for (s=visited.begin (); s!=visited.end (); ++s)
-//     outset.insert (getResId (*s));
-//   return outset;
-// }
+  ResIdSet outset;
+  
+  for (s=visited.begin (); s!=visited.end (); ++s)
+    outset.insert (getResId (*s));
+  
+  cout << outset << endl;
+
+  return outset;
+}
 
 
 
@@ -1426,7 +1429,6 @@ AnnotatedModel::dumpMcc (const char* pdbname)
       cout << "pair(" << endl;
       for (i=graph.begin (); i!=graph.end (); ++i) {
 	neigh = graph.getNeighbors (*i);
-	cout << neigh.size () << endl;
 	for (j=neigh.begin (); j!=neigh.end (); ++j) {
 	  edge e = graph.getEdge (*i, *j);
 	  if (*i < *j && 

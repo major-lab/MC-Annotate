@@ -4,8 +4,8 @@
 // Author           : Patrick Gendron
 // Created On       : Fri May 18 09:38:07 2001
 // Last Modified By : Patrick Gendron
-// Last Modified On : Fri Jan  9 10:24:58 2004
-// Update Count     : 112
+// Last Modified On : Fri Jan  9 16:43:34 2004
+// Update Count     : 126
 // Status           : Unknown.
 // 
 
@@ -19,15 +19,16 @@
 #include <malloc.h>
 #include <getopt.h>
 
-#include "mccore/zfPdbstream.h"
-#include "mccore/fPdbstream.h"
-#include "mccore/zfBinstream.h"
+#include "annotate.h"
+
+#include "mccore/Pdbstream.h"
+#include "mccore/Binstream.h"
 #include "mccore/Residue.h"
 #include "mccore/Model.h"
 #include "mccore/Algo.h"
 #include "mccore/Vector3D.h"
 #include "mccore/Messagestream.h"
-#include "mccore/zfstream.h"
+#include "mccore/zstream.h"
 #include "mccore/Relation.h"
 #include "mccore/PropertyType.h"
 #include "mccore/stlio.h"
@@ -43,8 +44,7 @@
 #define LOOP_MARK  4
 
 int __current_option;
-const char* __shortopts = "ae:f:ms:vV";
-bool __sequence = false;
+const char* __shortopts = "e:f:hHms:vV?";
 ResIdSet selection;
 char* selection_file = 0;
 int size = 0;
@@ -52,13 +52,62 @@ bool verbose = false;
 bool extract = false;
 bool mcsym_file = false;
 
+/**
+ * @short Version function
+ * @author Patrick Gendron
+ * -----------------------------------------------------------------------------
+ */
+void __version (void)
+{
+  cout << prog_name << " " << prog_major_version << "." << prog_minor_version
+       << " (" << __DATE__ << ")" << endl
+       << "  using lib" << "mccore" << " " << VERSION << endl;
+}
+
+
+/**
+ * @short Usage function
+ * @author Patrick Gendron
+ * -----------------------------------------------------------------------------
+ */
+void __usage (void)
+{
+  cout << "usage: " << prog_name 
+       << " [-hHmvV?] [-e selection -f file_sel -s size] [structure file]" << endl;
+}
+
+/**
+ * @short Help function
+ * @author Patrick Gendron
+ * -----------------------------------------------------------------------------
+ */
+void __help (void)
+{
+  cout << "This program annotates a structure (and more)." << endl
+       << "  -e sel  extract these residues from the structure" << endl 
+       << "  -f pdb  extract residues found in this pdb file from the structure" << endl 
+       << "  -h      help      print this help" << endl
+       << "  -m      produce an output in McSym format (with backtrack)" << endl
+       << "  -s N    extend the selection stated with -e or -f by N connected residues in the graph" << endl
+       << "  -v      verbose   be verbose" << endl
+       << "  -V      version   print the software version info" << endl;
+}
+
+
+
+
+/**
+ * @short Annotate main algorithm.
+ * @author Patrick Gendron
+ * -----------------------------------------------------------------------------
+ */
 int main (int argc, char* argv[])
 {
   gOut.setVerboseLevel (1);
 
   if ( argc == 1 )
     {
-      cerr << "Usage: " << argv[0] << " ([-a] | [-e selection -f file_sel -s size] | [-m]) pdbfile+" << endl;
+      __usage ();
       exit (EXIT_SUCCESS);
     }
 
@@ -66,9 +115,6 @@ int main (int argc, char* argv[])
     {
       switch (__current_option)
 	{
-	case 'a':
-	  __sequence = true;
-	  break;
 	case 'e':
 	  selection = ResIdSet (optarg);
 	  cerr << "selection = " << selection << endl;
@@ -78,6 +124,8 @@ int main (int argc, char* argv[])
 	  selection_file = optarg;
 	  extract = true;
 	  break;
+	case 'h': case 'H':
+	  __usage (); __help (); exit (EXIT_SUCCESS); break;
 	case 'm':
 	  mcsym_file = true;
 	  break;
@@ -139,9 +187,50 @@ int main (int argc, char* argv[])
       amodel.annotate ();      
       
       
-      if (mcsym_file != true) 
+      if (mcsym_file == true) 
 	{
 	  amodel.dumpMcc (header.getPdbId ().c_str ());
+	} 
+      else if (extract) 
+	{
+	  Model model_sel, model_sel_orig;
+	  if (verbose) cout << "Extracting " << size << endl;
+	
+	  if (selection_file) {
+	    izfPdbstream fin (selection_file);
+	    if (!fin) {
+	      cerr << "File could not be opened" << endl;
+	    }
+	    Model::iterator i;
+	    fin >> model_sel;
+	    fin.close ();
+	  
+	    model_sel_orig = model_sel;
+	    model_sel.keepNucleicAcid ();
+	    model_sel.validate ();
+	  
+	    for (i=model_sel.begin (); i!=model_sel.end (); ++i) {
+	      selection.insert (i->getResId ());
+	    }
+	  }
+	  ResIdSet ext_selection;
+	  ext_selection = amodel.extract (selection, size);
+	
+	  ResIdSet::iterator i;
+	  Model::iterator j;
+	  oPdbstream fout (cout.rdbuf ());
+	  fout << "REMARK Selection: " << selection << endl;
+	  fout << "REMARK Extended selection: " << ext_selection << endl;
+	  // 	  fout << "REMARK Original residues: " << endl;
+	  // 	  fout << model_sel_orig;
+	  fout << "REMARK Extracted from " << argv[optind] << ":" << endl;
+	  for (i=ext_selection.begin (); i!=ext_selection.end (); ++i) {
+	    j = model.find (*i);
+	    if (j!=model.end ()) {
+	      fout << *j;
+	    }
+	  }
+	  fout << "END\n";	 
 	} 
       else 
 	{	  	  
@@ -192,74 +281,3 @@ int main (int argc, char* argv[])
   
   return EXIT_SUCCESS;
 }
-
-
-// 	if (extract) {
-// 	  Model model_sel, model_sel_orig;
-// 	  if (verbose) cout << "Extracting " << size << endl;
-
-// 	  if (selection_file) {
-// 	    izfPdbstream fin (selection_file);
-// 	    if (!fin) {
-// 	      cerr << "File could not be opened" << endl;
-// 	    }
-// 	    Model::iterator i;
-// 	    fin >> model_sel;
-// 	    fin.close ();
-	    
-// 	    model_sel_orig = model_sel;
-// 	    model_sel.keepNucleicAcid ();
-// 	    model_sel.validate ();
-	    
-// 	    for (i=model_sel.begin (); i!=model_sel.end (); ++i) {
-// 	      selection.insert ((CResId&)*i);
-// 	    }
-// 	  }
-// 	  CResIdSet ext_selection;
-// 	  ext_selection = amodel.extract (selection, size);
-	  
-// 	  CResIdSet::iterator i;
-// 	  Model::iterator j;
-// 	  oPdbstream fout (cout.rdbuf ());
-// 	  fout << "REMARK Selection: " << selection << endl;
-// 	  fout << "REMARK Extended selection: " << ext_selection << endl;
-// // 	  fout << "REMARK Original residues: " << endl;
-// // 	  fout << model_sel_orig;
-// 	  fout << "REMARK Extracted from " << argv[optind] << ":" << endl;
-// 	  for (i=ext_selection.begin (); i!=ext_selection.end (); ++i) {
-// 	    j = model_orig.find (*i);
-// 	    if (j!=model_orig.end ()) {
-// 	      fout << *j;
-// 	    }
-// 	  }
-// 	  fout << "END\n";	 
-// 	} else {
-
-
-
-
-
-
-// 	  if (__sequence) {
-// 	    cout << argv[optind] << " : " << flush;
-// 	    amodel.dumpSequences (false);
-// 	    cout << endl;
-// 	    amodel.dumpPairs ();
-// 	  }
-// 	  else {
-// //  	    cerr << "Block decomposition..." << endl;
-	    
-// //   	    amodel.decompose ();
-// // //  	    amodel.dumpSequences ();
-	    
-// //   	    amodel.dumpPDF ("out.pdf");
-
-// 	    //	    amodel.dumpSimplePDF (argv[optind], "out.pdf");
-	    	     
-// 	  }
-// 	}
-//       }
-//       endTime = clock();
-//       //     cerr << "Elapsed time: " << ( (float)(endTime - startTime) / (float)CLOCKS_PER_SEC ) << " sec." << endl;
-      
-//     }

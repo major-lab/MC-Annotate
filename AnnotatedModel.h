@@ -4,8 +4,8 @@
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
 // Last Modified By : Patrick Gendron
-// Last Modified On : Fri Jan  9 10:33:11 2004
-// Update Count     : 40
+// Last Modified On : Fri Jan  9 16:11:07 2004
+// Update Count     : 42
 // Status           : Unknown.
 // 
 
@@ -235,10 +235,10 @@ public:
    */
   void findPseudoknots ();
 
-//   /**
-//    * Extracts...
-//    */
-//   CResIdSet extract (CResIdSet &seed, int size);
+  /**
+   * Extracts...
+   */
+  ResIdSet extract (ResIdSet &seed, int size);
 
 //   /**
 //    * Decompose into blocks...
