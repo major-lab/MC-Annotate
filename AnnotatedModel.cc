@@ -3,9 +3,9 @@
 // Copyright © 2001, 2002, 2003, 2004 Laboratoire de Biologie Informatique et Théorique.
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
-// Last Modified By : Philippe Thibault
-// Last Modified On : Wed Oct 20 16:11:08 2004
-// Update Count     : 207
+// Last Modified By : Martin Larose
+// Last Modified On : Sun Dec 26 23:28:32 2004
+// Update Count     : 208
 // Status           : Unknown.
 // 
 
@@ -21,17 +21,16 @@
 #include <list>
 #include <set>
 
+#include "mccore/Algo.h"
+#include "mccore/Atom.h"
+#include "mccore/Exception.h"
+#include "mccore/PropertyType.h"
+#include "mccore/Pdbstream.h"
+#include "mccore/UndirectedGraph.h"
 #include "mccore/stlio.h"
 
 #include "AnnotatedModel.h"
 
-#include "mccore/Algo.h"
-#include "mccore/Exception.h"
-#include "mccore/Relation.h"
-#include "mccore/PropertyType.h"
-#include "mccore/Relation.h"
-#include "mccore/Pdbstream.h"
-#include "mccore/UndirectedGraph.h"
 
 
 bool Contact (Residue &a, Residue &b, float min_cut, float max_cut) {
