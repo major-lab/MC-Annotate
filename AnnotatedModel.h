@@ -1,11 +1,11 @@
 //                              -*- Mode: C++ -*- 
 // AnnotatedModel.h
-// Copyright © 2001, 2002 Laboratoire de Biologie Informatique et Théorique.
+// Copyright © 2001, 2002, 2003, 2004 Laboratoire de Biologie Informatique et Théorique.
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
-// Last Modified By : 
-// Last Modified On : 
-// Update Count     : 0
+// Last Modified By : Patrick Gendron
+// Last Modified On : Fri Jan  9 10:33:11 2004
+// Update Count     : 40
 // Status           : Unknown.
 // 
 
@@ -13,55 +13,88 @@
 #ifndef _AnnotatedModel_h_
 #define _AnnotatedModel_h_
 
-#include <vector.h>
-#include <map.h>
+#include <vector>
+#include <map>
+#include <pdflib.h>
 
-#include "mccore/CResidue.h"
-#include "mccore/CResId.h"
+#include "mccore/Residue.h"
+#include "mccore/ResId.h"
+#include "mccore/ResIdSet.h"
 #include "mccore/Model.h"
 #include "mccore/ResidueType.h"
-#include "mccore/McCore.h"
+#include "mccore/UndirectedGraph.h"
+#include "mccore/Relation.h"
+#include "mccore/PropertyType.h"
 
-#include "mcpl/mcpl.h"
-#include "mcpl/Relation.h"
-#include "mcpl/Conformation.h"
-#include "mcpl/PairingPattern.h"
-#include "mcpl/PropertyType.h"
-#include "mcpl/MaximumFlow.h"
-#include "mcpl/PairAnnote.h"
+using namespace std;
+using namespace mccore;
 
-#include "Graph.h"
+class AnnotatedModel;
+class Block;
 
 typedef int node;
 typedef int edge;
 typedef int strandid;
 
-enum stype { BULGE_OUT, BULGE, INTERNAL_LOOP, LOOP, OTHER };
+enum stype { BULGE_OUT, BULGE, INTERNAL_LOOP, LOOP, HELIX, OTHER };
 
-
+/**
+ * @short Helix
+ * @author Patrick Gendron
+ * -----------------------------------------------------------------------------
+ */
 struct Helix : public vector< pair< node, node > > {
 };
 
+
+/**
+ * @short Strand
+ * @author Patrick Gendron
+ * -----------------------------------------------------------------------------
+ */
 struct Strand : public pair< node, node > {
   stype type;
   strandid ref;
 };
 
-/**
- * @short Description
- *
- * Long Description
- *
- * @author Patrick Gendron
- */
-class AnnotatedModel
-{
-  Model *model;
 
-  /**
-   * Conformations:  in sequences order.
-   */
-  vector< Conformation > conformations;
+
+/**
+ * @short Vector
+ * @author Patrick Gendron
+ * -----------------------------------------------------------------------------
+ */
+struct Vector {
+  float x;
+  float y;
+
+  Vector () {}
+  Vector (float _x, float _y) : x (_x), y (_y) {}
+  
+  Vector operator+ (const Vector& v) { return Vector (x+v.x, y+v.y); }
+  float operator* (const Vector& v) { return x*v.x + y*v.y; }
+  float operator| (const Vector& v) { return sqrt ((x-v.x)*(x-v.x) + (y-v.y)*(y-v.y)); }
+  Vector operator* (float f) { return Vector (f*x, f*y); }
+  Vector operator/ (float f) { return Vector (x/f, y/f); }
+
+  float norm () { return sqrt (x*x + y*y); }
+
+  friend ostream& operator<< (ostream &os, const Vector &obj) 
+  {
+  os << "<" << obj.x << ", " << obj.y << ">" << endl;
+  return os;
+  }
+};
+
+
+/**
+ * @short AnnotatedModel
+ * @author Patrick Gendron
+ * -----------------------------------------------------------------------------
+ */
+class AnnotatedModel : public Model
+{
+  vector< Model::iterator > conformations;
 
   vector< int > sequence_mask;
   vector< int > sequence_length;
@@ -79,13 +112,21 @@ class AnnotatedModel
    */
   vector< Relation > relations;
 
-  Graph< node, edge > graph;
+  UndirectedGraph< node, edge > graph;
+
   vector< char > marks;
 
-  map< CResId, CResId > translation;
+  map< ResId, ResId > translation;
 
   int nb_pairings;
   int nb_connect;
+
+//   /**
+//    * Blocks...
+//    */
+//   vector< Block > h_blocks;
+//   vector< Block > l_blocks;
+//   vector< Block > s_blocks;
 
 public:
 
@@ -105,62 +146,58 @@ public:
 
   // ACCESS ---------------------------------------------------------------
 
-//    vector< Sequence > & getSequences () { return sequences; }
-//    Sequence & getSequence (int i) { return sequences[i]; }
+private :
+
+  ResId& getResId (node i) { 
+    return translation[conformations[i]->getResId ()]; 
+  }
+
+  ResId & getRefId (node i, node j) { 
+    return translation[relations[graph.getEdge(i, j)].getRef ()->getResId ()]; 
+  }
+
+  ResId & getResId (node i, node j) { 
+    return translation[relations[graph.getEdge(i, j)].getRes ()->getResId ()]; 
+  }
   
-  CResId & getResId (node i) { 
-    return translation[(const CResId&)(conformations[i].getRes ())]; 
-  }
-  CResId & getRefId (node i, node j) { 
-    return translation[(const CResId&)(relations[graph.getEdge(i, j)].getRef ())]; 
-  }
-  CResId & getResId (node i, node j) { 
-    return translation[(const CResId&)(relations[graph.getEdge(i, j)].getRes ())]; 
-  }
-  
-  t_Residue* getType (node i) {
-    static t_Residue* unknown = NULL;
-    //if (!unknown) unknown = new rt_Misc ("X");
-    t_Residue* t = conformations[i].getRes ().GetType ();
-    if (t->is_A ()) return r_A;
-    else if (t->is_C ()) return r_C;
-    else if (t->is_G ()) return r_G;
-    else if (t->is_T ()) return r_T;
-    else if (t->is_U ()) return r_U;
-    else return unknown;
+  const ResidueType* getType (node i) {
+    const ResidueType* t = conformations[i]->getType ();
+    if (t->isA ()) return ResidueType::rA;
+    else if (t->isC ()) return ResidueType::rC;
+    else if (t->isG ()) return ResidueType::rG;
+    else if (t->isT ()) return ResidueType::rT;
+    else if (t->isU ()) return ResidueType::rU;
+    else return t;
   }
 
   bool isPairing (edge e) {
-    return relations[e].isPairing ();
+    return relations[e].is (PropertyType::pPairing);
   }
   
   bool isHelixPairing (edge e) {
-    return (relations[e].is (p_XX) || relations[e].is (p_XIX) ||
-	    relations[e].is (p_XXVIII));
+    return (relations[e].is (PropertyType::pPairing));
+//     return (relations[e].is (PropertyType::pXX) || 
+// 	    relations[e].is (PropertyType::pXIX) ||
+//  	    relations[e].is (PropertyType::pXXVIII));
   }
 
   bool isAdjacent (edge e) {
-    return relations[e].isAdjacent ();
+    return relations[e].is (PropertyType::pAdjacent);
   }
-
+  
   bool isStacking (edge e) {
-    return relations[e].isStacking ();
+    return relations[e].is (PropertyType::pStack);
   }
 
   bool isPairing (node i, node j) {
-    if (graph.isConnected (i, j))
-      return relations[graph.getEdge (i, j)].isPairing ();
+    if (graph.areConnected (i, j))
+      return relations[graph.getEdge (i, j)].is (PropertyType::pPairing);
     return false;
-//      adjgraph::iterator gi;
-//      adjlist::iterator gj;
-//      gi = graph.find (i);
-//      if (gi == graph.end ()) return false;
-//      gj = gi->second.find (j);
-//      if (gj == gi->second.end ()) return false;
-//      return relations[gj->second].isPairing ();
   }
 
-  // METHODS --------------------------------------------------------------
+//   // METHODS --------------------------------------------------------------
+
+public:
 
   /**
    * Creates the annotation and determines the sequences present in the 
@@ -173,15 +210,20 @@ public:
    */
   void findHelices ();
 
-  /**
-   * 
-   */
-  void findBulges ();
+//   /**
+//    * 
+//    */
+//   void findBulges ();
 
   /**
    *
    */
   void findStrands ();
+
+  /**
+   *
+   */
+  void classifyStrands ();
 
   /**
    *
@@ -193,9 +235,20 @@ public:
    */
   void findPseudoknots ();
 
-  // I/O  -----------------------------------------------------------------
+//   /**
+//    * Extracts...
+//    */
+//   CResIdSet extract (CResIdSet &seed, int size);
 
-  void dumpSequences ();
+//   /**
+//    * Decompose into blocks...
+//    */
+//   void decompose ();
+
+//   // I/O  -----------------------------------------------------------------
+
+  void dumpSequences (bool detailed=true);
+
   void dumpGraph ();
   void dumpConformations ();
   void dumpPairs ();
@@ -204,10 +257,58 @@ public:
   void dumpTriples ();
   void dumpStrands ();
   void dumpStacks ();
-  void classifyStrands ();
   
   void dumpMcc (const char* pdbname);
 
+//   void dumpCt (const char* pdbname);
+
+//   void PDF_drawLoop2 (PDF *p, int li, int source_jct);
+//   void PDF_drawHelix (PDF *p, int hi, int li_ref = -1, int x = -1, int y = -1);
+//   void PDF_drawLoop (PDF *p, int li, int hi_ref = -1, int x = -1, int y = -1);
+//   void dumpPDF (const char* pdfname);
+  
+//   void PDF_drawGraph (PDF *p, node i, node prev, int x, int y, int a);
+//   void dumpSimplePDF (const char* pdbname, const char* pdfname);
 };
+
+
+// /**
+//  * @short Block
+//  * @author Patrick Gendron
+//  * -----------------------------------------------------------------------------
+//  */
+// struct Block : public vector< vector< node > > {
+//   AnnotatedModel *amodel;
+//   vector< pair< node, node > > junctions;
+
+//   Block (AnnotatedModel* m) : amodel (m) {}
+
+//   ostream& output (ostream &os) const {
+//     vector< pair< node, node > >::const_iterator k;
+//     vector< vector< node > >::const_iterator i;
+//     vector< node >::const_iterator j;
+
+//     for (k=junctions.begin (); k!=junctions.end (); ++k) {
+//       os << "(" << amodel->getResId (k->first) << ", " 
+// 	   << amodel->getResId (k->second) << ")" << flush;
+//     }
+//     os << " " << flush;
+//     for (i=begin (); i!=end (); ++i) {
+//       os << "[";
+//       for (j=i->begin (); j!=i->end (); ++j) {
+// 	if (j!=i->begin ()) os << ", ";
+// 	os << amodel->getResId (*j);
+//       }
+//       os << "] ";
+//     }
+//     return os;
+//   }
+
+//   friend ostream& operator<< (ostream &os, const Block &b) {
+//     return b.output (os);
+//   }
+// };
+
+
 
 #endif

@@ -1,12 +1,12 @@
 #                              -*- Mode: Sh -*- 
 # configure.in
-# Copyright © 2000-02 Laboratoire de Biologie Informatique et Théorique.
+# Copyright © 2000-03 Laboratoire de Biologie Informatique et Théorique.
 #                     Université de Montréal.
 # Author           : Martin Larose
 # Created On       : Tue Sep 19 18:21:58 2000
-# Last Modified By : Martin Larose
-# Last Modified On : Thu Oct 25 11:28:18 2001
-# Update Count     : 9
+# Last Modified By : Patrick Gendron
+# Last Modified On : Wed Nov 12 12:38:02 2003
+# Update Count     : 11
 # Status           : Ok.
 # 
 #  This file is part of mccore.
@@ -33,7 +33,7 @@ AC_INIT(annotate.h)
 AC_CONFIG_HEADER(config.h)
 
 PACKAGE=annotate
-VERSION=1.0
+VERSION=1.1
 AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE")
 AC_DEFINE_UNQUOTED(VERSION, "$VERSION")
 
@@ -62,10 +62,26 @@ if test $ac_cv_have_fstreambase = "yes"; then
 fi
 AC_MSG_RESULT($ac_cv_have_fstreambase)
 
+
+AC_CACHE_CHECK(whether the compiler has numeric_limits<T>,
+ac_cv_cxx_have_numeric_limits,
+[AC_LANG_SAVE
+ AC_LANG_CPLUSPLUS
+ AC_TRY_COMPILE([#include <limits> 
+ using namespace std; 
+ ],[double e = numeric_limits<double>::epsilon(); return 0;],
+ ac_cv_cxx_have_numeric_limits=yes, ac_cv_cxx_have_numeric_limits=no)
+ AC_LANG_RESTORE
+])
+if test "$ac_cv_cxx_have_numeric_limits" = yes; then
+  AC_DEFINE(HAVE_NUMERIC_LIMITS,,[define if the compiler has numeric_limits<T>])
+fi
+
+
 AC_CHECK_LIB(z, main)
 AC_CHECK_LIB(m, main)
 AC_CHECK_LIB(mccore, main)
-AC_CHECK_LIB(mcpl, main)
+AC_CHECK_LIB(pdf, main)
 
 if eval "test -z \"`echo $GXX`\""; then # not gnu compiler
     case "$host" in

@@ -1,12 +1,12 @@
 //                              -*- Mode: C++ -*- 
 // config.h.in
-// Copyright © 2001, 2002 Laboratoire de Biologie Informatique et Théorique.
+// Copyright © 2001, 2002, 2003 Laboratoire de Biologie Informatique et Théorique.
 //                  Université de Montréal.
 // Author           : Martin Larose <larosem@iro.umontreal.ca>
 // Created On       : Thu Aug 23 11:34:50 2001
-// Last Modified By : Martin Larose
-// Last Modified On : Thu Sep 20 12:43:51 2001
-// Update Count     : 3
+// Last Modified By : Patrick Gendron
+// Last Modified On : Tue Sep 16 15:54:01 2003
+// Update Count     : 4
 // Status           : Unknown.
 // 
 
@@ -45,6 +45,6 @@
 
 #undef HAVE_FSTREAMBASE
 
-#undef __USE_MALLOC
+#undef HAVE_NUMERIC_LIMITS
 
 #endif

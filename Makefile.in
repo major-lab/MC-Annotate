@@ -1,11 +1,11 @@
 ############################ -*- Mode: Makefile -*- ###########################
 ## Makefile.in
-## Copyright © 2001, 2002 Laboratoire de Biologie Informatique et Théorique.
+## Copyright © 2001, 2002, 2003 Laboratoire de Biologie Informatique et Théorique.
 ## Author           : Martin Larose <larosem@iro.umontreal.ca>
 ## Created On       : Mon May 14 19:22:30 2001
-## Last Modified By : Labo Lbit
-## Last Modified On : Fri Feb 22 15:16:08 2002
-## Update Count     : 3
+## Last Modified By : Patrick Gendron
+## Last Modified On : Thu Oct 23 13:22:52 2003
+## Update Count     : 6
 ## Status           : Unknown.
 ###############################################################################
 
@@ -49,7 +49,9 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 .cc.o:
 	$(CXX) $(CXXFLAGS) $(DEFS) -I. -I$(srcdir) -c $<
 
-SOURCES = AnnotatedModel.cc \
+SOURCES = MolecularUnit.cc \
+	  MolecularComplex.cc \
+	  AnnotatedModel.cc \
 	  annotate.cc
 
 HEADERS = $(SOURCES:.cc=.h)
@@ -74,7 +76,7 @@ all-static static: $(PROGRAM)-static TAGS
 $(PROGRAM): $(OBJECTS)
 	@ echo Linking $(PROGRAM)
 	$(LD) -o $(PROGRAM) $(OBJECTS) $(LINKOPTIONS) $(LIBS)
-	cp -f $(PROGRAM) $(ALT_PROGRAM)
+	ln -sf $(PROGRAM) $(ALT_PROGRAM)
 
 $(PROGRAM)-static: $(OBJECTS)
 	$(LD) $(LDFLAGS) -o $@ $(OBJECTS) $(LINKOPTIONS) $(LIBS)
@@ -104,6 +106,7 @@ install: $(PROGRAM) $(WIDGETS)
 	$(LD) -L$(libdir) -o $(PROGRAM) $(OBJECTS) $(WIDGETS) $(LIBS)
 	@ $(srcdir)/mkinstalldirs $(bindir)
 	@ $(INSTALL_PROGRAM) $(PROGRAM) $(bindir)/$(PROGRAM)
+	ln -sf $(bindir)/$(PROGRAM) $(bindir)/$(ALT_PROGRAM)
 
 install-static: static
 	@ echo Installing $(bindir)/$(PROGRAM)-$(VERSION)

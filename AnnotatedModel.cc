@@ -1,11 +1,11 @@
 //                              -*- Mode: C++ -*- 
 // AnnotatedModel.cc
-// Copyright © 2001, 2002 Laboratoire de Biologie Informatique et Théorique.
+// Copyright © 2001, 2002, 2003, 2004 Laboratoire de Biologie Informatique et Théorique.
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
-// Last Modified By : Philippe Thibault
-// Last Modified On : Thu Mar  7 18:31:19 2002
-// Update Count     : 1
+// Last Modified By : Patrick Gendron
+// Last Modified On : Fri Jan  9 15:11:26 2004
+// Update Count     : 200
 // Status           : Unknown.
 // 
 
@@ -15,38 +15,49 @@
 #include <config.h>
 #endif
 
-#include <iomanip.h>
-#include <iostream.h>
+#include <iomanip>
+#include <iostream>
 #include <unistd.h>
-#include <vector.h>
-#include <list.h>
-#include <set.h>
+#include <vector>
+#include <list>
+#include <set>
+
+#include <pdflib.h>
+#include "mccore/stlio.h"
 
 #include "AnnotatedModel.h"
-#include "Graph.h"
 
 #include "mccore/Algo.h"
 #include "mccore/CException.h"
-#include "mcpl/mcpl.h"
-#include "mcpl/Relation.h"
-#include "mcpl/Conformation.h"
-#include "mcpl/PairingPattern.h"
-#include "mcpl/PropertyType.h"
-#include "mcpl/MaximumFlow.h"
-#include "mcpl/PairAnnote.h"
+#include "mccore/Graph.h"
+#include "mccore/Relation.h"
+#include "mccore/PropertyType.h"
+#include "mccore/Relation.h"
+
+
+bool Contact (Residue &a, Residue &b, float min_cut, float max_cut) {
+  min_cut *= min_cut;
+  max_cut *= max_cut;
+
+  for (Residue::iterator i = a.begin (); i != a.end (); ++i)
+    for (Residue::iterator j = b.begin (); j != b.end (); ++j) {
+      float d = i->squareDistance(*j);
+      if (d < min_cut) return true;
+      else if (d > max_cut) return false;
+    }
+  return false;
+}
 
 
 AnnotatedModel::AnnotatedModel (Model *m)
-  : model (m)
+  : Model (*m)
 {
   nb_pairings = 0;
   nb_connect = 0;
 }
 
 AnnotatedModel::~AnnotatedModel ()
-{
-  //delete model;
-}
+{}
 
 
 void 
@@ -55,59 +66,79 @@ AnnotatedModel::annotate ()
   Model::iterator i, j;
   list< edge > seq;
   list< edge >::iterator sj;
-  vector< Conformation > tmpconformations;
 
-  map< CResId, CResId > table;
-  map< CResId, Model::iterator > corresp;
+  map< ResId, ResId > table;
+  map< ResId, Model::iterator > corresp;
   
   vector< vector< Model::iterator > > sequences;
 
   // Standardization of ResIDs
-  // This is needed for the ExtractContact_AABB algo to work correctly when
+  // This is needed for the extractContacts algo to work correctly when
   // there are multiple residues of the same resid.
   { 
     Model::iterator i;
     int a;
-    for (i=model->begin (), a=1; i!=model->end (); ++i, ++a) {
-      CResId resid (a);
-      table[resid] = (CResId&)*i;  
-      *i = resid;
+    for (i=begin (), a=1; i!=end (); ++i, ++a) {
+      ResId resid (a);
+      table[resid] = i->getResId ();  
+      i->setResId (resid);
       corresp[resid] = i;
     }
   }
+  
+  //  cout << *this << endl;
 
   // Extraction of possible relations based on the Axis Aligned Bounding Box method
-  vector< pair< Model::iterator, Model::iterator > > possibleContacts;
+  vector< pair< Model::iterator, Model::iterator > > contacts;
   vector< pair< Model::iterator, Model::iterator > >::iterator l;
-    
-  possibleContacts = 
-    Algo::ExtractContact_AABB (model->begin (), model->end (), 5.0);
+  
+  contacts = Algo::extractContacts (begin (), end (), 5.0);
 
-  for (l=possibleContacts.begin (); l!=possibleContacts.end (); ++l)
+//    cout << "DETECTING CLASHES" << endl;
+//    for (l=possibleContacts.begin (); l!=possibleContacts.end (); ++l)
+//      {
+//        i = l->first;
+//        j = l->second;
+
+//        cout << (CTransfo&)*i << endl;
+//        cout << (CTransfo&)*j << endl;
+
+//      }
+  
+  cerr << "Found " << contacts.size () << " possible contacts " << endl;
+  
+  for (l=contacts.begin (); l!=contacts.end (); ++l)
     {
       i = l->first;
       j = l->second;
       
+      //       cout << (CResId&)*i << " " << (CResId&)*j << endl;
+      
       Relation rel(&*i, &*j);
-      rel.isPairing ();
-      rel.isStacking ();
-      rel.isAdjacent ();
 
-      if (rel.isAdjacent () || rel.isPairing () || rel.isStacking ()) {
-	if (rel.getDirection () == p_DIR_5p) {
+      if (!rel.annotate ()) {  // Misses adjacent pairings between non standards residues
+	set< const PropertyType* > ts;
+	set< const PropertyType* >::iterator tsi;
+	//ts = Relation::areHBonded (&*i, &*j);
+	
+	for (tsi=ts.begin (); tsi!=ts.end (); ++tsi) {
+	  rel.addLabel (*tsi);	
+	}
+      }	
+
+      if (rel.getLabels ().size ()) {
+	if (rel.is (PropertyType::pDIR_5p)) {
 	  relations.push_back (rel);
 	  seq.push_back (relations.size () - 1);	  	    
+// 	  Relation reli(&*j, &*i);
+// 	  reli.isAdjacent ();
+// 	  reli.isPairing ();
+// 	  reli.isStacking ();
+// 	  relations.push_back (reli);
+	} else if (rel.is (PropertyType::pDIR_3p)) {
+// 	  relations.push_back (rel);
 	  Relation reli(&*j, &*i);
-	  reli.isAdjacent ();
-	  reli.isPairing ();
-	  reli.isStacking ();
-	  relations.push_back (reli);
-	} else if (rel.getDirection () == p_DIR_3p) {
-	  relations.push_back (rel);
-	  Relation reli(&*j, &*i);
-	  reli.isAdjacent ();
-	  reli.isPairing ();
-	  reli.isStacking ();
+	  reli.annotate ();
 	  relations.push_back (reli);
 	  seq.push_back (relations.size () - 1);
 	} else {
@@ -125,8 +156,8 @@ AnnotatedModel::annotate ()
     
     while (true) {
       for (sj=seq.begin (); sj!=seq.end (); ++sj) {
-	if ((const CResId&)(relations[*sj].getRes ()) == 
-	    (const CResId&)(relations[sorted_seq.front ()].getRef ())) {
+	if (relations[*sj].getRes ()->getResId () == 
+	    relations[sorted_seq.front ()].getRef ()->getResId ()) {
 	  break;
 	} 
       }
@@ -140,8 +171,8 @@ AnnotatedModel::annotate ()
     
     while (true) {
       for (sj=seq.begin (); sj!=seq.end (); ++sj) {
-	if ((const CResId&)(relations[*sj].getRef ()) == 
-	    (const CResId&)(relations[sorted_seq.back ()].getRes ())) {
+	if (relations[*sj].getRef ()->getResId () == 
+	    relations[sorted_seq.back ()].getRes ()->getResId ()) {
 	  break;
 	} 
       }
@@ -152,13 +183,13 @@ AnnotatedModel::annotate ()
 	break;
       }
     }
-
+    
     vector< Model::iterator > actual_seq;
-
+    
     sj=sorted_seq.begin ();
-    actual_seq.push_back (corresp[(const CResId&)(relations[*sj].getRef ())]);
+    actual_seq.push_back (corresp[relations[*sj].getRef ()->getResId ()]);
     while (sj!=sorted_seq.end ()) {
-      actual_seq.push_back (corresp[(const CResId&)(relations[*sj].getRes ())]);
+      actual_seq.push_back (corresp[relations[*sj].getRes ()->getResId ()]);
       sj++;
     }
 
@@ -168,10 +199,10 @@ AnnotatedModel::annotate ()
   // Dump lone residues.
   {
     Model::iterator i;
-    for (i=model->begin (); i!=model->end (); ++i) {
+    for (i=begin (); i!=end (); ++i) {
       bool found = false;
       for (int j=0; j<(int)sequences.size (); ++j) {
-	if (find (sequences[j].begin (), sequences[j].end (), i)
+	if (std::find (sequences[j].begin (), sequences[j].end (), i)
 	    != sequences[j].end ()) {
 	  found = true;
 	  break;
@@ -184,8 +215,8 @@ AnnotatedModel::annotate ()
       }
     }
   }
-
-  map< CResId, node > newcorresp;
+  
+  map< ResId, node > newcorresp;
 
   // Create graph...
   {
@@ -199,16 +230,15 @@ AnnotatedModel::annotate ()
 
       for (j=i->begin (); j!=i->end (); ++j) {
 
-    	CResId resid (k++);
- 	translation[resid] = table[(CResId&)**j];  
-	**j = resid;
+    	ResId resid (k++);
+ 	translation[resid] = table[(**j).getResId ()];  
+	(*j)->setResId (resid);
 	
-	Conformation confo (&**j);
+  	conformations.push_back (*j);
 
-  	conformations.push_back (confo);
-	graph.addNode (conformations.size () - 1);
+	graph.insert (conformations.size () - 1);
 	
-	newcorresp[(const CResId&)(conformations.back ().getRes ())] = 
+	newcorresp[conformations.back ()->getResId ()] = 
 	  conformations.size () - 1;
   	sequence_mask.push_back (i-sequences.begin ());
       }
@@ -220,20 +250,22 @@ AnnotatedModel::annotate ()
     tertiary_mask.resize ((int)conformations.size (), -1);
 
     for (k=0; k<(int)relations.size (); ++k) {
-      if (relations[k].getDirection () == p_DIR_ANY) {
-	graph.addEdge (newcorresp[(const CResId&)relations[k].getRef ()],
-		       newcorresp[(const CResId&)relations[k].getRes ()],		      
-		       k, false);	
+      if (relations[k].is (PropertyType::pDIR_ANY)) {
+	graph.connect (newcorresp[relations[k].getRef ()->getResId ()],
+		       newcorresp[relations[k].getRes ()->getResId ()],		      
+		       k);
       } else {
-  	graph.addEdge (newcorresp[(const CResId&)relations[k].getRef ()],
-  		       newcorresp[(const CResId&)relations[k].getRes ()],
-  		       k, true);
+  	graph.connect (newcorresp[relations[k].getRef ()->getResId ()],
+  		       newcorresp[relations[k].getRes ()->getResId ()],
+  		       k); // p_DIR_5p || p_DIR_3p
 	nb_connect++;
       }
-      if (relations[k].isPairing ()) {
-	marks[newcorresp[(const CResId&)relations[k].getRef ()]] = 'b';
-	marks[newcorresp[(const CResId&)relations[k].getRes ()]] = 'b';
+      if (relations[k].is (PropertyType::pPairing)) {
+	marks[newcorresp[relations[k].getRef ()->getResId ()]] = 'b';
+	marks[newcorresp[relations[k].getRes ()->getResId ()]] = 'b';
+
 	nb_pairings++;
+
       }
     }
   }
@@ -246,31 +278,35 @@ AnnotatedModel::annotate ()
 void 
 AnnotatedModel::findHelices ()
 {
-  Graph< node, edge >::adjgraph::iterator gi, gk, gip, gkp;
-  Graph< node, edge >::adjlist::iterator gj, gjp;
+  UndirectedGraph< node, edge >::iterator gi, gk, gip, gkp;
+  list< node >::iterator gj, gjp;
   Helix helix;
+  list< node > neigh;
+
+  int min_size = 3;
 
   gi = graph.begin ();
 
   while (gi!=graph.end ()) {
     
-//      cout << "( " << getResId (gi->first) << " " << flush;
+    //cout << "( " << getResId (*gi) << " " << flush;
 
     // Find a pairing involving gi
-    for (gj=gi->second.begin (); gj!=gi->second.end (); ++gj) {
-      if (isHelixPairing (gj->second)) break;
+    neigh = graph.getNeighbors (*gi);
+    for (gj=neigh.begin (); gj!=neigh.end (); ++gj) {
+      if (isHelixPairing (graph.getEdge (*gi, *gj))) break;
     }
       
-    if (gj != gi->second.end ()) 
+    if (gj != neigh.end ()) 
       {
-	if (gj->first > gi->first &&
-	    marks[gj->first] != '(' && marks[gj->first] != ')') {
+	if (*gj > *gi &&
+	    marks[*gj] != '(' && marks[*gj] != ')') {
 	  // Find counterpart of gi.
-	  gk = graph.find (gj->first);
+	  gk = graph.find (*gj);
 
-//  	  cout << getResId (gk->first) << ")" << endl;
+   	  //cout << getResId (*gk) << ")" << endl;
 
-	  helix.push_back (make_pair (gi->first, gk->first));
+	  helix.push_back (make_pair (*gi, *gk));
 	  
 	  // Extending with bulge detection
 	  while (true) {
@@ -279,76 +315,86 @@ AnnotatedModel::findHelices ()
 	    if (gk == graph.begin ()) break;
 	    gkp = gk;  --gkp;
 	    
-//  	    cout << "?  " << getResId(gip->first) << " " << getResId(gkp->first) << endl;
+   	    //cout << "?  " << getResId(*gip) << " " << getResId(*gkp) << endl;
 
-	    if (sequence_mask[gip->first] == sequence_mask[gi->first] &&
-		sequence_mask[gkp->first] == sequence_mask[gk->first]) {
+	    if (sequence_mask[*gip] == sequence_mask[*gi] &&
+		sequence_mask[*gkp] == sequence_mask[*gk]) {
 	      
-	      if ((gjp = gip->second.find (gkp->first)) != gip->second.end () &&
-		  isHelixPairing (gjp->second)) {
-		helix.push_back (make_pair (gip->first, gkp->first));
+	      neigh = graph.getNeighbors (*gip);
+	      if ((gjp = std::find (neigh.begin (), neigh.end (), *gkp)) != neigh.end () &&
+		  isHelixPairing (graph.getEdge (*gip, *gkp))) {
+		helix.push_back (make_pair (*gip, *gkp));
 		gi = gip;
 		gk = gkp;
-
-//  		cout << "+ " << getResId(gi->first) << " " << getResId(gk->first) << endl;
+		
+		//cout << "+ " << getResId(*gi) << " " << getResId(*gk) << endl;
 
 	      } else {
+		break;
+	      }
+// This is for allowing bulges in the helix...  Doesn't work for the following case:
+// '0'110-'0'51 : C-G Ww/Ww pairing cis XIX 
+// '0'111-'0'50 : C-G Ww/Ww pairing cis XIX 
+// '0'112-'0'49 : G-A Ss/Hh pairing trans XI 
+// '0'113-'0'47 : A-G Hh/Ss pairing trans XI 
+// '0'114-'0'48 : A-A Hh/Hh pairing trans II
+// 	      } else {
 
-		//		cout << "Trying bulge in second part" << endl;
-		// There may be a bulge in one of the two chains
- 		Graph< node, edge >::adjlist::iterator ga, gb;
-		bool found = false;
-		for (ga=gip->second.begin (); ga!=gip->second.end (); ++ga) {
+// 		cout << "Trying bulge in second part" << endl;
+// 		// There may be a bulge in one of the two chains
+//  		Graph< node, edge >::adjlist::iterator ga, gb;
+// 		bool found = false;
+// 		for (ga=gip->second.begin (); ga!=gip->second.end (); ++ga) {
 
 //  		  cout << getResId (ga->first) << " " << getResId (gk->first) << " " 
 //  		       << "bulge length " << gk->first - ga->first << endl;
 
-		  if (isHelixPairing (ga->second) &&
-		      gk->first - ga->first <= 3 && 
-		      (gb = gk->second.find (ga->first)) != gk->second.end () &&
-		      relations[gb->second].isStacking ()) {
-		    helix.push_back (make_pair (-1, ga->first-gk->first));
-		    helix.push_back (make_pair (gip->first, gb->first));
-		    gi = gip;
-		    gk = graph.find (gb->first);
+// 		  if (isHelixPairing (ga->second) &&
+// 		      gk->first - ga->first <= min_size && 
+// 		      (gb = gk->second.find (ga->first)) != gk->second.end () &&
+// 		      relations[gb->second].isStacking ()) {
+// 		    helix.push_back (make_pair (-1, ga->first-gk->first));
+// 		    helix.push_back (make_pair (gip->first, gb->first));
+// 		    gi = gip;
+// 		    gk = graph.find (gb->first);
 
-//  		    cout << "+ " << getResId(gi->first) << " " << getResId(gk->first) << endl;
+//   		    cout << "+ " << getResId(gi->first) << " " << getResId(gk->first) << endl;
 
-		    found = true;
-		    break;
-		  }
-		}
-//  		cout << "Trying bulge in first part" << endl;
-		if (!found) {
-		  for (ga=gkp->second.begin (); ga!=gkp->second.end (); ++ga) {
+// 		    found = true;
+// 		    break;
+// 		  }
+// 		}
+//   		cout << "Trying bulge in first part" << endl;
+// 		if (!found) {
+// 		  for (ga=gkp->second.begin (); ga!=gkp->second.end (); ++ga) {
 
 //  		    cout << getResId (ga->first) << " " << getResId (gi->first) << " " 
 //  			 << ga->first - gi->first << endl;
 
-		    if (isHelixPairing (ga->second) &&
-			ga->first - gi->first <= 3 && 
-			(gb = gi->second.find (ga->first)) != gi->second.end () &&
-			relations[gb->second].isStacking ()) {
-		      helix.push_back (make_pair (gi->first-ga->first, -1));
-		      helix.push_back (make_pair (gb->first, gkp->first));
-		      gi = graph.find (gb->first);
-		      gk = gkp;
-//  		      cout << "+ " << getResId(gi->first) << " " << getResId(gk->first) << endl;
-		      found = true;
-		      break;
-		    }
-		  }
-		}
-		if (!found) {
-		  break;
-		}
-	      }
+// 		    if (isHelixPairing (ga->second) &&
+// 			ga->first - gi->first <= min_size && 
+// 			(gb = gi->second.find (ga->first)) != gi->second.end () &&
+// 			relations[gb->second].isStacking ()) {
+// 		      helix.push_back (make_pair (gi->first-ga->first, -1));
+// 		      helix.push_back (make_pair (gb->first, gkp->first));
+// 		      gi = graph.find (gb->first);
+// 		      gk = gkp;
+//   		      cout << "+ " << getResId(gi->first) << " " << getResId(gk->first) << endl;
+// 		      found = true;
+// 		      break;
+// 		    }
+// 		  }
+// 		}
+// 		if (!found) {
+// 		  break;
+// 		}
+// 	      }
 	    } else {
 	      break;
 	    }
 	  }
 	  
-	  if (helix.size () > 2) {
+	  if ((int)helix.size () >= min_size) {
 	    Helix::iterator i;
 	    for (i=helix.begin (); i!=helix.end (); ++i) {
 	      if (i->first >= 0) {
@@ -372,20 +418,20 @@ AnnotatedModel::findHelices ()
 void AnnotatedModel::findStrands ()
 {
   int i;
-  Graph< node, edge >::adjgraph::iterator gi, gk;
+  UndirectedGraph< node, edge >::iterator gi, gk;
   Strand strand;
 
   for (gi=graph.begin (); gi!=graph.end (); ) {
-    if (helix_mask[gi->first] == -1) {
+    if (helix_mask[*gi] == -1) {
       gk = gi;
       while (gk != graph.end () &&
-	     sequence_mask[gi->first] == sequence_mask[gk->first] &&
-	     helix_mask[gk->first] == -1) ++gk;
+	     sequence_mask[*gi] == sequence_mask[*gk] &&
+	     helix_mask[*gk] == -1) ++gk;
       gk--;
-      strand.first = gi->first;
-      strand.second = gk->first;
+      strand.first = *gi;
+      strand.second = *gk;
       strand.type = OTHER;
-      for (i=gi->first; i<=gk->first; ++i) {
+      for (i=*gi; i<=*gk; ++i) {
 	strand_mask[i] = strands.size ();
       }
       strands.push_back (strand);
@@ -419,7 +465,7 @@ void AnnotatedModel::classifyStrands ()
 	else if (helices[helix_mask[j->first-1]].back ().second == j->first-1)
 	  i = helices[helix_mask[j->first-1]].back ().first;
 	else 
-	  cerr << "Pairing not found for " << j->first-1 << endl;
+	  cerr << "Pairing not found for (a) " << j->first-1 << endl;
 
 	if (i==j->second+1)
 	  j->type = LOOP;
@@ -440,7 +486,7 @@ void AnnotatedModel::classifyStrands ()
 	else if (helices[helix_mask[j->first-1]].back ().second == j->first-1)
 	  i = helices[helix_mask[j->first-1]].back ().first;
 	else 
-	  cerr << "Pairing not found for " << j->first-1 << endl;
+	  cerr << "Pairing not found for (b) " << j->first-1 << endl;
 
 	if (helices[helix_mask[j->second+1]].front ().first == j->second+1)
 	  k = helices[helix_mask[j->second+1]].front ().second;
@@ -451,7 +497,7 @@ void AnnotatedModel::classifyStrands ()
 	else if (helices[helix_mask[j->second+1]].back ().second == j->second+1)
 	  k = helices[helix_mask[j->second+1]].back ().first;
 	else 
-	  cerr << "Pairing not found for " << j->first-1 << endl;
+	  cerr << "Pairing not found for (c) " << j->first-1 << endl;
 
 	if (sequence_mask[i] != sequence_mask[k]) {
 	  j->type = OTHER;
@@ -474,136 +520,162 @@ void AnnotatedModel::classifyStrands ()
   }
 }
 
-
-
 void AnnotatedModel::findKissingHairpins ()
 {
-  Graph< node, edge >::adjgraph::iterator gi;
-  Graph< node, edge >::adjlist::iterator gj;
+  UndirectedGraph< node, edge >::iterator gi;
+  list< node >::iterator gj;
+  list< node > neigh;
   int check = 0;
+  int nb_helical_bp = 0;
+  set< const PropertyType* >::iterator k;
 
-  cout << "Tertiary base-pairs ---------------------------------------------" << endl;
+  cout.setf (ios::left, ios::adjustfield);
 
   for (gi=graph.begin (); gi!=graph.end (); ++gi) {
-    for (gj=gi->second.begin (); gj!=gi->second.end (); ++gj) {
+    
+    neigh = graph.getNeighbors (*gi);
 
-      if (gi->first < gj->first && isPairing (gj->second)) {
+    for (gj=neigh.begin (); gj!=neigh.end (); ++gj) {
+
+      if (*gi < *gj && isPairing (graph.getEdge (*gi, *gj))) {
 	
-	if (helix_mask [gi->first] != -1 &&
-	    helix_mask [gi->first] == helix_mask [gj->first]) {
+	if (helix_mask [*gi] != -1 &&
+	    helix_mask [*gi] == helix_mask [*gj]) {
 	  // Simple helical base-pair.
+	  cout << setw (20) << "helix bp: " 
+	       << getResId (*gi) << "-" 
+	       << getResId (*gj) << " : ";
 	  check++;
+	  nb_helical_bp++;
 	} 
 	
-	if (helix_mask [gi->first] != -1 &&
-	    helix_mask [gi->first] != helix_mask [gj->first]) {
+	if (helix_mask [*gi] != -1 &&
+	    helix_mask [*gi] != helix_mask [*gj]) {
 	  cout << setw (20) << "inter helix: " 
-	       << getResId (gi->first) << "-" 
-	       << getResId (gj->first) << endl;
-	  tertiary_mask[gi->first] = 1;
-	  tertiary_mask[gj->first] = 1;
+	       << getResId (*gi) << "-" 
+	       << getResId (*gj) << " : ";
+	  tertiary_mask[*gi] = 1;
+	  tertiary_mask[*gj] = 1;
 	  check++;
 	}
 
-	if (strand_mask [gi->first] != -1 &&
-	    helix_mask [gj->first] != -1) {
-	  if (strands[strand_mask [gi->first]].type == OTHER) {
+	if (strand_mask [*gi] != -1 &&
+	    helix_mask [*gj] != -1) {
+	  if (strands[strand_mask [*gi]].type == OTHER) {
 	    cout << setw (20) << "strand/helix: " 
-		 <<  getResId (gi->first) << "-" 
-		 << getResId (gj->first) << endl;
-	  tertiary_mask[gi->first] = 1;
-	  tertiary_mask[gj->first] = 1;
+		 <<  getResId (*gi) << "-" 
+		 << getResId (*gj) << " : ";
+	  tertiary_mask[*gi] = 1;
+	  tertiary_mask[*gj] = 1;
 	    check++;
-	  } else if (strands[strand_mask [gi->first]].type == BULGE ||
-		     strands[strand_mask [gi->first]].type == BULGE_OUT) {
+	  } else if (strands[strand_mask [*gi]].type == BULGE ||
+		     strands[strand_mask [*gi]].type == BULGE_OUT) {
 	    cout << setw (20) << "bulge/helix: " 
-		 <<  getResId (gi->first) << "-" 
-		 << getResId (gj->first) << endl;
-	  tertiary_mask[gi->first] = 1;
-	  tertiary_mask[gj->first] = 1;
+		 <<  getResId (*gi) << "-" 
+		 << getResId (*gj) << " : ";
+	  tertiary_mask[*gi] = 1;
+	  tertiary_mask[*gj] = 1;
 	    check++;
-	  } else if (strands[strand_mask [gi->first]].type == LOOP) {
+	  } else if (strands[strand_mask [*gi]].type == LOOP) {
 	    cout << setw (20) << "loop/helix: " 
-		 <<  getResId (gi->first) << "-" 
-		 << getResId (gj->first) << endl;
-	  tertiary_mask[gi->first] = 1;
-	  tertiary_mask[gj->first] = 1;
+		 <<  getResId (*gi) << "-" 
+		 << getResId (*gj) << " : ";
+	  tertiary_mask[*gi] = 1;
+	  tertiary_mask[*gj] = 1;
 	    check++;
-	  } else if (strands[strand_mask [gi->first]].type == INTERNAL_LOOP) {
+	  } else if (strands[strand_mask [*gi]].type == INTERNAL_LOOP) {
 	    cout << setw (20) << "internal loop/helix: " 
-		 <<  getResId (gi->first) << "-" 
-		 << getResId (gj->first) << endl;
-	  tertiary_mask[gi->first] = 1;
-	  tertiary_mask[gj->first] = 1;
+		 <<  getResId (*gi) << "-" 
+		 << getResId (*gj) << " : ";
+	  tertiary_mask[*gi] = 1;
+	  tertiary_mask[*gj] = 1;
 	    check++;
 	  } else {
-	    cout << "Other = A" << endl;
+	    cout << "Other A: " << " : ";
 	  }
 	}
 	
-	if (strand_mask [gi->first] != -1 &&
-	    strand_mask [gj->first] != -1) {
+	if (strand_mask [*gi] != -1 &&
+	    strand_mask [*gj] != -1) {
 	  
-	  if (strand_mask [gi->first] == strand_mask [gj->first]) {
+	  if (strand_mask [*gi] == strand_mask [*gj]) {
 	    cout << setw (20) << "intraloop: " 
-		 << getResId (gi->first) << "-"
-		 << getResId (gj->first) << endl;
-	  tertiary_mask[gi->first] = 1;
-	  tertiary_mask[gj->first] = 1;
+		 << getResId (*gi) << "-"
+		 << getResId (*gj) << " : ";
+	  tertiary_mask[*gi] = 1;
+	  tertiary_mask[*gj] = 1;
 	    check++;
 	  } else {
 	    int size = 0;
-	    if (strands[strand_mask [gi->first]].type == OTHER) {
+	    if (strands[strand_mask [*gi]].type == OTHER) {
 	      cout << "strand/";
 	      size = 20-7;	    
-	    } else if (strands[strand_mask [gi->first]].type == BULGE || 
-		     strands[strand_mask [gi->first]].type == BULGE_OUT) {
+	    } else if (strands[strand_mask [*gi]].type == BULGE || 
+		     strands[strand_mask [*gi]].type == BULGE_OUT) {
 	      cout << "bulge/";
 	      size = 20-6;
-	    } else if (strands[strand_mask [gi->first]].type == LOOP) {
+	    } else if (strands[strand_mask [*gi]].type == LOOP) {
 	      cout << "loop/";
 	      size = 20-5;
-	    } else if (strands[strand_mask [gi->first]].type == INTERNAL_LOOP) {
+	    } else if (strands[strand_mask [*gi]].type == INTERNAL_LOOP) {
 	      cout << "internal loop/";
 	      size = 20-14;
 	    }
-	    if (strands[strand_mask [gj->first]].type == OTHER) {
+	    if (strands[strand_mask [*gj]].type == OTHER) {
 	      cout << setw (size) << "strand: " 
-		   <<  getResId (gi->first) << "-" 
-		   << getResId (gj->first) << endl;
-	  tertiary_mask[gi->first] = 1;
-	  tertiary_mask[gj->first] = 1;
+		   <<  getResId (*gi) << "-" 
+		   << getResId (*gj) << " : ";
+	      tertiary_mask[*gi] = 1;
+	      tertiary_mask[*gj] = 1;
 	      check++;
-	    } else if (strands[strand_mask [gj->first]].type == BULGE ||
-		       strands[strand_mask [gj->first]].type == BULGE_OUT) {
+	    } else if (strands[strand_mask [*gj]].type == BULGE ||
+		       strands[strand_mask [*gj]].type == BULGE_OUT) {
 	      cout << setw (size) << "bulge: " 
-		   <<  getResId (gi->first) << "-" 
-		   << getResId (gj->first) << endl;
-	  tertiary_mask[gi->first] = 1;
-	  tertiary_mask[gj->first] = 1;
+		   <<  getResId (*gi) << "-" 
+		   << getResId (*gj) << " : ";
+	      tertiary_mask[*gi] = 1;
+	      tertiary_mask[*gj] = 1;
 	      check++;
-	    } else if (strands[strand_mask [gj->first]].type == LOOP) {
+	    } else if (strands[strand_mask [*gj]].type == LOOP) {
 	      cout << setw (size) << "loop: " 
-		   <<  getResId (gi->first) << "-" 
-		   << getResId (gj->first) << endl;
-	  tertiary_mask[gi->first] = 1;
-	  tertiary_mask[gj->first] = 1;
+		   <<  getResId (*gi) << "-" 
+		   << getResId (*gj) << " : ";
+	      tertiary_mask[*gi] = 1;
+	      tertiary_mask[*gj] = 1;
 	      check++;
-	    } else if (strands[strand_mask [gj->first]].type == INTERNAL_LOOP) {
+	    } else if (strands[strand_mask [*gj]].type == INTERNAL_LOOP) {
 	      cout << setw (size) << "internal loop: " 
-		   <<  getResId (gi->first) << "-" 
-		   << getResId (gj->first) << endl;
-	  tertiary_mask[gi->first] = 1;
-	  tertiary_mask[gj->first] = 1;
+		   <<  getResId (*gi) << "-" 
+		   << getResId (*gj) << " : ";
+	      tertiary_mask[*gi] = 1;
+	      tertiary_mask[*gj] = 1;
 	      check++;
 	    } else {
-	      cout << "Other = B" << endl;
+	      cout << "Other B:" << " : ";
 	    }
 	  }
 	}
+	
+	edge e = graph.getEdge (*gi, *gj);
+	
+	cout << getType (*gi)->toPdbString () << "-" << flush
+	     << getType (*gj)->toPdbString () << " " << flush;
+	
+	if (relations[e].getRefFace ())
+	  cout << relations[e].getRefFace () << "/" << flush
+	       << relations[e].getResFace () << " " << flush;
+	
+	for (k=relations[e].getLabels ().begin (); 
+	     k!=relations[e].getLabels ().end (); ++k) {
+	  cout << **k << " " ;
+	}
+	cout << endl;       
       }
     }
   }
+
+  cout << "Number of base pairs = " << nb_pairings << endl;
+  cout << "Number of helical base pairs = " << nb_helical_bp << endl;
 
   if (nb_pairings != check) 
     cout << "Missing interactions: " << check << "/" << nb_pairings << endl;
@@ -631,7 +703,7 @@ void AnnotatedModel::findPseudoknots ()
 	  bp = j->back ().first;
 	  cp = j->back ().second;
 	  dp = j->front ().second;
-
+	  
 	  if (ap > b && bp < c && cp > d) {
 	    cout << "Pseudoknot : " << "H" << helix_mask[a]+1 << " " 
 		 << "H" << helix_mask[ap]+1 << endl;
@@ -644,38 +716,265 @@ void AnnotatedModel::findPseudoknots ()
 
 
 
-// I/O  -----------------------------------------------------------------
+// CResIdSet
+// AnnotatedModel::extract (CResIdSet &seed, int size)
+// {
+//   set< int > query;
+//   set< int > result;
+//   set< int > visited;
+//   set< int >::iterator s;
+//   CResIdSet::iterator r;
+//   map< CResId, CResId >::iterator i;
+
+//   for (r=seed.begin (); r!=seed.end (); ++r) {
+//     for (i=translation.begin (); i!=translation.end (); ++i) {
+//       if (i->second == *r) break;
+//     }
+    
+//     if (i!=translation.end ()) {
+//       query.insert (i->first.GetResNo ());
+//       visited.insert (i->first.GetResNo ());
+//     }
+//   }
+
+//   while (size-->0) {
+//     result.clear ();
+//     for (s=query.begin (); s!=query.end (); ++s) {
+//       int id = *s;
+//       Graph< int, int >::adjlist li;
+//       Graph< int, int >::adjlist::iterator j;
+      
+//       li = graph.getNeighborIds (id);
+//       for (j=li.begin (); j!=li.end (); ++j) {
+// 	result.insert (j->first);
+//       }
+//     }
+
+//     set< int > tmp;
+//     set_difference (result.begin (), result.end (), visited.begin (), visited.end (),
+// 		    inserter (tmp, tmp.begin ()));
+//     query = tmp;
+//     tmp.clear ();
+
+//     set_union (visited.begin (), visited.end (), result.begin (), result.end (),
+// 	       inserter (tmp, tmp.begin ()));
+//     visited = tmp;
+//   }
+
+//   CResIdSet outset;
+  
+//   for (s=visited.begin (); s!=visited.end (); ++s)
+//     outset.insert (getResId (*s));
+//   return outset;
+// }
+
+
+
+// void
+// AnnotatedModel::decompose ()
+// {
+//   list< Block > s_blocks_tmp;
+//   vector< Block >::iterator bi;
+//   list< Block >::iterator bk, bl;
+  
+//   {
+//     // Find helices...
+//     vector< Helix >::iterator i;
+//     Helix::iterator j;
+//     Helix::reverse_iterator rj;
+    
+//     for (i=helices.begin (); i!=helices.end (); ++i) {
+//       Block b (this);
+//       vector< node > v;
+//       vector< node > vi;
+//       for (j=i->begin (); j!=i->end (); ++j) {
+// 	v.push_back (j->first);
+//       }
+//       for (rj=i->rbegin (); rj!=i->rend (); ++rj) {
+// 	vi.push_back (rj->second);
+//       }    
+//       b.push_back (v);    
+//       b.push_back (vi);
+//       b.junctions.push_back (make_pair (v.front (), vi.back ()));
+//       b.junctions.push_back (make_pair (vi.front (), v.back ()));
+      
+//       h_blocks.push_back (b);
+//     }
+//   }
+//   {
+//     // Find strands...
+//     vector< Strand >::iterator i;
+    
+//     for (i=strands.begin (); i!=strands.end (); ++i) {
+//       Block b (this);
+//       vector< node > v;
+
+//       if (i->first>0 && sequence_mask[i->first] == sequence_mask[i->first-1]) {
+// 	v.push_back (i->first-1);
+// 	strand_mask[i->first-1] = strand_mask[i->first];
+//       }
+//       for (int k=i->first; k<=i->second; ++k) {
+// 	v.push_back (k);
+//       }
+//       if (i->second<(int)sequence_mask.size ()-1 && sequence_mask[i->second] == sequence_mask[i->second+1]) {
+// 	v.push_back (i->second+1);
+// 	strand_mask[i->second+1] = strand_mask[i->second];
+//       }
+//       b.push_back (v);
+      
+//       s_blocks_tmp.push_back (b);
+//     }
+    
+//     // Hack: Find regions where helices are connected with no strand...
+    
+//     for (int j=0; j<(int)conformations.size ()-1; ++j) {
+//       if (helix_mask[j] != -1 && helix_mask[j+1] != -1 &&
+// 	  helix_mask[j] != helix_mask[j+1] && 
+// 	  sequence_mask[j] == sequence_mask[j+1]) {
+// 	Block b (this);
+// 	vector< node > v;
+// 	v.push_back (j);
+// 	v.push_back (j+1);
+// 	b.push_back (v);
+// 	b.output (cout);
+// 	cout << endl;
+// 	s_blocks_tmp.push_back (b);
+// 	strand_mask[j] = s_blocks_tmp.size ()-1;
+// 	strand_mask[j+1] = s_blocks_tmp.size ()-1;
+//       }
+//     }
+//   }
+  
+//   {
+//     // Find loops and internal loops...
+//     bk = s_blocks_tmp.begin ();
+//     while (bk!=s_blocks_tmp.end ()) {
+//       node s, e;
+//       int hs, he;
+      
+      
+//       bk->output (cout); cout << endl;
+
+//       s = bk->begin ()->front ();
+//       e = bk->begin ()->back ();
+      
+//       hs = helix_mask[s];
+//       he = helix_mask[e];
+
+//       if (hs==he) {
+// 	bk->junctions.push_back (make_pair (s, e));
+// 	l_blocks.push_back (*bk);
+// 	bk = s_blocks_tmp.erase (bk);
+//       } else if (hs ==-1 || he == -1) {
+// 	s_blocks.push_back (*bk);
+// 	bk = s_blocks_tmp.erase (bk);
+//       } else {
+// 	node ep = s;
+// 	node sp = s;
+
+// 	while (ep!=e) {
+// 	  ep = 
+// 	    (h_blocks[hs].junctions.front ().first == s) ? h_blocks[hs].junctions.front ().second :
+// 	    ((h_blocks[hs].junctions.front ().second == s) ? h_blocks[hs].junctions.front ().first :
+// 	     ((h_blocks[hs].junctions.back ().first == s) ? h_blocks[hs].junctions.back ().second : 
+// 	      h_blocks[hs].junctions.back ().first));
+// 	  // Find new s.
+// 	  if (ep!=e) {
+// 	    bl = s_blocks_tmp.begin ();
+// 	    while (bl!=s_blocks_tmp.end ()) {
+	      
+// 	      if (bl->front ().front () == ep) { 
+// 		sp = bl->front ().back ();
+// 		break;
+// 	      }
+// 	      else if (bl->front ().back () == ep) {
+// 		sp = bl->front ().front ();
+// 		break;
+// 	      }
+// 	      bl++;
+// 	    }
+	    
+// 	    if (bl==s_blocks_tmp.end ()) cerr << "Woa!  This should not happen" << endl;
+
+// 	    // Add bl to bk and erase bl
+// 	    bk->push_back (bl->front ());
+// 	    s_blocks_tmp.erase (bl);
+// 	  }
+	  
+// 	  bk->junctions.push_back (make_pair (s, ep));
+// 	  s = sp;
+// 	  hs = helix_mask[s];
+// 	}
+	
+// 	l_blocks.push_back (*bk);
+// 	bk = s_blocks_tmp.erase (bk);
+//       }
+//     }
+//   }
+  
+//   cout << "Helices" << endl;
+//   for (bi=h_blocks.begin (); bi!=h_blocks.end (); ++bi) {
+//     bi->output (cout);
+//     cout << endl;
+//   }
+
+//   cout << "Strand" << endl;
+//   for (bk=s_blocks_tmp.begin (); bk!=s_blocks_tmp.end (); ++bk) {
+//     bk->output (cout);
+//     cout << endl;
+//   }
+//   cout << "Loops" << endl;
+//   for (bi=l_blocks.begin (); bi!=l_blocks.end (); ++bi) {
+//     bi->output (cout);
+//     cout << endl;
+//   }
+// }
+
+
+// // I/O  -----------------------------------------------------------------
 
 
 
 
-void AnnotatedModel::dumpSequences () 
+void AnnotatedModel::dumpSequences (bool detailed) 
 {
   
   int i, j;
   int currseq = -1;
-
-  cout << "Sequences -------------------------------------------------------" << endl;
+  
+  if (!detailed) {
+    for (i=0; i<(int)conformations.size (); ++i) {
+      if (i==0 || sequence_mask[i] != sequence_mask[i-1])
+	cout << " " << setw (8) << getResId (i) << " " << flush;
+      cout << getType (i)->toString () << flush;
+    }	
+    return;
+  } 
 
   for (i=0; i<(int)conformations.size (); ) {
     
     currseq = sequence_mask[i];
 
-    cout << "Sequence " << currseq+1 << " (length = " 
+    cout << "Sequence " << currseq << " (length = " 
 	 << sequence_length[currseq] << "): " << endl;
     
     int pos = 0;
     while (pos < sequence_length[currseq]) 
       {
 	for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
-	  if ((j)%50==0) cout << setw (6) << getResId (i+j) << " ";
-	  cout << *getType (i+j);
-	  if ((j+1)%10==0) cout << " ";
+	  if ((j)%50==0) {
+	    cout.setf (ios::right, ios::adjustfield);
+	    cout << setw (3) << getResId (i+j).getChainId () << flush;
+	    cout.setf (ios::left, ios::adjustfield);
+	    cout << setw (5) << getResId (i+j).getResNo () << " " << flush;
+	  }
+	  cout << getType (i+j)->toString () << flush;
+	  if ((j+1)%10==0) cout << " " << flush;
 	}
 	cout << endl;
 	
 	for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
-	  if ((j)%50==0) cout << setw (6) << " " << " " << flush;
+	  if ((j)%50==0) cout << setw (8) << " " << " " << flush;
 	  cout << marks[i+j] << flush;
 	  if ((j+1)%10==0) cout << " " << flush;
 	}
@@ -684,101 +983,108 @@ void AnnotatedModel::dumpSequences ()
 //  	for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
 //  	  if ((j)%50==0) cout << setw (6) << "seq" << " " << flush;
 //  	  if (sequence_mask[i+j] == -1) cout << "-" << flush;
-//  	  else cout << sequence_mask[i+j]+1 << flush;
+//  	  else cout << sequence_mask[i+j] << flush;
 //  	  if ((j+1)%10==0) cout << " " << flush;
 //  	}
 //  	cout << endl;
 
-//  	for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
-//  	  if ((j)%50==0) cout << setw (6) << "hel" << " " << flush;
-//  	  if (helix_mask[i+j] == -1) cout << "-" << flush;
-//  	  else cout << helix_mask[i+j]+1 << flush;
-//  	  if ((j+1)%10==0) cout << " " << flush;
-//  	}
-//  	cout << endl;
+ 	for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
+ 	  if ((j)%50==0) cout << setw (8) << "helix" << " " << flush;
+ 	  if (helix_mask[i+j] == -1) cout << "-" << flush;
+ 	  else cout << helix_mask[i+j] << flush;
+ 	  if ((j+1)%10==0) cout << " " << flush;
+ 	}
+ 	cout << endl;
 
 //  	for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
 //  	  if ((j)%50==0) cout << setw (6) << "str" << " " << flush;
 //  	  if (strand_mask[i+j] == -1) cout << "-" << flush;
-//  	  else cout << strand_mask[i+j]+1 << flush;
+//  	  else cout << strand_mask[i+j] << flush;
 //  	  if ((j+1)%10==0) cout << " " << flush;
 //  	}
 //  	cout << endl;
 
-	for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
-	  if ((j)%50==0) cout << setw (6) << "ter" << " " << flush;
-	  if (tertiary_mask[i+j] == -1) cout << "-" << flush;
-	  else cout << 'X' << flush;
-	  if ((j+1)%10==0) cout << " " << flush;
-	}
+// 	for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
+// 	  if ((j)%50==0) cout << setw (6) << "ter" << " " << flush;
+// 	  if (tertiary_mask[i+j] == -1) cout << "-" << flush;
+// 	  else cout << 'X' << flush;
+// 	  if ((j+1)%10==0) cout << " " << flush;
+// 	}
 
-	cout << endl << endl;
+// 	cout << endl << endl;
 
 	pos = j+1;
       }
     i += pos-1;
   }
+
+  cout.setf (ios::left, ios::adjustfield);
 }
 
 
-void AnnotatedModel::dumpGraph () 
-{
-  Graph< node, edge >::adjgraph::iterator i;
-  Graph< node, edge >::adjlist::iterator j;
-  PropertySet::iterator k;
+// void AnnotatedModel::dumpGraph () 
+// {
+//   Graph< node, edge >::adjgraph::iterator i;
+//   Graph< node, edge >::adjlist::iterator j;
+//   PropertySet::iterator k;
 
-  cout << "Graph of relations ----------------------------------------------" << endl;
+//   cout << "Graph of relations ----------------------------------------------" << endl;
 
-  for (i=graph.begin (); i!=graph.end (); ++i) {
-    for (j=i->second.begin (); j!=i->second.end (); ++j) {
-      cout << getResId (i->first) << "-" 
-	   << getResId (j->first) << " : ";
-      for (k=relations[j->second].getGlobalProp ().begin (); 
-	   k!=relations[j->second].getGlobalProp ().end (); ++k) {
-	cout << (const char*)**k << " " ;
-      }
-      cout << endl;
-    }
-  } 
-}
+//   for (i=graph.begin (); i!=graph.end (); ++i) {
+//     for (j=i->second.begin (); j!=i->second.end (); ++j) {
+//       cout << getResId (i->first) << "-" 
+// 	   << getResId (j->first) << " : ";
+//       for (k=relations[j->second].getGlobalProp ().begin (); 
+// 	   k!=relations[j->second].getGlobalProp ().end (); ++k) {
+// 	cout << (const char*)**k << " " ;
+//       }
+//       cout << endl;
+//     }
+//   } 
+// }
 
 
 void AnnotatedModel::dumpConformations () 
 {
-  Graph< node, edge >::adjgraph::iterator i;
-  cout << "Residue conformations -------------------------------------------" << endl;
+  UndirectedGraph< node, edge >::iterator i;
+  
   for (i=graph.begin (); i!=graph.end (); ++i) {
-    cout << getResId (i->first) << " : " 
-	 << *getType (i->first) << " " 
-	 << *conformations[i->first].getPucker () << " " 
-	 << *conformations[i->first].getGlycosyl () << endl; 
+    cout << getResId (*i) << " : " 
+	 << getType (*i)->toPdbString () << " " 
+	 << conformations[*i]->getPucker () << " " 
+	 << conformations[*i]->getGlycosyl () << endl; 
   }
 }
 
 
 void AnnotatedModel::dumpPairs () 
 {
-  Graph< node, edge >::adjgraph::iterator i;
-  Graph< node, edge >::adjlist::iterator j;
-  PropertySet::iterator k;
-
-  cout << "Base-pairs ------------------------------------------------------" << endl;
+  UndirectedGraph< node, edge >::iterator i;
+  list< node >::iterator j;
+  list< node > neigh;
+  set< const PropertyType* >::iterator k;
 
   for (i=graph.begin (); i!=graph.end (); ++i) {
-    for (j=i->second.begin (); j!=i->second.end (); ++j) {
-      if (i->first < j->first && 
-	  isPairing (j->second)) {
-	cout << getResId (i->first) << "-" 
-	     << getResId (j->first) << " : ";
-	cout << (const char*)(*getType (i->first)) << "-" << flush
-	     << (const char*)(*getType (j->first)) << " " << flush;
+
+    neigh = graph.getNeighbors (*i);
+
+    for (j=neigh.begin (); j!=neigh.end (); ++j) {
+      if (*i < *j && isPairing (*i, *j)) {
+	cout << getResId (*i) << "-" 
+	     << getResId (*j) << " : ";
+
+	edge e = graph.getEdge (*i, *j);
+
+	cout << getType (*i)->toPdbString () << "-" << flush
+	     << getType (*j)->toPdbString () << " " << flush;
 	  
-	cout << (const char*)(*relations[j->second].getRefProp ()) << "/" << flush
-	     << (const char*)(*relations[j->second].getResProp ()) << " " << flush;
+	if (relations[e].getRefFace ())
+	  cout << relations[e].getRefFace () << "/" << flush
+	       << relations[e].getResFace () << " " << flush;
 	
-	for (k=relations[j->second].getGlobalProp ().begin (); 
-	     k!=relations[j->second].getGlobalProp ().end (); ++k) {
-	  cout << (const char*)**k << " " ;
+	for (k=relations[e].getLabels ().begin (); 
+	     k!=relations[e].getLabels ().end (); ++k) {
+	  cout << **k << " " ;
 	}
 	cout << endl;
       }
@@ -789,20 +1095,36 @@ void AnnotatedModel::dumpPairs ()
 
 void AnnotatedModel::dumpStacks () 
 {
-  Graph< node, edge >::adjgraph::iterator i, k;
-  Graph< node, edge >::adjlist::iterator j;
-  PropertySet::iterator l;
+  UndirectedGraph< node, edge >::iterator i, k;
+  list< node >::iterator j;
+  list< node > neigh;
+  set< const PropertyType* >::iterator l;
 
-  cout << "Adjacent relations ----------------------------------------------" << endl;
+  int nb_stacks = 0;
+  int nb_helical_stacks = 0;
+  int nb_adjacent_stacks = 0;
+
+  cout << "Adjacent stackings ----------------------------------------------" << endl;
+
   for (i=graph.begin (), k=i, ++k; i!=graph.end () && k!=graph.end (); ++i, ++k) {
-    if ((j = i->second.find (k->first)) != i->second.end () &&
-	relations[j->second].isAdjacent ()) {
-      cout << getResId (i->first) << "-" 
-	   << getResId (j->first) << " : ";
-      for (l=relations[j->second].getGlobalProp ().begin (); 
-	   l!=relations[j->second].getGlobalProp ().end (); ++l) {
-	if (*l != p_DIR_5p)
-	  cout << (const char*)**l << " " ;
+    
+    neigh = graph.getNeighbors (*i);
+
+    if ((j = std::find (neigh.begin (), neigh.end (), *k)) != neigh.end () &&
+	relations[graph.getEdge (*i, *j)].is (PropertyType::pAdjacent)) {
+      
+      if (relations[graph.getEdge (*i, *j)].is (PropertyType::pStack)) {
+	nb_adjacent_stacks++;
+	nb_stacks++;
+	if (helix_mask[*i] == helix_mask[*j] &&
+	    helix_mask[*i] != -1) nb_helical_stacks++;
+      }
+      
+      cout << getResId (*i) << "-" 
+	   << getResId (*j) << " : ";
+      for (l=relations[graph.getEdge (*i, *j)].getLabels ().begin (); 
+	   l!=relations[graph.getEdge (*i, *j)].getLabels ().end (); ++l) {
+	cout << **l << " " ;
       }
       cout << endl;
     }
@@ -811,74 +1133,84 @@ void AnnotatedModel::dumpStacks ()
 
   cout << "Non-Adjacent stackings ------------------------------------------" << endl;
   for (i=graph.begin (); i!=graph.end (); ++i) {
-    for (j=i->second.begin (); j!=i->second.end (); ++j) {
-      if (i->first < j->first && 
-	  relations[j->second].isStacking () && !relations[j->second].isAdjacent ()) {
-	cout << getResId (i->first) << "-" 
-	     << getResId (j->first) << " : ";
-	for (l=relations[j->second].getGlobalProp ().begin (); 
-	     l!=relations[j->second].getGlobalProp ().end (); ++l) {
-	  if (*l != p_reverse)
+
+    neigh = graph.getNeighbors (*i);
+    
+    for (j=neigh.begin (); j!=neigh.end (); ++j) {
+      if (*i < *j && 
+	  relations[graph.getEdge (*i, *j)].is (PropertyType::pStack) && 
+	  !relations[graph.getEdge (*i, *j)].is (PropertyType::pAdjacent)) {
+	nb_stacks++;
+	
+	cout << getResId (*i) << "-" 
+	     << getResId (*j) << " : ";
+	for (l=relations[graph.getEdge (*i, *j)].getLabels ().begin (); 
+	     l!=relations[graph.getEdge (*i, *j)].getLabels ().end (); ++l) {
+	  //if (*l != PropertyType::pReverse)
 	    cout << (const char*)**l << " " ;
 	}
 	cout << endl;
       }
     }
   }
+
+  cout << "Number of stackings = " << nb_stacks << endl;
+  cout << "Number of helical stackings = " << nb_helical_stacks << endl;
+  cout << "Number of adjacent stackings = " << nb_adjacent_stacks << endl;
+  cout << "Number of non adjacent stackings = " << nb_stacks - nb_adjacent_stacks << endl;
 }
 
 
 void AnnotatedModel::dumpHelices () 
 {
   vector< Helix >::iterator i;
-  Helix::iterator j;
-    
-  cout << "Helices ---------------------------------------------------------" << endl;
+//   Helix::iterator j;
 
+     
   for (i=helices.begin (); i!=helices.end (); ++i) {
-    char type;
-    int tmpsize = 0;
-    if (conformations[i->begin ()->first].getPucker ()->is_C3p_endo () &&
-	conformations[i->begin ()->first].getGlycosyl ()->is_anti ())
-      type = 'A';
-    else if (conformations[i->begin ()->first].getPucker ()->is_C2p_endo () &&
-	     conformations[i->begin ()->first].getGlycosyl ()->is_anti ())
-      type = 'B';
-    else type = 'X';
-
-    for (j=i->begin (); j!=i->end (); ++j) {
-      if (j->first >= 0) {
-	char tmptype = 'X';
-	if (conformations[j->first].getPucker ()->is_C3p_endo () &&
-	    conformations[j->first].getGlycosyl ()->is_anti ())
-	  tmptype = 'A';
-	else if (conformations[j->first].getPucker ()->is_C2p_endo () &&
-		 conformations[j->first].getGlycosyl ()->is_anti ())
-	  tmptype = 'B';
-	else tmptype = 'X';
+//     char type;
+//     int tmpsize = 0;
+//     if (conformations[i->begin ()->first]->getPucker ()->is (PropertyType::pC3p_endo) &&
+// 	conformations[i->begin ()->first]->getGlycosyl ()->is (PropertyType::pAnti))
+//       type = 'A';
+//     else if (conformations[i->begin ()->first]->getPucker ()->is (PropertyType::pC2p_endo) &&
+// 	     conformations[i->begin ()->first]->getGlycosyl ()->is (PropertyType::pAnti))
+//       type = 'B';
+//     else type = 'X';
+    
+//     for (j=i->begin (); j!=i->end (); ++j) {
+//       if (j->first >= 0) {
+// 	char tmptype = 'X';
+// 	if (conformations[j->first]->getPucker ()->is (PropertyType::pC3p_endo) &&
+// 	    conformations[j->first]->getGlycosyl ()->is (PropertyType::pAnti))
+// 	  tmptype = 'A';
+// 	else if (conformations[j->first]->getPucker ()->is (PropertyType::pC2p_endo) &&
+// 		 conformations[j->first]->getGlycosyl ()->is (PropertyType::pAnti))
+// 	  tmptype = 'B';
+// 	else tmptype = 'X';
 	
-	if (type != tmptype) type = 'X';
+// 	if (type != tmptype) type = 'X';
 	
-	if (conformations[j->second].getPucker ()->is_C3p_endo () &&
-	    conformations[j->second].getGlycosyl ()->is_anti ())
-	  tmptype = 'A';
-	else if (conformations[j->second].getPucker ()->is_C2p_endo () &&
-		 conformations[j->second].getGlycosyl ()->is_anti ())
-	  tmptype = 'B';
-	else tmptype = 'X';
+// 	if (conformations[j->second]->getPucker ()->is (PropertyType::pC3p_endo) &&
+// 	    conformations[j->second]->getGlycosyl ()->is (PropertyType::pAnti))
+// 	  tmptype = 'A';
+// 	else if (conformations[j->second]->getPucker ()->is (PropertyType::pC2p_endo) &&
+// 		 conformations[j->second]->getGlycosyl ()->is (PropertyType::pAnti))
+// 	  tmptype = 'B';
+// 	else tmptype = 'X';
 	
-	if (type != tmptype) type = 'X';
+// 	if (type != tmptype) type = 'X';
 	
-	tmpsize++;
-      }
-    }
-
+// 	tmpsize++;
+//       }
+//     }
+    
     
 
-    cout << "H" << i-helices.begin ()+1 << ", length = " 
-	 << tmpsize << ", " << flush;
+    cout << "H" << i-helices.begin () << ", length = " 
+	 << i->size () << "" << endl;
     
-    cout << "type = " << type << " : " << endl;
+//     cout << "type = " << type << " : " << endl;
     
     int k;
 
@@ -887,13 +1219,13 @@ void AnnotatedModel::dumpHelices ()
     cout << setw (6) << getResId ((*i)[0].first) << "-" << flush;
     for (k=0; k<(int)i->size (); ++k) {
       if ((*i)[k].first >=0)
-	cout << *getType ((*i)[k].first) << flush;
+	cout << getType ((*i)[k].first)->toString () << flush;
       else {
 	if (- (*i)[k].first -1 == 0) {
-	  cout << "-" << setw (max ((int)floor(log10 (-(*i)[k].first)), (int)floor(log10 (-(*i)[k].second)))+1) 
+	  cout << "-" << setw (max ((int)floor(log10 ((double)-(*i)[k].first)), (int)floor(log10 ((double)-(*i)[k].second)))+1) 
 	       << setfill ('-') << "-" << "-" << flush;
 	} else {
-	  cout << "-" << setw (max ((int)floor(log10 (-(*i)[k].first)), (int)floor(log10 (-(*i)[k].second)))+1) 
+	  cout << "-" << setw (max ((int)floor(log10 ((double)-(*i)[k].first)), (int)floor(log10 ((double)-(*i)[k].second)))+1) 
 	       << - (*i)[k].first -1 << "-" << flush;
 	}
       }
@@ -902,28 +1234,31 @@ void AnnotatedModel::dumpHelices ()
     
     cout.setf (ios::right, ios::adjustfield);
     cout << setw (6) << getResId ((*i)[0].second) << "-" << flush;
+
     for (k=0; k<(int)i->size (); ++k) {
       if ((*i)[k].first >=0)
-	cout << *getType ((*i)[k].second) << flush;
+	cout << getType ((*i)[k].second)->toString () << flush;
       else {
 	if (- (*i)[k].second -1 == 0) {
-	  cout << "-" << setw (max ((int)floor(log10 (-(*i)[k].first)), (int)floor(log10 (-(*i)[k].second)))+1) 
+	  cout << "-" << setw (max ((int)floor(log10 ((double)-(*i)[k].first)), (int)floor(log10 ((double)-(*i)[k].second)))+1) 
 	       << setfill ('-') << "-" << "-" << flush;	
 	} else {  
-	  cout << "-" << setw (max ((int)floor(log10 (-(*i)[k].first)), (int)floor(log10 (-(*i)[k].second)))+1) 
+	  cout << "-" << setw (max ((int)floor(log10 ((double)-(*i)[k].first)), (int)floor(log10 ((double)-(*i)[k].second)))+1) 
 	       << - (*i)[k].second -1 << "-" << flush;
 	}
       }
     }
     cout << "-" << getResId ((*i)[i->size ()-1].second) << setfill (' ') << endl;
   }
+  cout.setf (ios::left, ios::adjustfield);
 }
 
 
 void AnnotatedModel::dumpTriples () 
 {
-  Graph< node, edge >::adjgraph::iterator gi;
-  Graph< node, edge >::adjlist::iterator gj;
+  UndirectedGraph< node, edge >::iterator gi;
+  list< node >::iterator gj;
+  list< node > neigh;
   int count;
   int nb = 1;
   set< node > nodes;
@@ -932,17 +1267,18 @@ void AnnotatedModel::dumpTriples ()
 
   treated.resize (graph.size (), false);
 
-  cout << "Base Triples ----------------------------------------------------" << endl;
-    
   for (gi=graph.begin (); gi!=graph.end (); ++gi) {
     count = 0;
     nodes.clear ();
-    if (!treated[gi->first]) {
-      nodes.insert (gi->first);
-      for (gj=gi->second.begin (); gj!=gi->second.end (); ++gj) {
-	if (isPairing (gj->second)) {
+    if (!treated[*gi]) {
+      nodes.insert (*gi);
+      
+      neigh = graph.getNeighbors (*gi);
+
+      for (gj=neigh.begin (); gj!=neigh.end (); ++gj) {
+	if (isPairing (graph.getEdge (*gi,*gj))) {
 	  count++;
-	  nodes.insert (gj->first);
+	  nodes.insert (*gj);
 	}
       }
       if (count > 1) {
@@ -962,6 +1298,7 @@ void AnnotatedModel::dumpTriples ()
       }
     }
   }
+  cout.setf (ios::left, ios::adjustfield);
 }
 
 void 
@@ -970,39 +1307,44 @@ AnnotatedModel::dumpStrands ()
   int j;
   int k;
 
-  cout << "Strands ---------------------------------------------------------" << endl;
-
+  
   for (j=0; j<(int)strands.size (); ++j) {
-
+    
     cout.setf (ios::left, ios::adjustfield);
-    cout << "S" << setw (5) << j+1 << " " <<  flush;
-
+    cout << "S" << setw (5) << j << " " <<  flush;
+    
     cout.setf (ios::left, ios::adjustfield);
-
+    
     if (strands[j].type == OTHER) cout << setw (16) << "single strand:";
     else if (strands[j].type == BULGE) cout << setw (16) << "bulge:";
     else if (strands[j].type == BULGE_OUT) cout << setw (16) << "bulge out:";
     else if (strands[j].type == LOOP) cout << setw (16) << "loop:";
     else if (strands[j].type == INTERNAL_LOOP) cout << setw (16) << "internal loop:";
-
+    
     cout << getResId (strands[j].first) << "-" << flush;
     for (k=strands[j].first; k<=strands[j].second; ++k) {
-      cout << *getType (k) << flush;
+      cout << getType (k)->toString () << flush;
     }
     cout << "-" << getResId (strands[j].second);
-
+    
     if (strands[j].type == INTERNAL_LOOP) {
       cout << " -- " << flush;
       cout << getResId (strands[strands[j].ref].first) << "-" << flush;
       for (k=strands[strands[j].ref].first; k<=strands[strands[j].ref].second; ++k) {
-	cout << *getType (k) << flush;
+	cout << getType (k)->toString () << flush;
       }
       cout << "-" << getResId (strands[strands[j].ref].second);
     }
     cout << endl;
   }
+  
+//   for (k=strands[j].first; k<=strands[j].second; ++k) {
+//     cout << *getType (k) << flush;
+//   }
+//   cout << " " << flush;
+// }
+  cout.setf (ios::left, ios::adjustfield);
 }
-
 
 
 void 
@@ -1014,7 +1356,6 @@ AnnotatedModel::dumpMcc (const char* pdbname)
   cout << "//" << endl;
   gethostname (str, 255);
   cout << "// Author         : " << getenv ("LOGNAME") << '@' << str << endl;
-  cout << "// Creation date  : " << get_current_time (str) << endl;
   cout << "// Structure file : " << pdbname << endl;
   cout << "// Structural annotation generated by " << PACKAGE << " "  << VERSION << endl;
   cout << "// ";
@@ -1039,7 +1380,7 @@ AnnotatedModel::dumpMcc (const char* pdbname)
 	{
 	  for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
 	    if (j==0) cout << setw (8) << getResId (i+j) << " ";
-	    cout << *getType (i+j);
+	    cout << getType (i+j)->toString ();
 	    if ((j+1)%10==0) cout << " ";
 	  }
 	  cout << endl;
@@ -1058,14 +1399,14 @@ AnnotatedModel::dumpMcc (const char* pdbname)
   cout << "// inferior to 20nm for them to be considered adjacent.               " << endl;
   cout << "//" << endl;
   {
-    Graph< node, edge >::adjgraph::iterator i;
+    UndirectedGraph< node, edge >::iterator i;
 
     cout << "residue(" << endl;
     for (i=graph.begin (); i!=graph.end (); ++i) {
-      cout << setw(8) << getResId (i->first) << " { ";
+      cout << setw(8) << getResId (*i) << " { ";
       cout.setf (ios::left, ios::adjustfield);
-      cout << setw(8) << *conformations[i->first].getPucker () << " && " 
-	   << setw(4) << *conformations[i->first].getGlycosyl () << " }" << "  100%" << endl; 
+      cout << setw(8) << *conformations[*i]->getPucker () << " && " 
+	   << setw(4) << *conformations[*i]->getGlycosyl () << " }" << "  100%" << endl; 
       cout.setf (ios::right, ios::adjustfield);
     }
     cout << ")" << endl;
@@ -1076,32 +1417,36 @@ AnnotatedModel::dumpMcc (const char* pdbname)
   cout << "//" << endl;
  
   {
-    Graph< node, edge >::adjgraph::iterator i;
-    Graph< node, edge >::adjlist::iterator j;
-    PropertySet::iterator k;
-
+    UndirectedGraph< node, edge >::iterator i;
+    list< node >::iterator j;
+    list< node > neigh;
+    set< const PropertyType* >::iterator k;
+    
     if (nb_pairings > 0) {
       cout << "pair(" << endl;
       for (i=graph.begin (); i!=graph.end (); ++i) {
-	for (j=i->second.begin (); j!=i->second.end (); ++j) {
-	  if (i->first < j->first && 
-	      !isAdjacent (j->second)) {
+	neigh = graph.getNeighbors (*i);
+	cout << neigh.size () << endl;
+	for (j=neigh.begin (); j!=neigh.end (); ++j) {
+	  edge e = graph.getEdge (*i, *j);
+	  if (*i < *j && 
+	      !isAdjacent (e)) {
 	    
-	    cout << setw(8) << getResId (i->first) 
-		 << setw(8) << getResId (j->first) << " { ";
+	    cout << setw(8) << getResId (*i) 
+		 << setw(8) << getResId (*j) << " { ";
 	    
 	    bool useand = false;
-	    if (isPairing (j->second)) {
-	      cout << (const char*)(*relations[j->second].getRefProp ()) << "/" << flush
-		   << (const char*)(*relations[j->second].getResProp ()) << " " << flush;
+	    if (isPairing (e) && !relations[e].is (PropertyType::parseType ("unclassified"))) {
+	      cout << (const char*)(*relations[e].getRefFace ()) << "/" << flush
+		   << (const char*)(*relations[e].getResFace ()) << " " << flush;
 	      useand = true;
 	    }
-	    for (k=relations[j->second].getGlobalProp ().begin (); 
-		 k!=relations[j->second].getGlobalProp ().end (); ++k) {
-	      if ((**k).is_reverse () || 
-		  (**k).is_cis () ||
-		  (**k).is_trans () ||
-		  (**k).is_stack ()) {      
+	    for (k=relations[e].getLabels ().begin (); 
+		 k!=relations[e].getLabels ().end (); ++k) {
+	      if ((*k) == PropertyType::pReverse || 
+		  (*k) == PropertyType::pCis ||
+		  (*k) == PropertyType::pTrans ||
+		  (*k) == PropertyType::pStack) {      
 		if (useand) cout << "&& ";
 		cout << (const char*)**k << " " ;
 		useand = true;
@@ -1110,7 +1455,7 @@ AnnotatedModel::dumpMcc (const char* pdbname)
 	    
 	    cout << "}" << "  100%" << endl; 
 	  }
-	} 
+	}
       }
       cout << ")" << endl;
     }
@@ -1121,40 +1466,43 @@ AnnotatedModel::dumpMcc (const char* pdbname)
   cout << "//" << endl;
 
   {
-    Graph< node, edge >::adjgraph::iterator i;
-    Graph< node, edge >::adjlist::iterator j;
-    PropertySet::iterator k;
+    UndirectedGraph< node, edge >::iterator i;
+    list< node >::iterator j;
+    list< node > neigh;
+    set< const PropertyType* >::iterator k;
   
     if (nb_connect > 0) {
       cout << "connect(" << endl;
       for (i=graph.begin (); i!=graph.end (); ++i) {
-	for (j=i->second.begin (); j!=i->second.end (); ++j) {
-	  if (i->first < j->first && 
-	      isAdjacent (j->second)) {
+	neigh = graph.getNeighbors (*i);
+	for (j=neigh.begin (); j!=neigh.end (); ++j) {
+	  edge e = graph.getEdge (*i, *j);
+	  if (*i < *j && 
+	      isAdjacent (e)) {
 	    
-	    cout << setw(8) << getResId (i->first) 
-		 << setw(8) << getResId (j->first) << " { ";
+	    cout << setw(8) << getResId (*i) 
+		 << setw(8) << getResId (*j) << " { ";
 	    
-	    if (isPairing (j->second)) {
-	      cout << (const char*)(*relations[j->second].getRefProp ()) << "/" << flush
-		   << (const char*)(*relations[j->second].getResProp ()) << " " << flush;
+	    if (isPairing (e)) {
+	      cout << (const char*)(*relations[e].getRefFace ()) << "/" << flush
+		   << (const char*)(*relations[e].getResFace ()) << " " << flush;
 	      cout << "&& ";
 	    }
 	    
-	    if (isStacking (j->second))
+	    if (isStacking (e))
 	      cout << "stack" << " ";
 	    else 
 	      cout << "!stack" << " ";
 	    
-	    for (k=relations[j->second].getGlobalProp ().begin (); 
-		 k!=relations[j->second].getGlobalProp ().end (); ++k) {
-	      if ((**k).is_reverse () || 
-		  (**k).is_cis () ||
-		  (**k).is_trans () ||
-		  (**k).is_pairing ())
+	    for (k=relations[e].getLabels ().begin (); 
+		 k!=relations[e].getLabels ().end (); ++k) {
+	      if ((*k) == PropertyType::pReverse || 
+		  (*k) == PropertyType::pCis ||
+		  (*k) == PropertyType::pTrans ||
+		  (*k) == PropertyType::pPairing) {
 		cout << "&& " << (const char*)**k << " " ;
+	      }
 	    }
-	    
 	    cout << "}" << "  100%" << endl; 
 	  }
 	} 
@@ -1162,7 +1510,7 @@ AnnotatedModel::dumpMcc (const char* pdbname)
       cout << ")" << endl;    
     }
   }
-
+  
   cout << "//" << endl;
   cout << "// Construction order -------------------------------------------" << endl;
   cout << "// This section defines a spanning tree of minimal height that   " << endl;
@@ -1177,22 +1525,25 @@ AnnotatedModel::dumpMcc (const char* pdbname)
   {
     cout << "global = backtrack(" << endl;
 
-    Graph< node, edge >::adjgraph::iterator i;
-    Graph< node, edge >::adjlist::iterator j;
+    UndirectedGraph< node, edge >::iterator i;
+    list< node >::iterator j;
+    list< node > neigh;
     
     for (i=graph.begin (); i!=graph.end (); ++i) {
-      for (j=i->second.begin (); j!=i->second.end (); ++j) {
-	if (isPairing (j->second))
-	  graph.setEdgeValue (j->second, 1);
+      neigh = graph.getNeighbors (*i);
+      for (j=neigh.begin (); j!=neigh.end (); ++j) {
+	edge e = graph.getEdge (*i, *j);
+	if (isPairing (e) && !relations[e].is (PropertyType::parseType ("unclassified")))
+	  graph.setEdgeWeight (*i, *j, 1);
 	else
-	  graph.setEdgeValue (j->second, 2);
+	  graph.setEdgeWeight (*i, *j, 2);
       }
     }
 
-    vector< edge > edges;
-    vector< edge >::reverse_iterator k;
+    vector< pair< node, node > > edges;
+    vector< pair< node, node > >::reverse_iterator k;
 
-    edges = graph.minimum_spanning_tree ();
+    edges = graph.minimumSpanningTree ();
 
     list< list< node > > treated;
     list< list< node > >::iterator x;
@@ -1200,8 +1551,8 @@ AnnotatedModel::dumpMcc (const char* pdbname)
 
     for (k=edges.rbegin (); k!=edges.rend (); ++k) {
       node a, b;
-      a = graph.getNodes (*k).first;
-      b = graph.getNodes (*k).second;
+      a = *graph.find (k->first);
+      b = *graph.find (k->second);
 
       bool done = false;
       for (x=treated.begin (); x!=treated.end (); ++x) {
@@ -1323,3 +1674,449 @@ AnnotatedModel::dumpMcc (const char* pdbname)
        << "// --------------------------------------------------------------" << endl
        << "//" << endl;
 }
+
+
+
+// void AnnotatedModel::dumpCt (const char* pdbname)
+// {
+// //fprintf(ofp, "%5d %c   %5d %4d %4d %4d\n",
+
+//   //  char str[256];
+//   int i, j;
+
+//   cout << setw (5) << (int)conformations.size () 
+//        << " ENERGY = -0.0 " << pdbname << endl;
+
+//   int modelId = sequence_mask[0];
+
+//   for (i=0; i<(int)conformations.size (); ++i) {
+//     if (sequence_mask[i] != modelId) return;
+//     cout << setw (6) << i+1 << " "
+// 	 << *getType (i) << "   " 
+// 	 << setw (5) << ((i>0)?i-1:0) << " " 
+// 	 << setw (4) << ((i<(int)conformations.size ()-1)?i+2:0) << " ";
+//     if ((j=helix_mask[i]) != -1) {
+
+//       for (int k=0; k<(int)helices[j].size (); ++k) {
+// 	if (helices[j][k].first == i)
+// 	  cout << setw (4) << helices[j][k].second+1 << " ";
+// 	else if (helices[j][k].second == i)
+// 	  cout << setw (4) <<helices[j][k].first+1 << " ";
+//       }
+//     }
+//     else cout << setw (4) << 0 << " ";
+//     cout << setw (4) << i+1 << endl;
+//   }
+
+
+// //    for (i=0; i<(int)conformations.size (); ++i) {
+// //      cout << setw (6) << getResId (i).GetResNo () << " "
+// //  	 << *getType (i) << "   " 
+// //  	 << setw (5) << ((i>0)?getResId (i-1).GetResNo ():0) << " " 
+// //  	 << setw (4) << ((i<(int)conformations.size ()-1)?getResId (i+1).GetResNo ():0) << " ";
+// //      if ((j=helix_mask[i]) != -1) {
+
+// //        for (int k=0; k<helices[j].size (); ++k) {
+// //  	if (helices[j][k].first == i)
+// //  	  cout << setw (4) << getResId (helices[j][k].second).GetResNo () << " ";
+// //  	else if (helices[j][k].second == i)
+// //  	  cout << setw (4) << getResId (helices[j][k].first).GetResNo () << " ";
+// //        }
+// //      }
+// //      else cout << setw (4) << 0 << " ";
+// //      cout << setw (4) << getResId (i).GetResNo () << endl;
+// //    }
+
+// }
+
+
+// void AnnotatedModel::PDF_drawLoop2 (PDF *p, int li, int source_jct)
+// {
+//   int font = PDF_findfont (p, "Helvetica", "host", 0);
+
+//   Vector rect (helix_width,unit_length*4);
+
+//   int rad = unit_length*3;
+
+//   // Drawing current loop ------------------------------------------------------
+//   Block *loop = &l_blocks[li];
+//   loop->output (cout); cout << endl;
+
+//   PDF_circle (p, 0, 0, rad);
+//   PDF_stroke (p);
+  
+//   for (int i=0; i!=(int)loop->front().size (); ++i)
+//     {
+//       char b[2];
+//       sprintf (b, "%c", getType (loop->front ()[i])->getOneLetterRep());
+      
+//       PDF_set_text_pos (p, rad*sin (i*2*M_PI/loop->front ().size ()), rad*cos (i*2*M_PI/loop->front ().size ()));
+
+//       PDF_show (p, b);
+//     }
+  
+//   if (source_jct>=0) { PDF_rotate (p, 180);
+//     cout << "Rotating by " << 180 << endl;
+//   }
+  
+//   // Draw the connected helices ------------------------------------------------
+//   pair< node, node > *jip;
+//   int ji;
+//   float theta_step = 360/loop->junctions.size ();
+//   float l = rect.y/2 + sqrt (rad*rad - (rect.x/2)*(rect.x/2));
+  
+//   for (ji=0; ji<(int)loop->junctions.size (); ++ji) {      
+//     int actual_ji = (source_jct==-1)?ji:(ji+source_jct)%loop->junctions.size ();
+//     jip = &(loop->junctions[actual_ji]);
+    
+//     if (actual_ji!=source_jct)  {
+//       Block* helix;
+//       cout << "Looking for helix (" << getResId (jip->first) << ", " << getResId (jip->second) << ")" << endl;
+//       cout << "Found helix " << helix_mask[jip->first] << " :"; 
+      
+//       helix = &h_blocks[helix_mask[jip->first]];
+//       helix->output (cout); cout << endl;
+      
+//       // Move to center of helix.
+//       cout << "Rotating by " << 360-(theta_step * ji) << endl;
+//       PDF_rotate (p, 360-(theta_step * ji));      
+//       PDF_translate (p, 0, l);
+//       PDF_rect (p, -rect.x/2, -rect.y/2, rect.x, rect.y);
+//       PDF_stroke (p);	
+
+//       cout << "RECT = " << rect.x << " " <<  rect.y << endl;
+      
+//       for (int i=0; i!=(int)helix->front().size (); ++i)
+// 	{
+// 	  char b[2];
+// 	  sprintf (b, "%c", getType (helix->front ()[i])->getOneLetterRep());
+// 	  cout << b << " " << -rect.y/2 + i*rect.y/helix->front ().size () << endl;
+// 	  cout << PDF_stringwidth (p, b, font, 8) << endl;;
+
+// 	  PDF_set_text_pos (p, -rect.x/2 - PDF_stringwidth (p, b, font, 8)/2 , -rect.y/2 + i*rect.y/helix->front ().size ());
+// 	  PDF_show (p, b);
+// 	}
+      
+//       // Move to center of new loop.
+//       PDF_translate (p, 0, l);	
+      
+//       pair< node, node > junc;
+//       if ((helix->junctions[0].first == jip->second &&
+// 	   helix->junctions[0].second == jip->first)) {
+// 	junc = helix->junctions[1];
+// 	cout << "first case" << endl;
+//       } else if (helix->junctions[0].first == jip->first &&
+// 		 helix->junctions[0].second == jip->second) {
+// 	cerr << "Looking for helix (" << getResId (jip->first) << ", " << getResId (jip->second) << ")" << endl;
+// 	cerr << "but found " << getResId (helix->junctions[0].first) << ", " 
+// 	     << getResId (helix->junctions[0].second) << ")" << endl;	  
+//       } else {
+// 	cout << "second case" << endl;
+// 	junc = helix->junctions[0];
+//       }
+      
+//       // Finding loop at the other extrimity and do a recursive call.
+      
+//       cout << "Looking for loop (" << getResId (junc.first) << ", " << getResId (junc.second) << ")" << endl;
+      
+//       vector< Block >::iterator bi;
+//       vector< pair< node, node > >::iterator bj;
+//       for (bi=l_blocks.begin (); bi!=l_blocks.end (); ++bi) {
+// 	for (bj=bi->junctions.begin (); bj!=bi->junctions.end (); ++bj) {
+// 	  if((bj->first==junc.first && bj->second==junc.second) ||
+// 	     (bj->first==junc.second && bj->second==junc.first)) {	   
+// 	      PDF_drawLoop2 (p, bi-l_blocks.begin (), bj-bi->junctions.begin ());
+// 	      //PDF_circle (p, 0, 0, rad/2);
+// 	      //PDF_stroke (p);	      
+// 	  }
+// 	}
+//       }
+      
+//       cout << "DeRotating by " << (theta_step * ji) << endl;
+//       PDF_translate (p, 0, -l);
+//       PDF_translate (p, 0, -l);
+//       PDF_rotate (p, theta_step * ji);  
+      
+//     }
+//   }
+//   if (source_jct>=0) {
+//     PDF_rotate (p, 180);
+//     cout << "DeRotating by " << 180 << endl;
+//   }
+// }
+
+
+
+// void AnnotatedModel::PDF_drawHelix (PDF *p, int hi, int li_ref, int x, int y)
+// {
+//   int font = PDF_findfont (p, "Helvetica", "host", 0);
+  
+//   Block *helix = &h_blocks[hi];
+//   cout << "Drawing helix " << h_blocks[hi] << endl;
+
+//   // Calculate size of helix
+//   int length = helix->front ().size ();
+//   Vector rect (helix_width,unit_length*(length-1));
+  
+//   // Find radius of reference loop
+//   int rad = 30;
+
+//   // Calculate distance from center of reference loop
+//   float l = 0;
+//   if (li_ref!=-1) {
+//     l = rect.y/2 + sqrt (rad*rad - (rect.x/2)*(rect.x/2));
+//   }
+  
+//   // Draw helix
+//   PDF_translate (p, 0, l);
+//   PDF_rect (p, -rect.x/2, -rect.y/2, rect.x, rect.y);
+//   PDF_stroke (p);
+
+//   //  float spacing = rect.y/(helix->front ().size ()-1);
+
+//   {
+//     char b[8];
+//     sprintf (b, "H%d", hi);
+//     PDF_set_text_pos (p, 0, 0);
+//     PDF_show (p, b);
+//   }
+// //   for (int i=0; i!=(int)helix->front().size (); ++i)
+// //     {
+// //       char b[2];
+// //       sprintf (b, "%c", getType (helix->front ()[i])->getOneLetterRep());
+// //       PDF_set_text_pos (p, -rect.x/2 - PDF_stringwidth (p, b, font, 8)/2 , -rect.y/2 + i*unit_length);
+// //       PDF_show (p, b);
+
+// //       sprintf (b, "%c", getType (helix->back ()[i])->getOneLetterRep());
+// //       PDF_set_text_pos (p, rect.x/2 - PDF_stringwidth (p, b, font, 8)/2 , rect.y/2 - i*unit_length);
+// //       PDF_show (p, b);
+// //     }
+  
+//   // Draw connected loops
+
+//   vector< Block >::iterator b;
+//   vector< pair< node, node > >::iterator i, j;
+//   for (i=helix->junctions.begin (); i!=helix->junctions.end (); ++i) {
+//     for (b=l_blocks.begin (); b!=l_blocks.end (); ++b) {
+//       if (b-l_blocks.begin () != li_ref) {
+// 	for (j=b->junctions.begin (); j!=b->junctions.end (); ++j) {
+// 	  if ((j->first==i->first && j->second==i->second) ||
+// 	      (j->first==i->second && j->second==i->first)) {
+// 	    PDF_drawLoop (p, b-l_blocks.begin (), hi);
+// 	  }
+// 	}
+//       }
+//     }
+//   }
+
+//   PDF_translate (p, 0, -l);
+  
+//   cout << "END" << endl;
+// }
+
+
+
+// void AnnotatedModel::PDF_drawLoop (PDF *p, int li, int hi_ref, int x, int y)
+// {
+//   Block *loop = &l_blocks[li];
+//   cout << "Drawing loop " << l_blocks[li] << endl;
+
+//   // Calculate size of loop
+//   int rad = 30;
+
+//   // Find length of reference helix
+//   int length;
+//   Vector rect;
+//   if (hi_ref!=-1) {    
+//     length = h_blocks[hi_ref].front ().size ()-1;
+//     rect = Vector (helix_width,unit_length*length);
+//   }
+
+//   // Calculate distance from middle of reference helix
+//   float l = 0;
+//   if (hi_ref!=-1) {
+//     l = rect.y/2 + sqrt (rad*rad - (rect.x/2)*(rect.x/2));
+//   }
+
+//   PDF_translate (p, 0, l);
+//   PDF_circle (p, 0, 0, rad);
+//   PDF_stroke (p);
+
+//   char b[8];
+//   sprintf (b, "L%d", li);
+//   PDF_set_text_pos (p, 0, 0);
+//   PDF_show (p, b);
+
+// //   for (int i=0; i!=(int)loop->front().size (); ++i)
+// //   {
+// //     char b[2];
+// //     sprintf (b, "%c", getType (loop->front ()[i])->getOneLetterRep());
+    
+// //     float a = (float)rect.x / rad;
+// //     cout << rect.x << " " << rad << " " << (float)rect.x/rad << endl;
+
+// //     PDF_set_text_pos (p, rad*sin (i*2*M_PI/loop->front ().size ()), rad*cos (i*2*M_PI/loop->front ().size ()));    
+// //     PDF_show (p, b);
+// //   }
+
+//   // Find which helix to draw
+//   int ji;
+//   float theta_step = 360/loop->junctions.size ();
+
+//   for (ji=0; ji<(int)loop->junctions.size (); ++ji) {
+//     if (helix_mask[loop->junctions[ji].first] != hi_ref) {
+//       cout << helix_mask[loop->junctions[ji].first] << " " << flush 
+// 	   << h_blocks[helix_mask[loop->junctions[ji].first]] << endl;
+      
+//       PDF_rotate (p, 360-(theta_step * ji));      
+//       PDF_drawHelix (p, helix_mask[loop->junctions[ji].first], li);
+//       PDF_rotate (p, theta_step * ji);  
+//     }
+//   }
+//   PDF_translate (p, 0, -l);
+// }
+
+
+
+// void AnnotatedModel::dumpPDF (const char* pdfname)
+// {
+//   float width = 500;//letter_width;
+//   float height = 500;//letter_height;
+//   Vector v (width/2, height/2);
+
+//   cout << "Writing PDF document" << endl;
+
+//   PDF *p = PDF_new (); 
+ 
+//   PDF_open_file (p, pdfname);
+
+//   int font = PDF_findfont (p, "Helvetica", "host", 0);
+
+//   PDF_begin_page (p, width, height);
+//   PDF_setfont (p, font, 8);
+
+//   vector< Block >::iterator bi, bj;
+
+//   PDF_save (p);
+//   PDF_translate (p, v.x, v.y);
+//   //  PDF_drawLoop (p, 2);
+//   PDF_drawHelix (p, 0);
+//   PDF_restore (p);
+
+// //   if (l_blocks.size () > 0) {
+// //     // Draw the largest loop in the center first!
+// //     bj = l_blocks.begin ();
+// //     int lsize = bj->junctions.size ();
+// //     for (bi=l_blocks.begin (); bi!=l_blocks.end (); ++bi) {
+// //       if ((int)bi->junctions.size () > lsize) {
+// // 	bj = bi;
+// // 	lsize = bi->junctions.size ();
+// //       }
+// //     }
+    
+// //     Vector v (width/2, height/2);
+    
+// //     PDF_save (p);
+// //     PDF_translate (p, v.x, v.y);
+    
+// //     PDF_drawLoop2 (p, bj-l_blocks.begin (), -1);
+    
+// //     PDF_restore (p);
+// //   }
+// //   else if (h_blocks.size ()>0) {
+// //     cerr <<  "There is only an helix!" << endl;
+
+// //     Vector rect (helix_width, unit_length*4);
+// //     Vector v (width/2, height/2);
+// //     PDF_save (p);
+// //     PDF_translate (p, v.x, v.y);
+// //     PDF_rect (p, -rect.x/2, -rect.y/2, rect.x, rect.y);
+// //     PDF_stroke (p);	
+// //     PDF_restore (p);
+// //   }  
+
+//   PDF_end_page (p);
+//   PDF_close (p);
+//   PDF_delete (p);
+// }
+
+
+
+// // void AnnotatedModel::PDF_drawGraph (PDF *p, node curr, node prev, int x, int y, int a)
+// // {
+// //   int font = PDF_findfont (p, "Helvetica", "host", 0);
+
+// //   char b[2];
+// //   sprintf (b, "%c", getType (curr)->getOneLetterRep ());
+// //   PDF_set_text_pos (p, x, y);
+// //   PDF_show (p, b);
+
+// // //   PDF_setfont (p, font, 6);
+// // //   char q[8];
+// // //   cout << getResId (curr) << endl;
+// // //   sprintf (q, "%s", (const char*)getResId (curr));
+// // //   PDF_show (p, q);
+// // //   PDF_setfont (p, font, 12);
+
+// //   graph.unmarkNode (curr);
+  
+// //   Graph< node, edge >::adjlist n;
+// //   Graph< node, edge >::adjlist::iterator i;
+// //   n = graph.getNeighborIds (curr);
+  
+// //   for (i=n.begin (); i!=n.end (); ++i) {
+// // //     cout << getType (i->first)->getOneLetterRep () << " " 
+// // // 	 << graph.isMarked (i->first) << endl;
+
+// //     if (graph.isMarked (i->first)) {
+// //       if (isPairing (i->first, curr)) {
+// // 	//PDF_drawGraph (p, i->first, curr, x+10, y, a);
+// //       } else if (isAdjacent (graph.getEdge(i->first, curr))){
+// // 	PDF_drawGraph (p, i->first, curr, x, y+10, a);
+// //       }
+// //     }
+// //   }
+
+// //   graph.markNode (curr);
+// // }
+
+
+// // void AnnotatedModel::dumpSimplePDF (const char* pdbname, const char* pdfname)
+// // {
+// //   float width = 500;//letter_width;
+// //   float height = 500;//letter_height;
+
+// //   cout << "Writing PDF document" << endl;
+
+// //   PDF *p = PDF_new (); 
+ 
+// //   PDF_open_file (p, pdfname);
+
+// //   int font = PDF_findfont (p, "Helvetica", "host", 0);
+
+// //   PDF_begin_page (p, width, height);
+// //   PDF_setfont (p, font, 12);
+
+// //   cout << pdbname << endl;
+// //   PDF_set_text_pos (p, 2, height-10);
+// //   PDF_show (p, pdbname);
+// //   PDF_show (p, pdbname);
+
+// //   PDF_continue_text (p, pdbname);
+  
+
+// //   int i;
+// //   for (i=0; i<(int)conformations.size (); ++i) {
+// //     if (i==0 || sequence_mask[i] != sequence_mask[i-1]) {
+// //       PDF_continue_text (p, getResId (i));
+// //     }
+// //     PDF_continue_text (p, *getType (i));
+// //   }	
+  
+
+// //   PDF_drawGraph (p, 0, -1, width/2, height/2, 0);
+
+// //   PDF_end_page (p);
+// //   PDF_close (p);
+// //   PDF_delete (p);
+// // }
