@@ -22,7 +22,6 @@
 //#include "mccore/Binstream.h"
 #include "mccore/Exception.h"
 #include "mccore/Messagestream.h"
-#include "mccore/GraphModel.h"
 #include "mccore/Molecule.h"
 #include "mccore/Pdbstream.h"
 //#include "mccore/Relation.h"
@@ -34,7 +33,7 @@
 //#include "mccore/zstream.h"
 
 #include "AnnotateModule.h"
-//#include "AnnotatedModel.h"
+#include "AnnotateModel.h"
 //#include "MolecularComplex.h"
 
 using namespace mcannotate;
@@ -149,7 +148,7 @@ addFile (AnnotateModule *module, const char *name)
       header = fin.getHeader ();
       while (!fin)
 	{
-	  GraphModel model;
+	  AnnotateModel model;
 	  
 	  fin >> model;
 	  module->add (name, header, model);
