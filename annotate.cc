@@ -3,9 +3,9 @@
 // Copyright © 2001, 2002, 2003, 2004 Laboratoire de Biologie Informatique et Théorique.
 // Author           : Patrick Gendron
 // Created On       : Fri May 18 09:38:07 2001
-// Last Modified By : Philippe Thibault
-// Last Modified On : Wed Oct 20 16:11:14 2004
-// Update Count     : 129
+// Last Modified By : Martin Larose
+// Last Modified On : Thu Dec 23 17:45:04 2004
+// Update Count     : 130
 // Status           : Unknown.
 // 
 
@@ -104,8 +104,6 @@ void __help (void)
  */
 int main (int argc, char* argv[])
 {
-  gOut.setVerboseLevel (1);
-
   if ( argc == 1 )
   {
     __usage ();
@@ -134,7 +132,7 @@ int main (int argc, char* argv[])
       size = atoi (optarg);
       break;	
     case 'v':
-      gOut.setVerboseLevel (3);
+      gOut.setVerboseLevel (gOut.getVerboseLevel () + 1);
       verbose = true;
       break;  	  
     default:
