@@ -1,6 +1,0 @@
-// $Revision$
-// $Id$
-
-
-
-allo
