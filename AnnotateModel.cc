@@ -1,13 +1,11 @@
 //                              -*- Mode: C++ -*- 
-// AnnotatedModel.cc
-// Copyright © 2001, 2002, 2003, 2004 Laboratoire de Biologie Informatique et Théorique.
+// AnnotateModel.cc
+// Copyright © 2001-05 Laboratoire de Biologie Informatique et Théorique.
+//                     Université de Montréal
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
-// Last Modified By : Martin Larose
-// Last Modified On : Wed Dec  8 17:23:29 2004
-// Update Count     : 208
-// Status           : Unknown.
-// 
+// $Revision$
+// $Id$
 
 
 #ifdef HAVE_CONFIG_H
@@ -22,12 +20,12 @@
 #include "mccore/UndirectedGraph.h"
 #include "mccore/GraphModel.h"
 #include "mccore/Pdbstream.h"
-#include "AnnotatedModel.h"
+#include "AnnotateModel.h"
 
 
 namespace annotate
 {
-  AnnotatedModel::AnnotatedModel (GraphModel &gfm) : gfm(gfm)
+  AnnotateModel::AnnotateModel (GraphModel &gfm) : gfm(gfm)
   {     
     nb_connect = 0;
     nb_pairings = 0;    
@@ -65,7 +63,7 @@ namespace annotate
   }
   
   void 
-  AnnotatedModel::findHelices ()
+  AnnotateModel::findHelices ()
   {
     GraphModel::const_iterator gi, gk, gip, gkp;
     list< Residue * > neighbor;
@@ -147,7 +145,7 @@ namespace annotate
    *      B14-AAUAUAUAUAUAUU-B1
    */
   void
-  AnnotatedModel::dumpHelices (void) const 
+  AnnotateModel::dumpHelices (void) const 
   {
     vector< Helix >::const_iterator i;
     
@@ -199,7 +197,7 @@ namespace annotate
   }
  
   void
-  AnnotatedModel::findStrands (void)
+  AnnotateModel::findStrands (void)
   {
 
     GraphModel::const_iterator gi, gk, gl;
@@ -231,7 +229,7 @@ namespace annotate
   }
   
   void 
-  AnnotatedModel::buildStrands(void)
+  AnnotateModel::buildStrands(void)
   {
     list< GraphModel::edge_const_iterator > unsorted;
     GraphModel::edge_const_iterator edgeIt;
@@ -348,7 +346,7 @@ namespace annotate
     }
   }
 
-  void AnnotatedModel::classifyStrands ()  {
+  void AnnotateModel::classifyStrands ()  {
     vector< OStrand >::iterator j;
     GraphModel::const_iterator first, last, prev, next;
   
@@ -434,7 +432,7 @@ namespace annotate
     }
   }
   
-  void AnnotatedModel::dumpStrands ()
+  void AnnotateModel::dumpStrands ()
   {
     int j;
     GraphModel::const_iterator k;
@@ -474,7 +472,7 @@ namespace annotate
     gOut(0).setf (ios::left, ios::adjustfield);  
   }
   
-  void AnnotatedModel::findKissingHairpins (void)
+  void AnnotateModel::findKissingHairpins (void)
   {
     GraphModel::const_iterator gi;
     list< Residue * > neighbor;
@@ -607,7 +605,7 @@ namespace annotate
       gOut(0) << "Missing interactions: " << check << "/" << nb_pairings << endl;
   }
 
-  void AnnotatedModel::findPseudoknots (void)
+  void AnnotateModel::findPseudoknots (void)
   {
   vector< Helix >::iterator i, j;
   
@@ -638,7 +636,7 @@ namespace annotate
   }
 }
  
- void AnnotatedModel::dumpSequences (bool detailed) 
+ void AnnotateModel::dumpSequences (bool detailed) 
 {
   GraphModel::iterator i;
   int j = 0;
@@ -729,7 +727,7 @@ namespace annotate
   gOut(0).setf (ios::left, ios::adjustfield);
 }
 
-void AnnotatedModel::dumpConformations (void) 
+void AnnotateModel::dumpConformations (void) 
 {
   GraphModel::const_iterator i;
   
@@ -741,7 +739,7 @@ void AnnotatedModel::dumpConformations (void)
   }
 }
 
-void AnnotatedModel::dumpPairs (void) 
+void AnnotateModel::dumpPairs (void) 
 {
   GraphModel::const_iterator i;
   GraphModel::edge_const_iterator edgeIt;
@@ -771,7 +769,7 @@ void AnnotatedModel::dumpPairs (void)
   }
 }
 
-void AnnotatedModel::dumpStacks (void) 
+void AnnotateModel::dumpStacks (void) 
 {
   GraphModel::const_iterator i, k;
   list< Residue * > neighbor;
@@ -835,7 +833,7 @@ void AnnotatedModel::dumpStacks (void)
           << "Number of non adjacent stackings = " << nb_stacks - nb_adjacent_stacks << endl;
 }
 
-void AnnotatedModel::dumpTriples (void) 
+void AnnotateModel::dumpTriples (void) 
 {
 /*
   GraphModel::const_iterator gi;
@@ -886,38 +884,38 @@ void AnnotatedModel::dumpTriples (void)
 }
 
   ostream&
-  AnnotatedModel::output (ostream &os) const
+  AnnotateModel::output (ostream &os) const
   {
     return os;
   }
 
 
   iPdbstream&
-  AnnotatedModel::input (iPdbstream &ips)
+  AnnotateModel::input (iPdbstream &ips)
   {
     return ips;
   }
   
   iBinstream&
-  AnnotatedModel::input (iBinstream &is)
+  AnnotateModel::input (iBinstream &is)
   {
     return is;
   }
   
   oBinstream&
-  AnnotatedModel::output (oBinstream &os) const
+  AnnotateModel::output (oBinstream &os) const
   {
     return os;
   }
  
   iBinstream&
-  operator>> (iBinstream &is, AnnotatedModel &model)
+  operator>> (iBinstream &is, AnnotateModel &model)
   {
     return model.input (is);
   }
 
   oBinstream&
-  operator<< (oBinstream &os, const AnnotatedModel &model)
+  operator<< (oBinstream &os, const AnnotateModel &model)
   {
     return model.output (os);
   }
@@ -939,7 +937,7 @@ namespace std
    * @return the used output stream.
    */
   ostream& 
-  operator<< (ostream &os, const annotate::AnnotatedModel &am)
+  operator<< (ostream &os, const annotate::AnnotateModel &am)
   {
     return am.output (os);
   }  
@@ -948,7 +946,7 @@ namespace std
 namespace annotate {
 
 void 
-AnnotatedModel::dumpMcc (const char* pdbname)
+AnnotateModel::dumpMcc (const char* pdbname)
 {
 //   char str[256];
 //   cout << "//" << endl;
@@ -1276,7 +1274,7 @@ AnnotatedModel::dumpMcc (const char* pdbname)
 
 
 
-// void AnnotatedModel::dumpCt (const char* pdbname)
+// void AnnotateModel::dumpCt (const char* pdbname)
 // {
 // //fprintf(ofp, "%5d %c   %5d %4d %4d %4d\n",
 
@@ -1329,7 +1327,7 @@ AnnotatedModel::dumpMcc (const char* pdbname)
 // }
 
 
-// void AnnotatedModel::PDF_drawLoop2 (PDF *p, int li, int source_jct)
+// void AnnotateModel::PDF_drawLoop2 (PDF *p, int li, int source_jct)
 // {
 //   int font = PDF_findfont (p, "Helvetica", "host", 0);
 
@@ -1446,7 +1444,7 @@ AnnotatedModel::dumpMcc (const char* pdbname)
 
 
 
-// void AnnotatedModel::PDF_drawHelix (PDF *p, int hi, int li_ref, int x, int y)
+// void AnnotateModel::PDF_drawHelix (PDF *p, int hi, int li_ref, int x, int y)
 // {
 //   int font = PDF_findfont (p, "Helvetica", "host", 0);
   
@@ -1515,7 +1513,7 @@ AnnotatedModel::dumpMcc (const char* pdbname)
 
 
 
-// void AnnotatedModel::PDF_drawLoop (PDF *p, int li, int hi_ref, int x, int y)
+// void AnnotateModel::PDF_drawLoop (PDF *p, int li, int hi_ref, int x, int y)
 // {
 //   Block *loop = &l_blocks[li];
 //   cout << "Drawing loop " << l_blocks[li] << endl;
@@ -1577,7 +1575,7 @@ AnnotatedModel::dumpMcc (const char* pdbname)
 
 
 
-// void AnnotatedModel::dumpPDF (const char* pdfname)
+// void AnnotateModel::dumpPDF (const char* pdfname)
 // {
 //   float width = 500;//letter_width;
 //   float height = 500;//letter_height;
@@ -1641,7 +1639,7 @@ AnnotatedModel::dumpMcc (const char* pdbname)
 
 
 
-// // void AnnotatedModel::PDF_drawGraph (PDF *p, node curr, node prev, int x, int y, int a)
+// // void AnnotateModel::PDF_drawGraph (PDF *p, node curr, node prev, int x, int y, int a)
 // // {
 // //   int font = PDF_findfont (p, "Helvetica", "host", 0);
 
@@ -1680,7 +1678,7 @@ AnnotatedModel::dumpMcc (const char* pdbname)
 // // }
 
 
-// // void AnnotatedModel::dumpSimplePDF (const char* pdbname, const char* pdfname)
+// // void AnnotateModel::dumpSimplePDF (const char* pdbname, const char* pdfname)
 // // {
 // //   float width = 500;//letter_width;
 // //   float height = 500;//letter_height;

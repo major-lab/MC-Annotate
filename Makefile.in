@@ -60,7 +60,7 @@ OBJECTS = $(ALLSOURCES:%.cc=%.o)
 
 DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(ALLSOURCES) $(HEADERS) \
 config.guess config.h.in config.sub configure configure.in install-sh \
-mkinstalldirs
+mkinstalldirs stamp-h.in
 
 SUBDIRS =
 
@@ -70,80 +70,71 @@ PROGRAM = $(PROGSOURCES:%.cc=%)
 
 
 all: $(PROGRAM) TAGS
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
 
 all-static static: $(PROGRAM)-static TAGS
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
 
-$(PROGRAM): $(OBJECTS)
-	@ echo Linking $(PROGRAM)
-	$(LD) -o $(PROGRAM) $(OBJECTS) $(LINKOPTIONS) $(LIBS)
-	ln -sf $(PROGRAM) $(ALT_PROGRAM)
-
-$(PROGRAM)-static: $(OBJECTS)
-	$(LD) $(LDFLAGS) -o $@ $(OBJECTS) $(LINKOPTIONS) $(LIBS)
-	cp -f $(PROGRAM)-static $(ALT_PROGRAM)-static
+$(PROGRAM) $(PROGRAM)-static: $(OBJECTS)
+	$(LD) $(LINKOPTIONS) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
 
 TAGS: $(ALLSOURCES) $(HEADERS)
 	@ etags --c++ $^
 
 
 
-doc: html texi docbook
-
-
-html: $(HEADERS)
-	@ kdoc -f html -d html -p --strip-h-path -lmccore -z $^
-
-texi: $(HEADERS)
-	@ kdoc -f texinfo -d texi -p --strip-h-path -lmccore $^
-
-docbook: $(HEADERS)
-	@ kdoc -f docbook -d docbook -p --strip-h-path -lmccore $^
-
-
-
-install: $(PROGRAM) $(WIDGETS)
-	@ echo Installing $(PROGRAM) in $(bindir)
-	$(LD) -L$(libdir) -o $(PROGRAM) $(OBJECTS) $(WIDGETS) $(LIBS)
+install: $(PROGRAM)
 	@ $(srcdir)/mkinstalldirs $(bindir)
 	@ $(INSTALL_PROGRAM) $(PROGRAM) $(bindir)/$(PROGRAM)
-	ln -sf $(bindir)/$(PROGRAM) $(bindir)/$(ALT_PROGRAM)
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
 
-install-static: static
-	@ echo Installing $(bindir)/$(PROGRAM)-$(VERSION)
+install-static: $(PROGRAM)-static
 	@ $(srcdir)/mkinstalldirs $(bindir)
 	@ $(INSTALL_PROGRAM) -s $(PROGRAM)-static $(bindir)/$(PROGRAM)-$(VERSION)
-	@ echo Creating symbolic link $(bindir)/$(PROGRAM)
-	@ ln -f -s $(bindir)/$(PROGRAM)-$(VERSION) $(bindir)/$(PROGRAM)
-
+	@ $(INSTALL_PROGRAM) -s $(PROGRAM)-static $(bindir)/$(PROGRAM)
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
 
 uninstall:
-	@ rm -f $(bindir)/$(PROGRAM)-$(VERSION)
-	@ rm -f $(bindir)/$(PROGRAM)
+	@ $(RM) $(bindir)/$(PROGRAM)-$(VERSION)
+	@ $(RM) $(bindir)/$(PROGRAM)
 
 
 
-mostlyclean:
-	@ rm -f *~
+mostlyclean: mostlyclean-recursive mostlyclean-local
 
-clean: mostlyclean
-	@ echo Cleaning project
-	@ rm -f $(OBJECTS) $(WIDGETS)
-	@ rm -f $(PROGRAM) $(PROGRAM)-static
-	@ rm -f $(ALT_PROGRAM) $(ALT_PROGRAM)-static
-	@ rm -f *.d TAGS
+mostlyclean-local:
+	@ $(RM) *~
+
+clean: clean-recursive clean-local
+
+clean-local: mostlyclean-local
+	@ $(RM) $(PROGRAM) $(PROGRAM)-static $(OBJECTS) *.d TAGS
 	@- rm -rf ii_files
 
-distclean: clean
-	@ rm -f Makefile
-	@ rm -f config.cache config.log config.h
+distclean: distclean-recursive distclean-local
 
-topclean: distclean
+distclean-local: clean-local
+	@ $(RM) Makefile config.cache config.h config.log config.status
+	@ $(RM) stamp-h
+
+mostlyclean-recursive clean-recursive distclean-recursive topclean-recursive:
+	@ for subdir in $(SUBDIRS); do \
+	   target=`echo $@ | sed 's/-recursive//'`; \
+	   (cd $$subdir && $(MAKE) $$target) || exit 1; \
+	  done
 
 
 release: static
 	@ $(srcdir)/mkinstalldirs ../mcsym-release/bin
 	@ $(INSTALL_PROGRAM) -s $(PROGRAM)-static ../mcsym-release/bin/$(PROGRAM)
-	@ $(INSTALL_PROGRAM) -s $(ALT_PROGRAM)-static ../mcsym-release/bin/$(ALT_PROGRAM)
 	@ for subdir in $(RELEASESUBDIRS); do \
 	   mkdir ../mcsym-release/$$subdir; \
 	   chmod 777 ../mcsym-release/$$subdir; \
@@ -175,19 +166,27 @@ dist:
 
 
 Makefile: $(srcdir)/Makefile.in ./config.status
-	@ CONFIG_FILES=$@ CONFIG_HEADERS= ./config.status
+	@ ./config.status $@
 
-config.status: configure
+config.status: $(srcdir)/configure
 	@ ./config.status --recheck
 
-config.h: $(srcdir)/config.h.in
-	@ CONFIG_FILES= CONFIG_HEADERS=$@ ./config.status
+$(srcdir)/config.h.in: $(srcdir)/stamp-h.in
 
-configure: $(srcdir)/configure.in
-	@ cd $(srcdir) && autoconf configure.in > configure
+$(srcdir)/stamp-h.in: $(srcdir)/configure.in
+	@ echo timestamp > $@
+
+config.h: stamp-h
+
+stamp-h: $(srcdir)/config.h.in config.status
+	@ ./config.status config.h
+	@ echo timestamp > $@
+
+$(srcdir)/configure: $(srcdir)/configure.in
+	@ cd $(srcdir) && autoconf
 
 # Tell versions [3.59,3.63) of GNU make not to export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
 
--include $(ALLSOURCES:.cc=.d) $(PROGRAM).d
+-include $(ALLSOURCES:.cc=.d)

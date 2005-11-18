@@ -1,6 +1,6 @@
 //                              -*- Mode: C++ -*- 
 // annotate.cc
-// Copyright © 2001-04 Laboratoire de Biologie Informatique et Théorique.
+// Copyright © 2001-05 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
 // Author           : Patrick Gendron
 // Created On       : Fri May 18 09:38:07 2001
@@ -26,7 +26,7 @@
 #include "mccore/PropertyType.h"
 #include "mccore/Molecule.h"
 
-#include "AnnotatedModel.h"
+#include "AnnotateModel.h"
 
 #undef PACKAGE
 #undef VERSION
@@ -157,7 +157,7 @@ main (int argc, char *argv[])
         is >> molecule;
         for (molIt = molecule.begin (); molecule.end () != molIt; ++molIt)
         {
-          AnnotatedModel am((GraphModel&) *molIt);
+          AnnotateModel am((GraphModel&) *molIt);
 
           if (mcsym_file == true) 
           {

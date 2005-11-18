@@ -1,14 +1,14 @@
 //                              -*- Mode: C++ -*- 
-// AnnotatedModel.h
-// Copyright © 2001-04 Laboratoire de Biologie Informatique et Théorique.
+// AnnotateModel.h
+// Copyright © 2001-05 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
 // $Revision$
 
 
-#ifndef _AnnotatedModel_h_
-#define _AnnotatedModel_h_
+#ifndef _AnnotateModel_h_
+#define _AnnotateModel_h_
 
 #include <map>
 #include <string>
@@ -30,7 +30,7 @@ using namespace mccore;
 
 namespace annotate
 {
-  class AnnotatedModel;
+  class AnnotateModel;
   class mccore::GraphModel;
   
   typedef int strandId;
@@ -76,11 +76,11 @@ namespace annotate
   };
 
   /**
-   * AnnotatedModel
+   * AnnotateModel
    * @author 
    * @version 
    */
-  class AnnotatedModel
+  class AnnotateModel
   {
     /**
      * The model name.
@@ -124,12 +124,12 @@ namespace annotate
     /**
      * Initializes the object.
      */
-    AnnotatedModel (GraphModel &gfm);
+    AnnotateModel (GraphModel &gfm);
     
     /**
      * Destroys the object.
      */
-    virtual ~AnnotatedModel () { }
+    virtual ~AnnotateModel () { }
     
     // OPERATORS ------------------------------------------------------------
     
@@ -215,20 +215,20 @@ namespace annotate
   };
 
   /**
-   * Reads the AnnotatedModel from a binary input stream.
+   * Reads the AnnotateModel from a binary input stream.
    * @param is the binary input stream.
-   * @param model the AnnotatedModel.
+   * @param model the AnnotateModel.
    * @return the consumed binary stream.
    */
-  iBinstream& operator>> (iBinstream &is, AnnotatedModel &model);
+  iBinstream& operator>> (iBinstream &is, AnnotateModel &model);
 
   /**
-   * Writes the AnnotatedModel to a binary output stream.
+   * Writes the AnnotateModel to a binary output stream.
    * @param os the binary input stream.
-   * @param model the AnnotatedModel.
+   * @param model the AnnotateModel.
    * @return the consumed binary stream.
    */
-  oBinstream& operator<< (oBinstream &os, const AnnotatedModel &model);
+  oBinstream& operator<< (oBinstream &os, const AnnotateModel &model);
 
 }
 
@@ -244,7 +244,7 @@ namespace std
    * @param r the residue.
    * @return the used output stream.
    */
-  ostream& operator<< (ostream &os, const annotate::AnnotatedModel &am);
+  ostream& operator<< (ostream &os, const annotate::AnnotateModel &am);
   
 }
   
