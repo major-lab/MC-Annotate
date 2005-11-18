@@ -44,6 +44,25 @@ AC_PROG_CXX
 AC_CANONICAL_HOST
 
 AC_PROG_INSTALL
+# AC_CHECK_FUNCS(strsep)
+# AC_CHECK_FUNCS(isfdtype)
+# AC_CHECK_FUNCS(acosf)
+# AC_CHECK_FUNCS(sqrtf)
+
+AC_CACHE_CHECK(whether the compiler has numeric_limits<T>,
+ac_cv_cxx_have_numeric_limits,
+[AC_LANG_SAVE
+ AC_LANG(C++)
+ AC_TRY_COMPILE([#include <limits> 
+ using namespace std; 
+ ],[double e = numeric_limits<double>::epsilon(); return 0;],
+ ac_cv_cxx_have_numeric_limits=yes, ac_cv_cxx_have_numeric_limits=no)
+ AC_LANG_RESTORE
+])
+if test "$ac_cv_cxx_have_numeric_limits" = yes; then
+  AC_DEFINE(HAVE_NUMERIC_LIMITS,,[define if the compiler has numeric_limits<T>])
+fi
+
 
 if eval "test -z \"`echo $GXX`\""; then # not gnu compiler
     case "$host" in
@@ -88,7 +107,7 @@ if eval "test -z \"`echo $GXX`\""; then # not gnu compiler
  	  DEPFLAGS="$DEPFLAGS -I$t";
 	  echo "        " $t;
 	done
-	LINKOPTIONS="-G"
+	LINKOPTIONS=""
 	LDNAMEPARAM="-h"
 	echo "appending values of LIBRARY_PATH to lib path..."
 	for t in `echo $LIBRARY_PATH | sed "s/\.*:/ /g"`; do
@@ -101,7 +120,6 @@ if eval "test -z \"`echo $GXX`\""; then # not gnu compiler
 	AC_ARG_WITH(rnaml,
 	    [  --with-rnaml            include rnaml reader and writer classes],
 	    AC_CHECK_LIB(rnamlc++,xmlcpginit),
-	    HAVE_LIBRNAML=1,
 	)
 	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include "mccore/Vector3D.h"]],
 		[[new mccore::Vector3D ();]])],
@@ -118,40 +136,29 @@ elif eval "test \"`echo $GXX`\" = yes"; then     # gnu compiler
 	AC_ARG_WITH(rnaml,
 	    [  --with-rnaml            include rnaml reader and writer classes],
 	    AC_CHECK_LIB(rnamlc++,main),
-	    HAVE_LIBRNAML=1,
 	)
 	AC_CHECK_LIB(mccore,main)
 	CXXFLAGS="$CXXFLAGS -Wall"
 	DEPFLAGS="-MM"
-	case "$host" in
-	    *-darwin*)
-		LINKOPTIONS=""
-		LDNAMEPARAM="-install_name,"
-		LIBEXT="dylib"
-		LIBALLFLAGSTART=""
-		LIBALLFLAGSTOP="";;
-	    *)
-		LINKOPTIONS=""
-		LDNAMEPARAM="-Wl,-soname,"
-		LIBEXT="so"
-		LIBALLFLAGSTART="-Wl,-whole-archive"
-		LIBALLFLAGSTOP="-Wl,-no-whole-archive";
-		ARXX="$AR"
-		AROPTIONS="crs";;
-	esac;
+	LDNAMEPARAM="-Wl,-soname,"
+	LINKOPTIONS=""
+	LIBALLFLAGSTART="-Wl,-whole-archive"
+	LIBALLFLAGSTOP="-Wl,-no-whole-archive";
 fi
 
 
+AC_ARG_WITH(malloc,
+[  --with-malloc           replace STL allocator with malloc],
+AC_DEFINE(__USE_MALLOC),
+)
+
 AC_SUBST(PACKAGE)
 AC_SUBST(VERSION)
-AC_SUBST(CXXFLAGS)
 AC_SUBST(DEPFLAGS)
-AC_SUBST(LINKOPTIONS)
-AC_SUBST(LDNAMEPARAM)
-AC_SUBST(LIBEXT)
 AC_SUBST(LDFLAGS)
+AC_SUBST(LDNAMEPARAM)
+AC_SUBST(LINKOPTIONS)
 AC_SUBST(LIBALLFLAGSTART)
 AC_SUBST(LIBALLFLAGSTOP)
-AC_SUBST(HAVE_LIBRNAML)
 
 AC_OUTPUT( Makefile, echo timestamp > stamp-h )

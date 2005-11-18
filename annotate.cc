@@ -18,27 +18,24 @@
 #include <string>
 #include <unistd.h>
 
-//#include "mccore/Algo.h"
-//#include "mccore/Binstream.h"
-#include "mccore/Exception.h"
-#include "mccore/Messagestream.h"
-#include "mccore/Molecule.h"
 #include "mccore/Pdbstream.h"
-//#include "mccore/Relation.h"
-//#include "mccore/Residue.h"
-#include "mccore/RnamlReader.h"
-//#include "mccore/PropertyType.h"
-//#include "mccore/Vector3D.h"
-//#include "mccore/stlio.h"
-//#include "mccore/zstream.h"
+#include "mccore/Binstream.h"
+#include "mccore/Messagestream.h"
+#include "mccore/GraphModel.h"
+#include "mccore/Relation.h"
+#include "mccore/PropertyType.h"
+#include "mccore/Molecule.h"
 
-#include "AnnotateModule.h"
-#include "AnnotateModel.h"
-//#include "MolecularComplex.h"
+#include "AnnotatedModel.h"
 
-using namespace mcannotate;
+#undef PACKAGE
+#undef VERSION
+#define PACKAGE "annotate"
+#define VERSION "1.0-mccore1.5"
+
 using namespace mccore;
 using namespace std;
+using namespace annotate;
 
 #define NONE_MARK  0
 #define HELIX_MARK 1
@@ -46,18 +43,20 @@ using namespace std;
 #define BULGE_MARK 3
 #define LOOP_MARK  4
 
-const char *shortopts = "Ve:f:hms:v";
+const char* shortopts = "e:f:hHms:vV?";
+int __current_option;
 ResIdSet selection;
-string selection_file;
+char* selection_file = 0;
 int size = 0;
+bool verbose = false;
+bool extract = false;
 bool mcsym_file = false;
-
 
 
 void
 version ()
 {
-  gOut (0) << PACKAGE << " " << VERSION << " (" << __DATE__ << ")" << endl;
+  cout << PACKAGE << " " << VERSION << " (" << __DATE__ << ")" << endl;
 }
 
 
@@ -65,7 +64,8 @@ void
 usage ()
 {
   gOut (0) << "usage: " << PACKAGE
-	   << " [-hmvV] [-e selection -f file_sel -s size] [structure file]" << endl;
+    << " [-hHmvV?] [-e selection -f file_sel -s size] [structure file]"
+    << endl;
 }
 
 
@@ -73,139 +73,110 @@ void
 help ()
 {
   gOut (0) << "This program annotates a structure (and more)." << endl
-	   << "  -e sel  extract these residues from the structure" << endl 
-	   << "  -f pdb  extract residues found in this pdb file from the structure" << endl 
-	   << "  -h      help      print this help" << endl
-	   << "  -m      produce an output in McSym format (with backtrack)" << endl
-	   << "  -s N    extend the selection stated with -e or -f by N connected residues in the graph" << endl
-	   << "  -v      verbose   be verbose" << endl
-	   << "  -V      version   print the software version info" << endl;
+       << "  -e sel  extract these residues from the structure" << endl 
+       << "  -f pdb  extract residues found in this pdb file from the structure" << endl 
+       << "  -h      help      print this help" << endl
+       << "  -m      produce an output in McSym format (with backtrack)" << endl
+       << "  -s N    extend the selection stated with -e or -f by N connected residues in the graph" << endl
+       << "  -v      verbose   be verbose" << endl
+       << "  -V      version   print the software version info" << endl;
 }
 
 
 void
-read_options (int argc, char *argv[])
+read_options (int argc, char* argv[])
 {
   int c;
-  
-  while ((c = getopt (argc, argv, shortopts)) != EOF)
+
+  while ((c = getopt (argc, argv, shortopts)) != EOF) 
     {
       switch (c)
-	{
-	case 'V':
-	  version ();
-	  exit (EXIT_SUCCESS);
-	  break;
-	case 'e':
-	  selection = ResIdSet (optarg);
-	  break;
-	case 'f':
-	  selection_file = optarg;
-	  break;
-	case 'h':
-	  usage ();
-	  help ();
-	  exit (EXIT_SUCCESS);
-	  break;
-	case 'm':
-	  mcsym_file = true;
-	  break;
-	case 's':
-	  size = atoi (optarg);
-	  break;	
-	case 'v':
-	  gOut.setVerboseLevel (gOut.getVerboseLevel () + 1);
-	  break;
-	default:
-	  usage ();
-	  exit (EXIT_FAILURE);
-	}
+      {
+        case 'V':  
+          version ();
+          exit (EXIT_SUCCESS);
+          break;
+        case 'e':
+          selection = ResIdSet (optarg);
+          cerr << "selection = " << selection << endl;
+          extract = true;
+          break;
+        case 'f':
+          selection_file = optarg;
+          extract = true;
+          break;         
+        case 'h': case 'H':
+          usage ();
+          help ();
+          exit (EXIT_SUCCESS);
+          break;
+        case 'm':
+          mcsym_file = true;
+          break;
+        case 's':
+          size = atoi (optarg);
+          break;	          
+        case 'v':
+          gOut.setVerboseLevel (3);
+          break;
+        default: 
+          usage ();
+          exit (EXIT_FAILURE);
+      }
     }
-  if (argc <= optarg)
-    {
-      usage ();
-      exit (EXIT_FAILURE);
-    }
+
+  if (argc - optind < 1)
+  {
+    usage ();
+    exit (EXIT_FAILURE);
+  }
 }
 
-
-void
-addFile (AnnotateModule *module, const char *name)
-{
-  RnamlReader reader (name);
-  Molecule *molecule;
-  
-  if (0 == (molecule = reader.read ()))
-    {
-      izfPdbstream fin (name);
-      PdbFileHeader header;
-
-      if (! fin)
-	{
-	  cerr << "File could not be opened" << endl;
-	  exit (EXIT_FAILURE); 
-	}
-      header = fin.getHeader ();
-      while (!fin)
-	{
-	  AnnotateModel model;
-	  
-	  fin >> model;
-	  module->add (name, header, model);
-	}
-      fin.close ();
-    }
-  else
-    {
-      Molecule::iterator it;
-      
-      for (it = molecule->begin (); molecule->end () != it; ++it, ++count)
-	{
-	  module->add (name, header, *it);
-	}
-      delete molecule;
-    }
-  reader.close ();
-}
-  
 
 int
-main (int argc, char* argv[])
+main (int argc, char *argv[])
 {
   read_options (argc, argv);
 
-  try
-    {
-      AnnotateModule *module;
-      View *view;
-      
-      module = new AnnotateModule (selection, selection_file, size);
-      
-      while (optind < argc)
-	{
-	  addFile (module, argv[optind++]);
-	}
-      module->exec ();
+  for (; optind < argc; ++optind)
+  {
+    izfBinstream is;
 
-      if (mcsym_file)
-	{
-	  module->writeMCSym (cout);
-	}
-      if (! rnamlOutput.empty ())
-	{
-	  module->writeRNAML (rnamlOutput);
-	}
-      view = new TerminalView (module, gOut);
-      view->show ();
-
-      delete view;
-      delete module;
-    }
-  catch (Exception& ex)
+    is.open (argv[optind]);
+    if (is.fail ())
     {
-      gOut (1) << PACKAGE << ": " << ex << endl;
-      return EXIT_FAILURE;
+      gErr (0) << PACKAGE << ": cannot open pdb file '" << argv[optind] << "'." << endl;
     }
-  
-  return EXIT_SUCCESS;
+    else
+    {
+      gErr (3) << PACKAGE << ": reading " << argv[optind] << endl;   
+      {
+        Molecule molecule;
+        Molecule::iterator molIt;
+
+        is >> molecule;
+        for (molIt = molecule.begin (); molecule.end () != molIt; ++molIt)
+        {
+          AnnotatedModel am((GraphModel&) *molIt);
+
+          if (mcsym_file == true) 
+          {
+            // NEEDS TO BE FIXED!
+//            PdbFileHeader header;
+//            header = is.getHeader ();
+            am.dumpMcc (" "); //header.getPdbId ().c_str ()
+          } 
+          else if (extract) 
+          {
+            // NEEDS TO BE FIXED!
+          }
+          else
+          {
+            gOut(0) << am ;
+          }
+        }
+      }
+    }
+  }
+  return EXIT_SUCCESS;	
 }

@@ -8,12 +8,22 @@
 // $Id$
 
 
-#ifndef _annotate_config_h_
-#define _annotate_config_h_
+#ifndef _config_h_
+#define _config_h_
 
 
 #undef PACKAGE
 
 #undef VERSION
+
+#undef HAVE_STRSEP
+
+#undef HAVE_ISFDTYPE
+
+#undef HAVE_ACOSF
+
+#undef HAVE_SQRTF
+
+#undef HAVE_NUMERIC_LIMITS
 
 #endif

@@ -49,11 +49,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
 
 
-SOURCES = AnnotateModel.cc \
-	  AnnotateModule.cc \
-	  MolecularComplex.cc \
-	  MolecularUnit.cc \
-	  TerminalView.cc \
+SOURCES = AnnotatedModel.cc \
 	  annotate.cc
 
 HEADERS = $(SOURCES:.cc=.h) Module.h View.h
