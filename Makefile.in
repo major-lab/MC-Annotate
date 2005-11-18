@@ -1,6 +1,6 @@
 #                           -*- Mode: Makefile -*-
 # Makefile.in
-# Copyright © 2001-04 Laboratoire de Biologie Informatique et Théorique.
+# Copyright © 2001-05 Laboratoire de Biologie Informatique et Théorique.
 #                     Université de Montréal
 # Author           : Martin Larose <larosem@iro.umontreal.ca>
 # Created On       : Mon May 14 19:22:30 2001
@@ -48,15 +48,17 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 	$(CXX) $(CXXFLAGS) $(DEFS) -I. -I$(srcdir) -c $<
 
 
+PROGSOURCES = annotate.cc
 
-SOURCES = AnnotatedModel.cc \
-	  annotate.cc
+SOURCES = AnnotateModel.cc
 
-HEADERS = $(SOURCES:.cc=.h) Module.h View.h
+ALLSOURCES = $(SOURCES) $(PROGSOURCES)
 
-OBJECTS = $(SOURCES:.cc=.o)
+HEADERS = $(SOURCES:%.cc=%.h)
 
-DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(SOURCES) $(HEADERS) \
+OBJECTS = $(ALLSOURCES:%.cc=%.o)
+
+DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(ALLSOURCES) $(HEADERS) \
 config.guess config.h.in config.sub configure configure.in install-sh \
 mkinstalldirs
 
@@ -64,7 +66,7 @@ SUBDIRS =
 
 RELEASESUBDIRS =
 
-PROGRAM = annotate
+PROGRAM = $(PROGSOURCES:%.cc=%)
 
 
 all: $(PROGRAM) TAGS
@@ -80,7 +82,7 @@ $(PROGRAM)-static: $(OBJECTS)
 	$(LD) $(LDFLAGS) -o $@ $(OBJECTS) $(LINKOPTIONS) $(LIBS)
 	cp -f $(PROGRAM)-static $(ALT_PROGRAM)-static
 
-TAGS: $(SOURCES) $(HEADERS)
+TAGS: $(ALLSOURCES) $(HEADERS)
 	@ etags --c++ $^
 
 
@@ -188,4 +190,4 @@ configure: $(srcdir)/configure.in
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
 
--include $(SOURCES:.cc=.d) $(PROGRAM).d
+-include $(ALLSOURCES:.cc=.d) $(PROGRAM).d

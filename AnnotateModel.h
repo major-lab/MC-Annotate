@@ -1,5 +1,5 @@
 //                              -*- Mode: C++ -*- 
-// AnnotateModel.h
+// AnnotatedModel.h
 // Copyright © 2001-04 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
 // Author           : Patrick Gendron
@@ -7,15 +7,15 @@
 // $Revision$
 
 
-#ifndef _AnnotateModel_h_
-#define _AnnotateModel_h_
+#ifndef _AnnotatedModel_h_
+#define _AnnotatedModel_h_
 
 #include <map>
 #include <string>
 #include <vector>
 // #include <pdflib.h>
 
-#include "mccore/GraphModel.h"
+#include "mccore/Model.h"
 #include "mccore/PdbFileHeader.h"
 #include "mccore/PropertyType.h"
 #include "mccore/Relation.h"
@@ -24,76 +24,63 @@
 #include "mccore/Residue.h"
 #include "mccore/ResidueType.h"
 
+
 using namespace std;
 using namespace mccore;
 
-
-
 namespace annotate
 {
-  //   class Block;
-    
-  typedef int node;
-  typedef int edge;
-  typedef int strandid;
-    
+  class AnnotatedModel;
+  class mccore::GraphModel;
+  
+  typedef int strandId;
+  
   enum stype { BULGE_OUT, BULGE, INTERNAL_LOOP, LOOP, HELIX, OTHER };
-    
-  /**
-   * @short Helix
-   * @author Patrick Gendron
-   */
-  struct Helix : public vector< pair< node, node > >
+ 
+  class Strand : public vector< const Residue * >
   {
-  };
+  
+    private:
+      char consensusChainId;
+  
+    public:
+     
+      virtual ostream&
+      output (ostream &os) const
+      {   
+        Strand::const_iterator resIt;
+        
+        os << size() << " residues : ";
+        for (resIt = begin (); end () != resIt; ++resIt)
+        {
+          os << (**resIt).getType();
+          if(end() != resIt+1)
+            os << "-";
+        }
+        
+        return os;
+      }
       
-  /**
-   * @short Strand
-   * @author Patrick Gendron
-   */
-  struct Strand : public pair< node, node >
-  {
-    stype type;
-    strandid ref;
+      virtual ~Strand() { }
+      
   };
-  
+    
+  class StrandSet : public vector< Strand >
+  {
+      /**
+      * Map from integer to original ResId.  The ResId of the residues are
+      * replaced with sequential ids.
+      */
+      map< unsigned int, const ResId * > int2ResIdMap;
+      
+  };
 
-  
-  //   /**
-  //    * @short Vector
-  //    * @author Patrick Gendron
-  //    * -----------------------------------------------------------------------------
-  //  */
-  //   struct Vector
-  //   {
-  //     float x;
-  //     float y;
-    
-  //     Vector () { }
-  //     Vector (float _x, float _y) : x (_x), y (_y) { }
-    
-  //     Vector operator+ (const Vector& v) { return Vector (x+v.x, y+v.y); }
-  //     float operator* (const Vector& v) { return x*v.x + y*v.y; }
-  //     float operator| (const Vector& v) { return sqrt ((x-v.x)*(x-v.x) + (y-v.y)*(y-v.y)); }
-  //     Vector operator* (float f) { return Vector (f*x, f*y); }
-  //     Vector operator/ (float f) { return Vector (x/f, y/f); }
-    
-  //     float norm () { return sqrt (x*x + y*y); }
-    
-  //     friend ostream& operator<< (ostream &os, const Vector &obj) 
-  //     {
-  //       os << "<" << obj.x << ", " << obj.y << ">" << endl;
-  //       return os;
-  //     }
-  //   };
-  
-  
   /**
-   * AnnotateModel
-   * @author Patrick Gendron (<a href="gendrop@iro.umontreal.ca">gendrop@iro.umontreal.ca</a>)
-   * @version $Id$
+   * AnnotatedModel
+   * @author 
+   * @version 
    */
-  class AnnotateModel : public GraphModel
+  class AnnotatedModel
   {
     /**
      * The model name.
@@ -105,35 +92,31 @@ namespace annotate
      */
     PdbFileHeader fileHeader;
 
-    /**
-     * Map from internal GraphModel label to original ResId.  The ResId of
-     * the residues are replaced with sequential ids.
-     */
-    map< GraphModel::label, ResId > int2ResIdMap;
+    GraphModel &gfm;
+    StrandSet sequences;
 
-    vector< int > sequence_mask;
-    vector< int > sequence_length;
-    
-    vector< int > helix_mask;
-    vector< Helix > helices;
-    
-    vector< int > strand_mask;
-    vector< Strand > strands;
-    
-    vector< int > tertiary_mask;
-    
-    vector< char > marks;
-    
     int nb_pairings;
     int nb_connect;
-    
-    //   /**
-    //    * Blocks...
-    //    */
-    //   vector< Block > h_blocks;
-    //   vector< Block > l_blocks;
-    //   vector< Block > s_blocks;
-    
+    int min_helix_size;
+
+    struct Helix : public vector< pair<const Residue *, const Residue * > > {
+    };
+    struct OStrand : public pair< const Residue *, const Residue * > {
+      stype type;
+      int ref;
+    };
+
+    vector< Helix > helices;
+    vector< OStrand > strands;
+  
+    vector< int > sequence_length;
+    map< const Residue *, char > marks;
+
+    map< const Residue *, int > helix_mask;
+    map< const Residue *, int > strand_mask;
+    map< const Residue *, int > sequence_mask;
+    map< const Residue *, int > tertiary_mask;
+        
   public:
     
     // LIFECYCLE ------------------------------------------------------------
@@ -141,12 +124,12 @@ namespace annotate
     /**
      * Initializes the object.
      */
-    AnnotateModel (string &name, PdbFileHeader &header, Model &m);
+    AnnotatedModel (GraphModel &gfm);
     
     /**
      * Destroys the object.
      */
-    virtual ~AnnotateModel () { }
+    virtual ~AnnotatedModel () { }
     
     // OPERATORS ------------------------------------------------------------
     
@@ -154,168 +137,115 @@ namespace annotate
     
   private :
     
-    ResId& getResId (node i) { return int2ResIdMap[i]; }
-    
-    ResId& getRefId (node i, node j)
-    {
-      return int2ResIdMap[internalGetEdge (internalGetEdge (i, j))->getRef ()->getResId ().getResNo ()];
-    }
-
-    ResId& getResId (node i, node j)
-    {
-      return int2ResIdMap[internalGetEdge (internalGetEdge (i, j))->getRes ()->getResId ().getResNo ()];
-    }
-    
-    const ResidueType* getType (node i)
-    {
-      return internalGetNode (i)->getType ();
-    }
-
-    bool isPairing (edge e)
-    {
-      return internalGetEdge (e)->is (PropertyType::pPairing);
-    }
-  
-    bool isHelixPairing (edge e)
-    {
-      return internalGetEdge (e)->is (PropertyType::pPairing);
-    }
-    
-    bool isAdjacent (edge e)
-    {
-      return internalGetEdge (e)->is (PropertyType::pAdjacent);
-    }
-    
-    bool isStacking (edge e)
-    {
-      return internalGetEdge (e)->is (PropertyType::pStack);
-    }
-    
-    bool isPairing (node i, node j)
-    {
-      return (internalAreConnected (i, j)
-	      && internalGetEdge (internalGetEdge (i, j))->is (PropertyType::pPairing));
-    }
-    
     // METHODS --------------------------------------------------------------
 
-  private:
+    bool isHelixPairing (const Relation *r) {
+      return (r->is (PropertyType::pPairing));
+//     return (relations[e].is (PropertyType::pXX) ||
+//          relations[e].is (PropertyType::pXIX) ||
+//          relations[e].is (PropertyType::pXXVIII));
+    }
 
-    /**
-     * Builds a collection of strands from a list of unsorted adjacent
-     * residue positions.
-     * @param seq list of unsorted adjacent residue positions.
-     * @param sequences collection of strands.
-     */
-    void sequenceSort (list< unsigned int > &seq, vector< vector< Residue* > > &sequences);
+    bool isPairing (const Relation *r) {
+      return (r->is (PropertyType::pPairing));
+//     return (relations[e].is (PropertyType::pXX) ||
+//          relations[e].is (PropertyType::pXIX) ||
+//          relations[e].is (PropertyType::pXXVIII));
+    }
 
-    /**
-     * Adds the non-adjacent residues in the sequences.
-     * @param sequences collection of strands.
-     */
-    void findLoneResidues (vector< vector< Residue* > > &sequences);
-
-    /**
-     * Rebuilds this with the residues following the sequences order.  The
-     * map from residue positions to original residue ids is also rebuilt.
-     * @param sequences the collection of strands.
-     */
-    void rebuildGraphModel (vector< vector< Residue* > > &sequences);
-        
+  bool isPairing (Residue *i, Residue *j) {
+    if (gfm.areConnected (i, j))
+      return gfm.getEdge (i, j)->is (PropertyType::pPairing);
+    return false;
+  }
+           
   public:
+ 
+    void buildStrands(void);
     
-    /**
-     * Finds all helices.
-     */
-    void findHelices ();
+    void findHelices (void);
+    void dumpHelices (void) const;
+    
+    void findStrands (void);
+    void classifyStrands (void);
+    void dumpStrands (void);
+    void findKissingHairpins (void);
+    void findPseudoknots (void);
 
-    /**
-     *
-     */
-    void findStrands ();
-    
-    /**
-     *
-     */
-    void classifyStrands ();
-    
-    /**
-     *
-     */
-    void findKissingHairpins ();
-    
-    /**
-     * 
-     */
-    void findPseudoknots ();
-    
-    /**
-     * Extracts...
-     */
-    ResIdSet extract (ResIdSet &seed, int size);
-    
+    void dumpSequences (bool detailed = true) ;
+    void dumpPairs (void) ;
+    void dumpConformations (void) ;
+    void dumpTriples (void) ;
+    void dumpStacks (void) ;
+
     // I/O  -----------------------------------------------------------------
-    
-    void dumpSequences (bool detailed=true);
-    
-    void dumpGraph ();
-    void dumpConformations ();
-    void dumpPairs ();
-    
-    void dumpHelices ();
-    void dumpTriples ();
-    void dumpStrands ();
-    void dumpStacks ();
-    
-    void dumpMcc (const char* pdbname);
-    
-    //   void dumpCt (const char* pdbname);
-    
-    //   void PDF_drawLoop2 (PDF *p, int li, int source_jct);
-    //   void PDF_drawHelix (PDF *p, int hi, int li_ref = -1, int x = -1, int y = -1);
-    //   void PDF_drawLoop (PDF *p, int li, int hi_ref = -1, int x = -1, int y = -1);
-    //   void dumpPDF (const char* pdfname);
-    
-    //   void PDF_drawGraph (PDF *p, node i, node prev, int x, int y, int a);
-    //   void dumpSimplePDF (const char* pdbname, const char* pdfname);
-  };
   
-  
-  // /**
-  //  * @short Block
-  //  * @author Patrick Gendron
-  //  * -----------------------------------------------------------------------------
-  //  */
-  // struct Block : public vector< vector< node > > {
-  //   AnnotateModel *amodel;
-  //   vector< pair< node, node > > junctions;
-  
-  //   Block (AnnotateModel* m) : amodel (m) {}
-  
-  //   ostream& output (ostream &os) const {
-  //     vector< pair< node, node > >::const_iterator k;
-  //     vector< vector< node > >::const_iterator i;
-  //     vector< node >::const_iterator j;
-  
-  //     for (k=junctions.begin (); k!=junctions.end (); ++k) {
-  //       os << "(" << amodel->getResId (k->first) << ", " 
-  // 	   << amodel->getResId (k->second) << ")" << flush;
-  //     }
-  //     os << " " << flush;
-  //     for (i=begin (); i!=end (); ++i) {
-  //       os << "[";
-  //       for (j=i->begin (); j!=i->end (); ++j) {
-  // 	if (j!=i->begin ()) os << ", ";
-  // 	os << amodel->getResId (*j);
-  //       }
-  //       os << "] ";
-  //     }
-  //     return os;
-  //   }
-  
-  //   friend ostream& operator<< (ostream &os, const Block &b) {
-  //     return b.output (os);
-  //   }
-  // };
+    void 
+    dumpMcc (const char* pdbname);
+    
+      
+    /**
+     * Ouputs the model to the stream.
+     * @param os the output stream.
+     * @return the used output stream.
+     */
+    virtual ostream& output (ostream &os) const;
 
+    /**
+     * Reads the model from a pdb input stream.
+     * @param ips the pdb data stream.
+     * @return the consumed pdb stream.
+     */
+    virtual iPdbstream& input (iPdbstream &ips);
+  
+    /**
+     * Writes the model to a binary output stream.
+     * @param obs the binary data stream.
+     * @return the consumed binary stream.
+     */
+    virtual oBinstream& output (oBinstream &obs) const;
+
+    /**
+     * Reads the model from a binary input stream.
+     * @param obs the binary data stream.
+     * @return the consumed binary stream.
+     */
+    virtual iBinstream& input (iBinstream &ibs);
+
+  };
+
+  /**
+   * Reads the AnnotatedModel from a binary input stream.
+   * @param is the binary input stream.
+   * @param model the AnnotatedModel.
+   * @return the consumed binary stream.
+   */
+  iBinstream& operator>> (iBinstream &is, AnnotatedModel &model);
+
+  /**
+   * Writes the AnnotatedModel to a binary output stream.
+   * @param os the binary input stream.
+   * @param model the AnnotatedModel.
+   * @return the consumed binary stream.
+   */
+  oBinstream& operator<< (oBinstream &os, const AnnotatedModel &model);
+
+}
+
+namespace std
+{
+  
+  ostream &
+  operator<< (ostream &out, const annotate::Strand &t);
+
+  /**
+   * Ouputs the residue to the stream.
+   * @param os the output stream.
+   * @param r the residue.
+   * @return the used output stream.
+   */
+  ostream& operator<< (ostream &os, const annotate::AnnotatedModel &am);
+  
+}
+  
 #endif

@@ -1,1817 +1,1282 @@
 //                              -*- Mode: C++ -*- 
-// AnnotateModel.cc
-// Copyright © 2001-04 Laboratoire de Biologie Informatique et Théorique.
-//                     Université de Montréal
+// AnnotatedModel.cc
+// Copyright © 2001, 2002, 2003, 2004 Laboratoire de Biologie Informatique et Théorique.
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
-// $Revision$
-// $Id$
-//
+// Last Modified By : Martin Larose
+// Last Modified On : Wed Dec  8 17:23:29 2004
+// Update Count     : 208
+// Status           : Unknown.
+// 
 
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
-// #include <iomanip>
 #include <algorithm>
 #include <list>
 #include <utility>
+#include <iterator>
 
-#include "mccore/Algo.h"
-// #include "mccore/Exception.h"
+#include "mccore/UndirectedGraph.h"
+#include "mccore/GraphModel.h"
 #include "mccore/Pdbstream.h"
-#include "mccore/stlio.h"
-
-#include "AnnotateModel.h"
-
+#include "AnnotatedModel.h"
 
 
 namespace annotate
 {
-  
-  bool
-  Contact (Residue &a, Residue &b, float min_cut, float max_cut)
-  {
-    min_cut *= min_cut;
-    max_cut *= max_cut;
-    
-    for (Residue::iterator i = a.begin (); i != a.end (); ++i)
-      {
-	for (Residue::iterator j = b.begin (); j != b.end (); ++j)
-	  {
-	    float d = i->squareDistance(*j);
-	    if (d < min_cut) return true;
-	    else if (d > max_cut) return false;
-	  }
+  AnnotatedModel::AnnotatedModel (GraphModel &gfm) : gfm(gfm)
+  {     
+    nb_connect = 0;
+    nb_pairings = 0;    
+    GraphModel::edge_const_iterator edgeIt;
+    for (edgeIt = gfm.edge_begin(); gfm.edge_end() != edgeIt; ++edgeIt, ++nb_connect) {
+      if ((*edgeIt)->is(PropertyType::pPairing)) {
+        marks[(*edgeIt)->getRef()] = 'b';
+        marks[(*edgeIt)->getRes()] = 'b';
+        nb_pairings++;
       }
-    return false;
+    }
+    nb_pairings /= 2;
+    min_helix_size = 3;
+
+    buildStrands();
+    findHelices();
+    findStrands();
+    classifyStrands();
+    gOut(0) << "Residue conformations -------------------------------------------" << endl;
+    dumpConformations();
+    dumpStacks();
+    gOut(0) << "Base-pairs ------------------------------------------------------" << endl;
+    findKissingHairpins();
+    gOut(0) << "Triples ---------------------------------------------------------" << endl;
+    dumpTriples();
+    gOut(0) << "Helices ---------------------------------------------------------" << endl;
+    dumpHelices();
+    gOut(0) << "Strands ---------------------------------------------------------" << endl;
+    dumpStrands();
+    gOut(0) << "Various features ------------------------------------------------" << endl;
+    findPseudoknots();
+    gOut(0) << "Sequences -------------------------------------------------------" << endl;
+    dumpSequences();
+    gOut(0) << endl;
   }
-
-
-  AnnotateModel::AnnotateModel (string &name, PdbFileHeader &header, Model &m)
-    : name (name), fileHeader (header), nb_pairings (0), nb_connect (0)
-  {
-    Model::iterator i;
-    unsigned int a;
-    map< unsigned int, ResId > corrMap;
-    vector< pair< Model::iterator, Model::iterator > > contacts;
-    vector< pair< Model::iterator, Model::iterator > >::iterator l;
-    list< unsigned int > seq;
-    vector< vector< Residue* > > sequences;
-  
-    // Standardization of ResIDs
-    // This is needed for the extractContacts algo to work correctly when
-    // there are multiple residues of the same resid.
-    for (i = m.begin (), a = 1; m.end () != i; ++i, ++a)
-      {
-	ResId resid (a);
-
-	insert (i->clone ());
-	corrMap[a] = i->getResId ();  
-	internalGetNode (a)->setResId (resid);
-      }
-    // Extraction of possible relations based on the Axis Aligned Bounding
-    // Box method
-    contacts = Algo::extractContacts (begin (), end (), 5.0);
-    for (l = contacts.begin (); contacts.end () != l; ++l)
-      {
-	Relation rel (&*l->first, &*l->second);
-	
-	if (rel.annotate ())
-	  {
-	    if (rel.is (PropertyType::pDIR_3p))
-	      {
-		connect (&*l->first, &*l->second, rel.invert ()->clone ());
-		seq.push_back (edgeSize () - 1);
-	      }
-	    else
-	      {
-		connect (&*l->first, &*l->second, rel->clone ());
-		if (rel.is (PropertyType::pDIR_5p))
-		  {
-		    seq.push_back (edgeSize () - 1);	  	    
-		  }
-	      }
-	  }
-      }
-    // Selection sort of the sequence.
-    sequenceSort (seq, sequences);
-    findLoneResidues (sequences);
-    rebuildGraph (sequences);
-  }
-
-
-  void
-  AnnotateModel::sequenceSort (list< unsigned int > &seq, vector< vector< Residue* > > &sequences)
-  {
-    while (! seq.empty ())
-      {
-	unsigned int sj;
-	list< unsigned int > sorted_seq;
-	list< unsigned int >::iterator it;
-	
-	sj = seq.front ();
-	seq.pop_front ();
-	sorted_seq.push_back (sj);
-	for (it = seq.begin (); seq.end () != it; ++it)
-	  {
-	    if (internalGetEdge (*it)->getRes ()->getResId () == internalGetEdge (sj)->getRef ()->getResId ())
-	      {
-		sj = *it;
-		sorted_seq.push_front (sj);
-		seq.erase (it);
-		it = seq.begin ();
-	      }
-	  }
-
-	sj = sorted_seq.back ();
-	for (it = seq.begin (); seq.end () != it; ++it)
-	  {
-	    if (internalGetEdge (*it)->getRef ()->getResId () == internalGetEdge (sj)->getRes ()->getResId ())
-	      {
-		sj = *it;
-		sorted_seq.push_back (sj);
-		seq.erase (it);
-		it = seq.begin ();
-	      }
-	  }
-
-	sequences.push_back (vector< Residue* > ());
-	vector< Residue* > &actual_seq = sequences.back ();
-	
-	it = sorted_seq.begin ();
-	actual_seq.push_back (internalGetEdge (*it)->getRef ());
-	while (sorted_seq.end () != it)
-	  {
-	    actual_seq.push_back (internalGetEdge (*it)->getRes ());
-	    it++;
-	  }
-      }
-  }
-
-
-  void
-  AnnotateModel::findLoneResidues (vector< vector< Residue* > > &sequences)
-  {
-    Model::iterator i;
-    ResIdSet modelSet;
-    vector< vector< Residue* > >::iterator vvit;
-    ResIdSet sequenceSet;
-    ResIdSet tmp;
-    ResIdSet::iterator risIt;
-
-    for (i = begin (); end () != i; ++i)
-      {
-	modelSet.insert ((*i)->getResId ());
-      }
-    for (vvit = sequences.begin (); sequences.end () != vvit; ++vvit)
-      {
-	vector< Residue* >::iterator vit;
-
-	for (vit = vvit->begin (); vvit->end () != vit; ++vit)
-	  {
-	    sequenceSet.insert ((*vit)->getResId ());
-	  }
-      }
-    set_difference (modelSet.begin (), modelSet.end (),
-		    sequenceSet.begin (), sequenceSet.end (),
-		    inserter (tmp, tmp.begin ()));
-
-    for (risIt = tmp.begin (); tmp.end () != risIt; ++risIt)
-      {
-	sequences.push_back (vector< Residue* > ());
-	vector< Residue* > &seq = sequences.back ();
-	seq.push_back (&internalGetNode (risIt->getResNo ()));
-      }
-  }
-
-
-  void
-  AnnotateModel::rebuildGraphModel (vector< vector< Residue* > > &sequences)
-  {
-    unsigned int a;
-    vector< vector< Residue* > >::iterator vvit;
-    GraphModel newGraph;
-    map< unsigned int, ResId > &newMap;
-    vector< Relation* >::iterator rit;
-
-    for (vvit = sequences.begin (), a = 1; sequences.end () != vvit; ++vvit)
-      {
-	vector< Residue* >::iterator vit;
-
-	for (vit = vvit->begin (); vvit->end () != vit; ++vit, ++a)
-	  {
-	    Residue *res = *vit;
-	    ResId id (a);
-	    
-	    newMap[a] = int2ResIdMap[res->getResId ().getResNo ()];
-	    newGraph.insert (res);
-	    res->setResId (id);
-	    sequence_mask.push_back (vvit - sequences.begin ());
-	  }
-      }
-    
-    marks.resize (size (), '-');
-    helix_mask.resize (size (), -1);
-    strand_mask.resize (size (), -1);
-    tertiary_mask.resize (size (), -1);
-
-    for (rit = edges.begin (); edges.end () != rit; ++rit)
-      {
-	newGraph.connect ((*rit)->getRef (), (*rit)->getRes (), *rit);
-
-	if ((*rit)->is (PropertyType::pDIR_3p)
-	    || (*rit)->is (PropertyType::pDIR_5p))
-	  {
-	    nb_connect++;
-	  }
-	if ((*rit)->is (PropertyType::pPairing))
-	  {
-	    marks[(*rit)->getRef ()->getResId ().getResNo ()] = 'b';
-	    marks[(*rit)->getRes ()->getResId ().getResNo ()] = 'b';
-	    nb_pairings++;
-	  }
-      }
-    *this = newGraph;
-    int2ResIdMap = newMap;
-  }
-  
   
   void 
-  AnnotateModel::findHelices ()
+  AnnotatedModel::findHelices ()
   {
-    UndirectedGraph< node, edge >::iterator gi, gk, gip, gkp;
-    list< node >::iterator gj, gjp;
+    GraphModel::const_iterator gi, gk, gip, gkp;
+    list< Residue * > neighbor;
+    list< Residue * >::iterator nborIt;
     Helix helix;
-    list< node > neigh;
-    
-    int min_size = 3;
-    
-    gi = graph.begin ();
-    
-    while (gi!=graph.end ())
-      {      
-	//cout << "( " << getResId (*gi) << " " << flush;
-      
-	// Find a pairing involving gi
-	neigh = graph.getNeighbors (*gi);
-	for (gj=neigh.begin (); gj!=neigh.end (); ++gj)
-	  {
-	    if (isHelixPairing (graph.getEdge (*gi, *gj))) break;
-	  }
-      
-	if (gj != neigh.end ()) 
-	  {
-	    if (*gj > *gi && marks[*gj] != '(' && marks[*gj] != ')')
-	      {
-		// Find counterpart of gi.
-		gk = graph.find (*gj);
-
-		//cout << getResId (*gk) << ")" << endl;
-
-		helix.push_back (make_pair (*gi, *gk));
-	  
-		// Extending with bulge detection
-		while (true)
-		  {
-		    gip = gi;  ++gip;
-		    if (gip == graph.end ()) break;
-		    if (gk == graph.begin ()) break;
-		    gkp = gk;  --gkp;
-	    
-		    //cout << "?  " << getResId(*gip) << " " << getResId(*gkp) << endl;
-
-		    if (sequence_mask[*gip] == sequence_mask[*gi] &&
-			sequence_mask[*gkp] == sequence_mask[*gk])
-		      {
-	      
-			neigh = graph.getNeighbors (*gip);
-			if ((gjp = std::find (neigh.begin (), neigh.end (), *gkp)) != neigh.end ()
-			    && isHelixPairing (graph.getEdge (*gip, *gkp)))
-			  {
-			    helix.push_back (make_pair (*gip, *gkp));
-			    gi = gip;
-			    gk = gkp;
-		
-			    //cout << "+ " << getResId(*gi) << " " << getResId(*gk) << endl;
-
-			  }
-			else
-			  {
-			    break;
-			  }
-// This is for allowing bulges in the helix...  Doesn't work for the following case:
-// '0'110-'0'51 : C-G Ww/Ww pairing cis XIX 
-// '0'111-'0'50 : C-G Ww/Ww pairing cis XIX 
-// '0'112-'0'49 : G-A Ss/Hh pairing trans XI 
-// '0'113-'0'47 : A-G Hh/Ss pairing trans XI 
-// '0'114-'0'48 : A-A Hh/Hh pairing trans II
-// 	      } else {
-
-// 		cout << "Trying bulge in second part" << endl;
-// 		// There may be a bulge in one of the two chains
-//  		Graph< node, edge >::adjlist::iterator ga, gb;
-// 		bool found = false;
-// 		for (ga=gip->second.begin (); ga!=gip->second.end (); ++ga) {
-
-//  		  cout << getResId (ga->first) << " " << getResId (gk->first) << " " 
-//  		       << "bulge length " << gk->first - ga->first << endl;
-
-// 		  if (isHelixPairing (ga->second) &&
-// 		      gk->first - ga->first <= min_size && 
-// 		      (gb = gk->second.find (ga->first)) != gk->second.end () &&
-// 		      relations[gb->second].isStacking ()) {
-// 		    helix.push_back (make_pair (-1, ga->first-gk->first));
-// 		    helix.push_back (make_pair (gip->first, gb->first));
-// 		    gi = gip;
-// 		    gk = graph.find (gb->first);
-
-//   		    cout << "+ " << getResId(gi->first) << " " << getResId(gk->first) << endl;
-
-// 		    found = true;
-// 		    break;
-// 		  }
-// 		}
-//   		cout << "Trying bulge in first part" << endl;
-// 		if (!found) {
-// 		  for (ga=gkp->second.begin (); ga!=gkp->second.end (); ++ga) {
-
-//  		    cout << getResId (ga->first) << " " << getResId (gi->first) << " " 
-//  			 << ga->first - gi->first << endl;
-
-// 		    if (isHelixPairing (ga->second) &&
-// 			ga->first - gi->first <= min_size && 
-// 			(gb = gi->second.find (ga->first)) != gi->second.end () &&
-// 			relations[gb->second].isStacking ()) {
-// 		      helix.push_back (make_pair (gi->first-ga->first, -1));
-// 		      helix.push_back (make_pair (gb->first, gkp->first));
-// 		      gi = graph.find (gb->first);
-// 		      gk = gkp;
-//   		      cout << "+ " << getResId(gi->first) << " " << getResId(gk->first) << endl;
-// 		      found = true;
-// 		      break;
-// 		    }
-// 		  }
-// 		}
-// 		if (!found) {
-// 		  break;
-// 		}
-// 	      }
-		      }
-		    else
-		      {
-			break;
-		      }
-		  }
-	  
-		if ((int)helix.size () >= min_size)
-		  {
-		    Helix::iterator i;
-		    for (i=helix.begin (); i!=helix.end (); ++i)
-		      {
-			if (i->first >= 0)
-			  {
-			    helix_mask[i->first] = helices.size ();
-			    marks[i->first] = '(';
-			    helix_mask[i->second] = helices.size ();
-			    marks[i->second] = ')';
-			  }
-		      }
-		    helices.push_back (helix);
-		  } 
-		helix.clear ();
-	      }
-	  }
-	++gi;
-      }
-  }
-
-
-  void
-  AnnotateModel::findStrands ()
-  {
-    int i;
-    UndirectedGraph< node, edge >::iterator gi, gk;
-    Strand strand;
-
-    for (gi=graph.begin (); gi!=graph.end (); )
-      {
-	if (helix_mask[*gi] == -1)
-	  {
-	    gk = gi;
-	    while (gk != graph.end ()
-		   && sequence_mask[*gi] == sequence_mask[*gk]
-		   && helix_mask[*gk] == -1)
-	      {
-		++gk;
-	      }
-	    gk--;
-	    strand.first = *gi;
-	    strand.second = *gk;
-	    strand.type = OTHER;
-	    for (i=*gi; i<=*gk; ++i)
-	      {
-		strand_mask[i] = strands.size ();
-	      }
-	    strands.push_back (strand);
-	    gi = gk;
-	  }
-	gi++;
-      }
-  }
-
-
-  void
-  AnnotateModel::classifyStrands ()
-  {
-    vector< Strand >::iterator j;
-
-    for (j=strands.begin (); j!=strands.end (); ++j)
-      {
-	if (j->first == 0
-	    || j->second == (int)graph.size () - 1
-	    || sequence_mask[j->first-1] != sequence_mask[j->second+1])
-	  {
-	    j->type = OTHER;
-	  }
-	else if (helix_mask[j->first-1] == helix_mask[j->second+1])
-	  {
-	    node i = 0;
-	    // Find pairs of the extrimities.
-	    if (helices[helix_mask[j->first-1]].front ().first == j->first-1)
-	      i = helices[helix_mask[j->first-1]].front ().second;
-	    else if (helices[helix_mask[j->first-1]].front ().second == j->first-1)
-	      i = helices[helix_mask[j->first-1]].front ().first;
-	    else if (helices[helix_mask[j->first-1]].back ().first == j->first-1)
-	      i = helices[helix_mask[j->first-1]].back ().second;
-	    else if (helices[helix_mask[j->first-1]].back ().second == j->first-1)
-	      i = helices[helix_mask[j->first-1]].back ().first;
-	    else 
-	      cerr << "Pairing not found for (a) " << j->first-1 << endl;
-
-	    if (i==j->second+1)
-	      j->type = LOOP;
-	    else 
-	      j->type = BULGE_OUT;
-	  }
-	else
-	  { 
-	    node i = 0, k = 0;
-	
-	    // Find pairs.
-	    if (helices[helix_mask[j->first-1]].front ().first == j->first-1)
-	      i = helices[helix_mask[j->first-1]].front ().second;
-	    else if (helices[helix_mask[j->first-1]].front ().second == j->first-1)
-	      i = helices[helix_mask[j->first-1]].front ().first;
-	    else if (helices[helix_mask[j->first-1]].back ().first == j->first-1)
-	      i = helices[helix_mask[j->first-1]].back ().second;
-	    else if (helices[helix_mask[j->first-1]].back ().second == j->first-1)
-	      i = helices[helix_mask[j->first-1]].back ().first;
-	    else 
-	      cerr << "Pairing not found for (b) " << j->first-1 << endl;
-
-	    if (helices[helix_mask[j->second+1]].front ().first == j->second+1)
-	      k = helices[helix_mask[j->second+1]].front ().second;
-	    else if (helices[helix_mask[j->second+1]].front ().second == j->second+1)
-	      k = helices[helix_mask[j->second+1]].front ().first;
-	    else if (helices[helix_mask[j->second+1]].back ().first == j->second+1)
-	      k = helices[helix_mask[j->second+1]].back ().second;
-	    else if (helices[helix_mask[j->second+1]].back ().second == j->second+1)
-	      k = helices[helix_mask[j->second+1]].back ().first;
-	    else 
-	      cerr << "Pairing not found for (c) " << j->first-1 << endl;
-
-	    if (sequence_mask[i] != sequence_mask[k])
-	      {
-		j->type = OTHER;
-	      }
-	    else if (i==k+1 || i==k-1)
-	      {
-		j->type = BULGE;
-	      }
-	    else
-	      {
-		// Find the other part of the internal loop
-		vector< Strand >::iterator s;
-		for (s=strands.begin (); s!=strands.end (); ++s)
-		  {
-		    if (s->first == k+1 && s->second == i-1)
-		      {
-			j->type = INTERNAL_LOOP;
-			j->ref = s-strands.begin ();
-			break;
-		      }
-		    else
-		      {
-			j->type = OTHER;
-		      }
-		  }
-	      }
-	  }    
-      }
-  }
-
   
+    gi = gfm.begin ();
+    while (gi!=gfm.end ()) {
+      
+      // Find a pairing involving gi
+      neighbor = gfm.neighborhood ( (Residue *) &(*gi) );
+      for (nborIt = neighbor.begin(); neighbor.end() != nborIt; ++nborIt) {
+        if (isHelixPairing (gfm.getEdge ((Residue *)(&(*gi)), *nborIt)))
+          break;
+      }
+
+      if (nborIt != neighbor.end ()) {
+ 
+        if ((*gi).getResId() < (*nborIt)->getResId() 
+            && marks.end() != marks.find(*nborIt) 
+            && marks[*nborIt] != '(' && marks[*nborIt] != ')') {
+          
+         
+         // Find counterpart of gi.
+          gk = gfm.find ((*nborIt)->getResId());
+      
+          helix.push_back (make_pair (&(*gi), &(*gk)));
+          
+          // Extending with bulge detection
+          while (true) {
+             gip = gi;  ++gip;
+            if (gip == gfm.end ()) break;
+            if (gk == gfm.begin ()) break;
+            gkp = gk;  --gkp;
+        
+            if (sequence_mask[&(*gip)] == sequence_mask[(&(*gi))] &&
+                  sequence_mask[&(*gkp)] == sequence_mask[&(*gk)]) {
+           
+              neighbor = gfm.neighborhood ((Residue *) &(*gip));
+              if ((nborIt = std::find (neighbor.begin (), neighbor.end (), (Residue *) &(*gkp))) != neighbor.end () &&
+                  isHelixPairing (gfm.getEdge ((Residue *) &(*gip), (Residue *) &(*gkp)))) {
+                  
+                helix.push_back (make_pair ((Residue *) &(*gip), (Residue *) &(*gkp)));
+                gi = gip;
+                gk = gkp;
+      
+              } else {
+                break;
+              }
+            } else {
+              break;
+            }
+          }
+      
+          if ((int)helix.size () >= min_helix_size) {
+            Helix::iterator i;
+            for (i=helix.begin (); i!=helix.end (); ++i) {
+ //             if (i->first >= 0) {
+                helix_mask[i->first] = helices.size ();
+                marks[i->first] = '(';
+                helix_mask[i->second] = helices.size ();
+                marks[i->second] = ')';
+ //             }
+            }
+            helices.push_back (helix);
+          } 
+          helix.clear ();
+        }
+      }
+      ++gi;
+    }
+  }
+
+  /**
+   * Output helices in text representation
+   * Ex:
+   * H0, length = 14
+   *      A1-UUAUAUAUAUAUAA-A14
+   *      B14-AAUAUAUAUAUAUU-B1
+   */
   void
-  AnnotateModel::findKissingHairpins ()
+  AnnotatedModel::dumpHelices (void) const 
   {
-    UndirectedGraph< node, edge >::iterator gi;
-    list< node >::iterator gj;
-    list< node > neigh;
+    vector< Helix >::const_iterator i;
+    
+    for (i=helices.begin (); i!=helices.end (); ++i) {
+
+      // Helix index and length
+      gOut(0) << "H" << i - helices.begin () << ", length = " << i->size () << "" << endl;
+    
+      int k;
+      // First strand
+      gOut(0).setf (ios::right, ios::adjustfield);
+      gOut(0) << setw (6) << ((*i)[0].first)->getResId() << "-";
+      for (k=0; k<(int)i->size (); ++k) {
+        if ((*i)[k].first >=0)
+          gOut(0) << (((*i)[k].first)->getType()->isNucleicAcid () ? Pdbstream::stringifyResidueType (((*i)[k].first)->getType()) : "X");
+        else 
+        {
+          // Code from old version of annotate.. ?
+//            gOut(0) << "-" << setw (max ((int)floor(log10 ((double)-(*i)[k].first)), (int)floor(log10 ((double)-(*i)[k].second)))+1) 
+//          if (- (*i)[k].first -1 == 0) {
+//            gOut(0) << setfill ('-') << "-" << "-";
+//          } else {
+//           gOut(0)  << (*i)[k].first  << "-";
+//          }
+        }
+      }
+      gOut(0) << "-" << ((*i)[i->size ()-1].first)->getResId() << endl;
+
+      // Second strand 
+      gOut(0).setf (ios::right, ios::adjustfield);
+      gOut(0) << setw (6) << ((*i)[0].second)->getResId() << "-";
+    
+      for (k=0; k<(int)i->size (); ++k) {
+        if ((*i)[k].first >=0)
+          gOut(0) << (((*i)[k].second)->getType()->isNucleicAcid () ? Pdbstream::stringifyResidueType (((*i)[k].second)->getType()) : "X");
+        else {
+          // Code from old version of annotate.. ?
+//            gOut(0) << "-" << setw (max ((int)floor(log10 ((double)-(*i)[k].first)), (int)floor(log10 ((double)-(*i)[k].second)))+1) 
+//          if (- (*i)[k].second -1 == 0) {
+//              gOut(0) << setfill ('-') << "-" << "-";	
+//          } else {  
+//              gOut(0) << (*i)[k].second << "-";
+//          }
+        }
+      }
+      gOut(0) << "-" << ((*i)[i->size ()-1].second)->getResId() << setfill (' ') << endl;
+    }
+    gOut(0).setf (ios::left, ios::adjustfield);
+  }
+ 
+  void
+  AnnotatedModel::findStrands (void)
+  {
+
+    GraphModel::const_iterator gi, gk, gl;
+    map< const Residue *, int >::iterator gf;
+    OStrand strand;
+
+    for (gi=gfm.begin (); gi!=gfm.end (); )
+    {
+      if (helix_mask.find(&(*gi)) == helix_mask.end()) {
+      
+        gk = gi;
+        while (gk != gfm.end () &&
+            helix_mask.find(&(*gk)) == helix_mask.end() &&
+            sequence_mask[&(*gi)] == sequence_mask[&(*gk)]
+            )
+          ++gk;
+        gk--;
+        strand.first = &(*gi);
+        strand.second = &(*gk);
+        strand.type = OTHER;
+        for (gl = gi; gl<=gk; ++gl) { 
+          strand_mask[&(*gl)] = strands.size ();
+        }
+        strands.push_back (strand);
+        gi = gk;
+      }
+      gi++;
+    }
+  }
+  
+  void 
+  AnnotatedModel::buildStrands(void)
+  {
+    list< GraphModel::edge_const_iterator > unsorted;
+    GraphModel::edge_const_iterator edgeIt;
+
+    sequences.clear ();
+    for (edgeIt = gfm.edge_begin (); gfm.edge_end () != edgeIt; ++edgeIt)
+    {
+      if ((*edgeIt)->is (PropertyType::pAdjacent5p))
+      {
+        unsorted.push_back (edgeIt);
+      }
+    }
+    while (! unsorted.empty ())
+    {
+      GraphModel::edge_const_iterator sj;
+      list< GraphModel::edge_const_iterator > sorted;
+      list< GraphModel::edge_const_iterator >::iterator it;
+    
+      sj = unsorted.front ();
+      unsorted.pop_front ();
+      sorted.push_back (sj);
+      for (it = unsorted.begin (); unsorted.end () != it;)
+      {
+        if ((**it)->getRes ()->getResId () == (*sj)->getRef ()->getResId ())
+        {
+          sj = *it;
+          sorted.push_front (sj);
+          unsorted.erase (it);
+          it = unsorted.begin ();
+        }
+        else
+        {
+          ++it;
+        }
+      }
+      sj = sorted.back ();
+      for (it = unsorted.begin (); unsorted.end () != it;)
+      {
+        if ((**it)->getRef ()->getResId () == (*sj)->getRes ()->getResId ())
+        {
+          sj = *it;;
+          sorted.push_back (sj);
+          unsorted.erase (it);
+          it = unsorted.begin ();
+        }
+        else
+        {
+          ++it;
+        }
+      }
+      sequences.push_back (Strand ());
+      Strand &seq = sequences.back ();
+    
+      it = sorted.begin ();
+      seq.push_back ((**it)->getRef ());
+      while (sorted.end () != it)
+      {
+        seq.push_back ((**it)->getRes ());
+        ++it;
+      }
+    }
+
+    // Verify that the sequences have the same chain id and have consecutive
+    // residue number.
+    StrandSet::iterator seqIt;
+    int k = 0;
+
+    for (seqIt = sequences.begin (); sequences.end () != seqIt; ++seqIt, ++k)
+    {
+      Strand &resVec = *seqIt;
+      Strand::iterator resVecIt;
+      char chain;
+      int number;
+    int len = 1;
+    
+      resVecIt = resVec.begin ();
+      chain = (*resVecIt)->getResId ().getChainId ();
+      number = (*resVecIt)->getResId ().getResNo ();
+      sequence_mask[*resVecIt] = k;
+      ++resVecIt;
+      while (resVec.end () != resVecIt)
+      {
+        if ((*resVecIt)->getResId ().getChainId () != chain
+          || (*resVecIt)->getResId ().getResNo () != number + 1)
+        {
+          Strand rest;
+      
+          if (++resVec.begin () == resVecIt)
+          {
+            rest.insert (rest.end (), resVecIt, resVec.end ());
+            resVec.erase (++resVecIt, resVec.end ());
+          }
+          else
+          {
+            rest.insert (rest.end (), resVecIt - 1, resVec.end ());
+            resVec.erase (resVecIt, resVec.end ());
+          }
+          ++seqIt;
+          if (1 < rest.size ())
+          {
+            seqIt = --sequences.insert (seqIt, rest);
+          }
+          break;
+        }
+        else
+        {
+          sequence_mask[*resVecIt] = k;
+          number += 1;
+          ++resVecIt;
+        len++;
+        }
+      }
+      sequence_length.push_back(len);
+    }
+  }
+
+  void AnnotatedModel::classifyStrands ()  {
+    vector< OStrand >::iterator j;
+    GraphModel::const_iterator first, last, prev, next;
+  
+    for (j=strands.begin (); j!=strands.end (); ++j) {
+  
+      prev = gfm.find((*(j->first)).getResId());
+      next = gfm.find((*(j->second)).getResId());
+      --prev; ++next;
+      first = gfm.begin();
+      last = gfm.end();
+      --last;
+  
+      if (&(*(j->first)) == &(*first) || &(*(j->second)) == &(*last) ||
+        sequence_mask[&(*prev)] != sequence_mask[&(*next)])
+      {
+        j->type = OTHER;
+      }
+      else if (helix_mask[&(*prev)] == helix_mask[&(*next)])
+      {
+        const Residue *i = 0;
+        // Find pairs of the extrimities.
+        if (helices[helix_mask[&(*prev)]].front ().first == &(*prev))
+          i = helices[helix_mask[&(*prev)]].front ().second;
+        else if (helices[helix_mask[&(*prev)]].front ().second == &(*prev))
+          i = helices[helix_mask[&(*prev)]].front ().first;
+        else if (helices[helix_mask[&(*prev)]].back ().first == &(*prev))
+          i = helices[helix_mask[&(*prev)]].back ().second;
+        else if (helices[helix_mask[&(*prev)]].back ().second == &(*prev))
+          i = helices[helix_mask[&(*prev)]].back ().first;
+        else 
+          cerr << "Pairing not found for (a) " << *prev << endl;
+  
+        if (i == &(*next))
+          j->type = LOOP;
+        else 
+          j->type = BULGE_OUT;
+      }
+      else
+      { 
+        const Residue *i = 0, *k = 0;
+    
+        // Find pairs.
+        if (helices[helix_mask[j->first-1]].front ().first == j->first-1)
+          i = helices[helix_mask[j->first-1]].front ().second;
+        else if (helices[helix_mask[j->first-1]].front ().second == j->first-1)
+          i = helices[helix_mask[j->first-1]].front ().first;
+        else if (helices[helix_mask[j->first-1]].back ().first == j->first-1)
+          i = helices[helix_mask[j->first-1]].back ().second;
+        else if (helices[helix_mask[j->first-1]].back ().second == j->first-1)
+          i = helices[helix_mask[j->first-1]].back ().first;
+        else 
+          cerr << "Pairing not found for (b) " << j->first-1 << endl;
+      
+        if (helices[helix_mask[j->second+1]].front ().first == j->second+1)
+          k = helices[helix_mask[j->second+1]].front ().second;
+        else if (helices[helix_mask[j->second+1]].front ().second == j->second+1)
+          k = helices[helix_mask[j->second+1]].front ().first;
+        else if (helices[helix_mask[j->second+1]].back ().first == j->second+1)
+          k = helices[helix_mask[j->second+1]].back ().second;
+        else if (helices[helix_mask[j->second+1]].back ().second == j->second+1)
+          k = helices[helix_mask[j->second+1]].back ().first;
+        else 
+          cerr << "Pairing not found for (c) " << j->first-1 << endl;
+      
+        if (sequence_mask[i] != sequence_mask[k]) {
+          j->type = OTHER;
+        } else if (i==k+1 || i==k-1) {
+          j->type = BULGE;
+        } else {
+          // Find the other part of the internal loop
+          vector< OStrand >::iterator s;
+          for (s=strands.begin (); s!=strands.end (); ++s) {
+            if (s->first == k+1 && s->second == i-1) {
+              j->type = INTERNAL_LOOP;
+              j->ref = s-strands.begin ();  // FIXIT!
+              break;
+            } else {
+              j->type = OTHER;
+            }
+          }
+        }
+      }    
+    }
+  }
+  
+  void AnnotatedModel::dumpStrands ()
+  {
+    int j;
+    GraphModel::const_iterator k;
+  
+    for (j=0; j<(int)strands.size (); ++j) {
+      
+      gOut(0).setf (ios::left, ios::adjustfield);
+      gOut(0) << "S" << setw (5) << j << " ";
+      
+      gOut(0).setf (ios::left, ios::adjustfield);
+      
+      if (strands[j].type == OTHER) gOut(0) << setw (16) << "single strand:";
+      else if (strands[j].type == BULGE) gOut(0) << setw (16) << "bulge:";
+      else if (strands[j].type == BULGE_OUT) gOut(0) << setw (16) << "bulge out:";
+      else if (strands[j].type == LOOP) gOut(0) << setw (16) << "loop:";
+      else if (strands[j].type == INTERNAL_LOOP) gOut(0) << setw (16) << "internal loop:";
+      
+      gOut(0) << (strands[j].first)->getResId() << "-";
+      
+      for (k = gfm.find((strands[j].first)->getResId()); k <= gfm.find((strands[j].second)->getResId()); ++k) {
+        gOut(0) << ((k)->getType()->isNucleicAcid () ? Pdbstream::stringifyResidueType ((k)->getType()) : "X");
+      }
+      gOut(0) << "-" << (strands[j].second)->getResId();
+  
+      if (strands[j].type == INTERNAL_LOOP) {
+        gOut(0) << " -- ";
+      // FIXIT!    
+  /*      gOut(0) << (strands[strands[j].ref].first)->getResId() << "-";
+        for (k=strands[strands[j].ref].first; k<=strands[strands[j].ref].second; ++k) {
+          gOut(0) << ((k)->getType()->isNucleicAcid () ? Pdbstream::stringifyResidueType ((k)->getType()) : "X");
+        }
+        gOut(0) << "-" << (strands[strands[j].ref].second)->getResId();
+  */      
+      }
+      gOut(0) << endl;
+    }
+    gOut(0).setf (ios::left, ios::adjustfield);  
+  }
+  
+  void AnnotatedModel::findKissingHairpins (void)
+  {
+    GraphModel::const_iterator gi;
+    list< Residue * > neighbor;
+    list< Residue * >::iterator nborIt;
     int check = 0;
     int nb_helical_bp = 0;
     set< const PropertyType* >::iterator k;
-
-    cout.setf (ios::left, ios::adjustfield);
-
-    for (gi=graph.begin (); gi!=graph.end (); ++gi)
-      {
-	neigh = graph.getNeighbors (*gi);
-	for (gj=neigh.begin (); gj!=neigh.end (); ++gj)
-	  {
-	    if (*gi < *gj && isPairing (graph.getEdge (*gi, *gj)))
-	      {
-		if (helix_mask [*gi] != -1
-		    && helix_mask [*gi] == helix_mask [*gj])
-		  {
-		    // Simple helical base-pair.
-		    cout << setw (20) << "helix bp: " 
-			 << getResId (*gi) << "-" 
-			 << getResId (*gj) << " : ";
-		    check++;
-		    nb_helical_bp++;
-		  } 
-	
-		if (helix_mask [*gi] != -1
-		    && helix_mask [*gi] != helix_mask [*gj])
-		  {
-		    cout << setw (20) << "inter helix: " 
-			 << getResId (*gi) << "-" 
-			 << getResId (*gj) << " : ";
-		    tertiary_mask[*gi] = 1;
-		    tertiary_mask[*gj] = 1;
-		    check++;
-		  }
-
-		if (strand_mask [*gi] != -1
-		    && helix_mask [*gj] != -1)
-		  {
-		    if (strands[strand_mask [*gi]].type == OTHER)
-		      {
-			cout << setw (20) << "strand/helix: " 
-			     <<  getResId (*gi) << "-" 
-			     << getResId (*gj) << " : ";
-			tertiary_mask[*gi] = 1;
-			tertiary_mask[*gj] = 1;
-			check++;
-		      }
-		    else if (strands[strand_mask [*gi]].type == BULGE
-			     || strands[strand_mask [*gi]].type == BULGE_OUT)
-		      {
-			cout << setw (20) << "bulge/helix: " 
-			     <<  getResId (*gi) << "-" 
-			     << getResId (*gj) << " : ";
-			tertiary_mask[*gi] = 1;
-			tertiary_mask[*gj] = 1;
-			check++;
-		      }
-		    else if (strands[strand_mask [*gi]].type == LOOP)
-		      {
-			cout << setw (20) << "loop/helix: " 
-			     <<  getResId (*gi) << "-" 
-			     << getResId (*gj) << " : ";
-			tertiary_mask[*gi] = 1;
-			tertiary_mask[*gj] = 1;
-			check++;
-		      }
-		    else if (strands[strand_mask [*gi]].type == INTERNAL_LOOP)
-		      {
-			cout << setw (20) << "internal loop/helix: " 
-			     <<  getResId (*gi) << "-" 
-			     << getResId (*gj) << " : ";
-			tertiary_mask[*gi] = 1;
-			tertiary_mask[*gj] = 1;
-			check++;
-		      }
-		    else
-		      {
-			cout << "Other A: " << " : ";
-		      }
-		  }
-	
-		if (strand_mask [*gi] != -1
-		    && strand_mask [*gj] != -1)
-		  {
-	  
-		    if (strand_mask [*gi] == strand_mask [*gj])
-		      {
-			cout << setw (20) << "intraloop: " 
-			     << getResId (*gi) << "-"
-			     << getResId (*gj) << " : ";
-			tertiary_mask[*gi] = 1;
-			tertiary_mask[*gj] = 1;
-			check++;
-		      }
-		    else
-		      {
-			int size = 0;
-			if (strands[strand_mask [*gi]].type == OTHER)
-			  {
-			    cout << "strand/";
-			    size = 20-7;	    
-			  }
-			else if (strands[strand_mask [*gi]].type == BULGE
-				 || strands[strand_mask [*gi]].type == BULGE_OUT)
-			  {
-			    cout << "bulge/";
-			    size = 20-6;
-			  }
-			else if (strands[strand_mask [*gi]].type == LOOP)
-			  {
-			    cout << "loop/";
-			    size = 20-5;
-			  }
-			else if (strands[strand_mask [*gi]].type == INTERNAL_LOOP)
-			  {
-			    cout << "internal loop/";
-			    size = 20-14;
-			  }
-			if (strands[strand_mask [*gj]].type == OTHER)
-			  {
-			    cout << setw (size) << "strand: " 
-				 <<  getResId (*gi) << "-" 
-				 << getResId (*gj) << " : ";
-			    tertiary_mask[*gi] = 1;
-			    tertiary_mask[*gj] = 1;
-			    check++;
-			  }
-			else if (strands[strand_mask [*gj]].type == BULGE
-				 || strands[strand_mask [*gj]].type == BULGE_OUT)
-			  {
-			    cout << setw (size) << "bulge: " 
-				 <<  getResId (*gi) << "-" 
-				 << getResId (*gj) << " : ";
-			    tertiary_mask[*gi] = 1;
-			    tertiary_mask[*gj] = 1;
-			    check++;
-			  }
-			else if (strands[strand_mask [*gj]].type == LOOP)
-			  {
-			    cout << setw (size) << "loop: " 
-				 <<  getResId (*gi) << "-" 
-				 << getResId (*gj) << " : ";
-			    tertiary_mask[*gi] = 1;
-			    tertiary_mask[*gj] = 1;
-			    check++;
-			  }
-			else if (strands[strand_mask [*gj]].type == INTERNAL_LOOP)
-			  {
-			    cout << setw (size) << "internal loop: " 
-				 <<  getResId (*gi) << "-" 
-				 << getResId (*gj) << " : ";
-			    tertiary_mask[*gi] = 1;
-			    tertiary_mask[*gj] = 1;
-			    check++;
-			  }
-			else
-			  {
-			    cout << "Other B:" << " : ";
-			  }
-		      }
-		  }
-	
-		edge e = graph.getEdge (*gi, *gj);
-	
-		cout << Pdbstream::stringifyResidueType (getType (*gi)) << "-" << flush
-		     << Pdbstream::stringifyResidueType (getType (*gj)) << " " << flush;
-	
-		if (relations[e].getRefFace ())
-		  cout << relations[e].getRefFace () << "/" << flush
-		       << relations[e].getResFace () << " " << flush;
-	
-		for (k=relations[e].getLabels ().begin (); 
-		     k!=relations[e].getLabels ().end (); ++k)
-		  {
-		    cout << **k << " " ;
-		  }
-		cout << endl;       
-	      }
-	  }
+  
+    gOut(0).setf (ios::left, ios::adjustfield);
+  
+    for (gi=gfm.begin (); gi!=gfm.end (); ++gi) {
+      neighbor = gfm.neighborhood (const_cast<Residue *> (&(*gi)));  
+      for (nborIt = neighbor.begin (); nborIt != neighbor.end (); ++nborIt) {      
+        if (gi->getResId() < (*nborIt)->getResId() && isPairing (gfm.getEdge ((Residue *)(&(*gi)), *nborIt))) {
+          
+          if (helix_mask.find(&(*gi)) != helix_mask.end() &&
+              helix_mask [&(*gi)] == helix_mask [*nborIt]) {
+            // Simple helical base-pair.
+            gOut(0) << setw (20) << "helix bp: " << gi->getResId() << "-" << (*nborIt)->getResId() << " : ";
+            check++;
+            nb_helical_bp++;
+          } 
+      
+          if (helix_mask.find(&(*gi)) != helix_mask.end() &&
+              helix_mask [&(*gi)] != helix_mask [*nborIt]) {
+            gOut(0) << setw (20) << "inter helix: " << gi->getResId() << "-" << (*nborIt)->getResId() << " : ";
+            tertiary_mask[&(*gi)] = 1;
+            tertiary_mask[*nborIt] = 1;
+            check++;
+          }
+  
+          if (strand_mask.find(&(*gi)) != strand_mask.end() &&
+              helix_mask.find(&(*gi)) != helix_mask.end()) {
+            if (strands[strand_mask [&(*gi)]].type == OTHER) {
+              gOut(0) << setw (20) << "strand/helix: " << gi->getResId() << "-" << (*nborIt)->getResId() << " : ";
+            tertiary_mask[&(*gi)] = 1;
+            tertiary_mask[*nborIt] = 1;
+              check++;
+            } else if (strands[strand_mask [&(*gi)]].type == BULGE ||
+                strands[strand_mask [&(*gi)]].type == BULGE_OUT) {
+              gOut(0) << setw (20) << "bulge/helix: " << gi->getResId() << "-" << (*nborIt)->getResId() << " : ";
+            tertiary_mask[&(*gi)] = 1;
+            tertiary_mask[*nborIt] = 1;
+              check++;
+            } else if (strands[strand_mask [&(*gi)]].type == LOOP) {
+              gOut(0) << setw (20) << "loop/helix: " << gi->getResId() << "-" << (*nborIt)->getResId() << " : ";
+            tertiary_mask[&(*gi)] = 1;
+            tertiary_mask[*nborIt] = 1;
+              check++;
+            } else if (strands[strand_mask [&(*gi)]].type == INTERNAL_LOOP) {
+              gOut(0) << setw (20) << "internal loop/helix: " << gi->getResId() << "-" << (*nborIt)->getResId() << " : ";
+            tertiary_mask[&(*gi)] = 1;
+            tertiary_mask[*nborIt] = 1;
+              check++;
+            } else {
+              gOut(0) << "Other A: " << " : ";
+            }
+          }
+  
+          if (strand_mask.find(&(*gi)) != strand_mask.end() &&
+              strand_mask.find(*nborIt) != strand_mask.end()) {
+            
+            if (strand_mask [&(*gi)] == strand_mask [*nborIt]) {
+              gOut(0) << setw (20) << "intraloop: " << gi->getResId() << "-" << (*nborIt)->getResId() << " : ";
+            tertiary_mask[&(*gi)] = 1;
+            tertiary_mask[*nborIt] = 1;
+              check++;
+            } else {             
+              int size = 0;
+              if (strands[strand_mask [&(*gi)]].type == OTHER) {
+                gOut(0) << "strand/";
+                size = 20-7;	    
+              } else if (strands[strand_mask [&(*gi)]].type == BULGE || 
+                strands[strand_mask [&(*gi)]].type == BULGE_OUT) {
+                gOut(0) << "bulge/";
+                size = 20-6;
+              } else if (strands[strand_mask [&(*gi)]].type == LOOP) {
+                gOut(0) << "loop/";
+                size = 20-5;
+              } else if (strands[strand_mask [&(*gi)]].type == INTERNAL_LOOP) {
+                gOut(0) << "internal loop/";
+                size = 20-14;
+              }              
+              if (strands[strand_mask [*nborIt]].type == OTHER) {
+                gOut(0) << setw (size) << "strand: " << gi->getResId() << "-" << (*nborIt)->getResId() << " : ";
+                tertiary_mask[&(*gi)] = 1;
+                tertiary_mask[*nborIt] = 1;
+                check++;
+               } else if (strands[strand_mask [*nborIt]].type == BULGE ||
+                  strands[strand_mask [*nborIt]].type == BULGE_OUT) {
+                gOut(0) << setw (size) << "bulge: " << gi->getResId() << "-" << (*nborIt)->getResId() << " : ";
+                tertiary_mask[&(*gi)] = 1;
+                tertiary_mask[*nborIt] = 1;
+                check++;
+              } else if (strands[strand_mask [*nborIt]].type == LOOP) {
+                gOut(0) << setw (size) << "loop: " << gi->getResId() << "-" << (*nborIt)->getResId() << " : ";
+                tertiary_mask[&(*gi)] = 1;
+                tertiary_mask[*nborIt] = 1;
+                check++;
+              } else if (strands[strand_mask [*nborIt]].type == INTERNAL_LOOP) {
+                gOut(0) << setw (size) << "internal loop: " << gi->getResId() << "-" << (*nborIt)->getResId() << " : ";
+                tertiary_mask[&(*gi)] = 1;
+                tertiary_mask[*nborIt] = 1;
+                check++;
+              } else {
+                gOut(0) << "Other B:" << " : ";
+              }
+            }
+          }
+         
+          gOut(0) << Pdbstream::stringifyResidueType (gi->getType()) << "-"
+                  << Pdbstream::stringifyResidueType ((*nborIt)->getType()) << " ";
+          
+          Relation *e = gfm.getEdge ((Residue *) &(*gi), *nborIt);
+                   
+          if (isPairing(e))
+            gOut(0) << e->getRefFace () << "/" << e->getResFace () << " ";
+ 
+          const set< const PropertyType* > &labels = e->getLabels();
+          copy (labels.begin (), labels.end (), ostream_iterator< const PropertyType* > (gOut(0), " "));          
+          gOut(0) << endl;       
+        }
       }
-
-    cout << "Number of base pairs = " << nb_pairings << endl;
-    cout << "Number of helical base pairs = " << nb_helical_bp << endl;
-
+    }
+  
+    gOut(0) << "Number of base pairs = " << nb_pairings << endl;
+    gOut(0) << "Number of helical base pairs = " << nb_helical_bp << endl;
+  
     if (nb_pairings != check) 
-      cout << "Missing interactions: " << check << "/" << nb_pairings << endl;
+      gOut(0) << "Missing interactions: " << check << "/" << nb_pairings << endl;
   }
 
-
-  void
-  AnnotateModel::findPseudoknots ()
+  void AnnotatedModel::findPseudoknots (void)
   {
-    vector< Helix >::iterator i, j;
+  vector< Helix >::iterator i, j;
   
-    for (i=helices.begin (); i!=helices.end (); ++i)
-      {
-	if (strand_mask[i->front ().first] == strand_mask[i->front ().second])
-	  {
-	    node a, b, c, d;
-      
-	    a = i->front ().first;
-	    b = i->back ().first;
-	    c = i->back ().second;
-	    d = i->front ().second;
-	    for (j=i; j!=helices.end (); ++j)
-	      {
-		if (i!=j
-		    && strand_mask[j->front ().first] ==  strand_mask[j->front ().second])
-		  {
-		    node ap, bp, cp, dp;
+  for (i=helices.begin (); i!=helices.end (); ++i) {
+    if (strand_mask[i->front ().first] == 
+	strand_mask[i->front ().second]) { 
+      const Residue *a, *b, *c, *d;
+      a = (*i).front ().first;
+      b = (*i).back ().first;
+      c = (*i).back ().second;
+      d = (*i).front ().second;
+      for (j=i; j!=helices.end (); ++j) {
+	if (i!=j && strand_mask[j->front ().first] == 
+	    strand_mask[j->front ().second]) {
+	  const Residue *ap, *bp, *cp, *dp;
+	  ap = (*j).front ().first;
+	  bp = (*j).back ().first;
+	  cp = (*j).back ().second;
+	  dp = (*j).front ().second;
 	  
-		    ap = j->front ().first;
-		    bp = j->back ().first;
-		    cp = j->back ().second;
-		    dp = j->front ().second;
-	  
-		    if (ap > b && bp < c && cp > d)
-		      {
-			cout << "Pseudoknot : " << "H" << helix_mask[a]+1 << " " 
-			     << "H" << helix_mask[ap]+1 << endl;
-		      }
-		  }
-	      }
+	  if (b->getResId() < ap->getResId() && bp->getResId() < c->getResId() && d->getResId() < cp->getResId()) {
+	    gOut(0) << "Pseudoknot : " << "H" << helix_mask[a]+1 << " " 
+		 << "H" << helix_mask[ap]+1 << endl;
 	  }
+	}
       }
+    }
   }
-
-
-  ResIdSet
-  AnnotateModel::extract (ResIdSet &seed, int size)
-  {
-    set< int > query;
-    set< int > result;
-    set< int > visited;
-    set< int >::iterator s;
-    ResIdSet::iterator r;
-    map< ResId, ResId >::iterator i;
-    set< int > tmp;
-    ResIdSet outset;
+}
+ 
+ void AnnotatedModel::dumpSequences (bool detailed) 
+{
+  GraphModel::iterator i;
+  int j = 0;
+  int currseq = -1;
+  int size = 0;
   
-    for (r = seed.begin (); r != seed.end (); ++r)
+  if (!detailed) {
+//    for (i=0; i<(int)conformations.size (); ++i) {
+//      if (i==0 || sequence_mask[i] != sequence_mask[i-1])
+//	gOut(0) << " " << setw (8) << getResId (i) << " ";
+//      gOut(0) << getType (i)->toString ();
+//    }	
+    return;
+  } 
+  
+  for (i=gfm.begin (); i!=gfm.end (); ) {
+    
+    currseq = sequence_mask[(Residue *) &(*i)];
+    size = sequence_length[currseq];
+
+    gOut(0) << "Sequence " << currseq << " (length = " 
+	 << size << "): " << endl;
+    int pos = 0;
+    while (pos < size) 
       {
-	for (i = translation.begin (); i != translation.end (); ++i)
-	  {
-	    if (i->second == *r) break;
+	for (j=pos; (j<size && (j+1)%50!=0); ++j) {
+	  if ((j)%50==0) {
+	    gOut(0).setf (ios::right, ios::adjustfield);
+	    gOut(0) << setw (3) << (*(i+j))->getResId().getChainId ();
+	    gOut(0).setf (ios::left, ios::adjustfield);
+	    gOut(0) << setw (5) << (*(i+j))->getResId().getResNo () << " ";
 	  }
-    
-	if (i != translation.end ())
-	  {
-	    query.insert (i->first.getResNo ());
-	    visited.insert (i->first.getResNo ());
-	  }
-      }
-
-    while (size-- > 0)
-      {
-	result.clear ();
-	for (s = query.begin (); s != query.end (); ++s)
-	  {
-	    int id = *s;
-	    list< node > neigh;
-	    list< node >::iterator i;
-      
-	    neigh = graph.getNeighbors (id);
-	    for (i = neigh.begin (); i != neigh.end (); ++i)
-	      {
-		result.insert (*i);
-	      }
-	  }
-
-	set_difference (result.begin (), result.end (),
-			visited.begin (), visited.end (),
-			inserter (tmp, tmp.begin ()));
-	query = tmp;
-	tmp.clear ();
-    
-	set_union (visited.begin (), visited.end (),
-		   result.begin (), result.end (),
-		   inserter (tmp, tmp.begin ()));
-	visited = tmp;
-      }
-  
-    for (s=visited.begin (); s!=visited.end (); ++s)
-      outset.insert (getResId (*s));
-  
-    cout << outset << endl;
-
-    return outset;
-  }
-
-
-
-// void
-// AnnotateModel::decompose ()
-// {
-//   list< Block > s_blocks_tmp;
-//   vector< Block >::iterator bi;
-//   list< Block >::iterator bk, bl;
-  
-//   {
-//     // Find helices...
-//     vector< Helix >::iterator i;
-//     Helix::iterator j;
-//     Helix::reverse_iterator rj;
-    
-//     for (i=helices.begin (); i!=helices.end (); ++i) {
-//       Block b (this);
-//       vector< node > v;
-//       vector< node > vi;
-//       for (j=i->begin (); j!=i->end (); ++j) {
-// 	v.push_back (j->first);
-//       }
-//       for (rj=i->rbegin (); rj!=i->rend (); ++rj) {
-// 	vi.push_back (rj->second);
-//       }    
-//       b.push_back (v);    
-//       b.push_back (vi);
-//       b.junctions.push_back (make_pair (v.front (), vi.back ()));
-//       b.junctions.push_back (make_pair (vi.front (), v.back ()));
-      
-//       h_blocks.push_back (b);
-//     }
-//   }
-//   {
-//     // Find strands...
-//     vector< Strand >::iterator i;
-    
-//     for (i=strands.begin (); i!=strands.end (); ++i) {
-//       Block b (this);
-//       vector< node > v;
-
-//       if (i->first>0 && sequence_mask[i->first] == sequence_mask[i->first-1]) {
-// 	v.push_back (i->first-1);
-// 	strand_mask[i->first-1] = strand_mask[i->first];
-//       }
-//       for (int k=i->first; k<=i->second; ++k) {
-// 	v.push_back (k);
-//       }
-//       if (i->second<(int)sequence_mask.size ()-1 && sequence_mask[i->second] == sequence_mask[i->second+1]) {
-// 	v.push_back (i->second+1);
-// 	strand_mask[i->second+1] = strand_mask[i->second];
-//       }
-//       b.push_back (v);
-      
-//       s_blocks_tmp.push_back (b);
-//     }
-    
-//     // Hack: Find regions where helices are connected with no strand...
-    
-//     for (int j=0; j<(int)conformations.size ()-1; ++j) {
-//       if (helix_mask[j] != -1 && helix_mask[j+1] != -1 &&
-// 	  helix_mask[j] != helix_mask[j+1] && 
-// 	  sequence_mask[j] == sequence_mask[j+1]) {
-// 	Block b (this);
-// 	vector< node > v;
-// 	v.push_back (j);
-// 	v.push_back (j+1);
-// 	b.push_back (v);
-// 	b.output (cout);
-// 	cout << endl;
-// 	s_blocks_tmp.push_back (b);
-// 	strand_mask[j] = s_blocks_tmp.size ()-1;
-// 	strand_mask[j+1] = s_blocks_tmp.size ()-1;
-//       }
-//     }
-//   }
-  
-//   {
-//     // Find loops and internal loops...
-//     bk = s_blocks_tmp.begin ();
-//     while (bk!=s_blocks_tmp.end ()) {
-//       node s, e;
-//       int hs, he;
-      
-      
-//       bk->output (cout); cout << endl;
-
-//       s = bk->begin ()->front ();
-//       e = bk->begin ()->back ();
-      
-//       hs = helix_mask[s];
-//       he = helix_mask[e];
-
-//       if (hs==he) {
-// 	bk->junctions.push_back (make_pair (s, e));
-// 	l_blocks.push_back (*bk);
-// 	bk = s_blocks_tmp.erase (bk);
-//       } else if (hs ==-1 || he == -1) {
-// 	s_blocks.push_back (*bk);
-// 	bk = s_blocks_tmp.erase (bk);
-//       } else {
-// 	node ep = s;
-// 	node sp = s;
-
-// 	while (ep!=e) {
-// 	  ep = 
-// 	    (h_blocks[hs].junctions.front ().first == s) ? h_blocks[hs].junctions.front ().second :
-// 	    ((h_blocks[hs].junctions.front ().second == s) ? h_blocks[hs].junctions.front ().first :
-// 	     ((h_blocks[hs].junctions.back ().first == s) ? h_blocks[hs].junctions.back ().second : 
-// 	      h_blocks[hs].junctions.back ().first));
-// 	  // Find new s.
-// 	  if (ep!=e) {
-// 	    bl = s_blocks_tmp.begin ();
-// 	    while (bl!=s_blocks_tmp.end ()) {
-	      
-// 	      if (bl->front ().front () == ep) { 
-// 		sp = bl->front ().back ();
-// 		break;
-// 	      }
-// 	      else if (bl->front ().back () == ep) {
-// 		sp = bl->front ().front ();
-// 		break;
-// 	      }
-// 	      bl++;
-// 	    }
-	    
-// 	    if (bl==s_blocks_tmp.end ()) cerr << "Woa!  This should not happen" << endl;
-
-// 	    // Add bl to bk and erase bl
-// 	    bk->push_back (bl->front ());
-// 	    s_blocks_tmp.erase (bl);
-// 	  }
 	  
-// 	  bk->junctions.push_back (make_pair (s, ep));
-// 	  s = sp;
-// 	  hs = helix_mask[s];
-// 	}
+	  gOut(0) << ((*(i+j))->getType()->isNucleicAcid () ? Pdbstream::stringifyResidueType ((*(i+j))->getType()) : "X");
+	  
+	  if ((j+1)%10==0) gOut(0) << " ";
+	}
+	gOut(0) << endl;
 	
-// 	l_blocks.push_back (*bk);
-// 	bk = s_blocks_tmp.erase (bk);
-//       }
-//     }
-//   }
-  
-//   cout << "Helices" << endl;
-//   for (bi=h_blocks.begin (); bi!=h_blocks.end (); ++bi) {
-//     bi->output (cout);
-//     cout << endl;
-//   }
-
-//   cout << "Strand" << endl;
-//   for (bk=s_blocks_tmp.begin (); bk!=s_blocks_tmp.end (); ++bk) {
-//     bk->output (cout);
-//     cout << endl;
-//   }
-//   cout << "Loops" << endl;
-//   for (bi=l_blocks.begin (); bi!=l_blocks.end (); ++bi) {
-//     bi->output (cout);
-//     cout << endl;
-//   }
-// }
-
-
-  void
-  AnnotateModel::dumpSequences (bool detailed) 
-  {
-    int i, j;
-    int currseq = -1;
-  
-    if (!detailed)
-      {
-	for (i = 0; i < (int) conformations.size (); ++i)
-	  {
-	    if (i == 0 || sequence_mask[i] != sequence_mask[i-1])
-	      cout << " " << setw (8) << getResId (i) << " " << flush;
-	    cout << getType (i)->toString () << flush;
-	  }
-	return;
-      } 
-
-    for (i = 0; i < (int) conformations.size (); )
-      {
-	int pos = 0;
-
-	currseq = sequence_mask[i];
-	cout << "Sequence " << currseq << " (length = " 
-	     << sequence_length[currseq] << "): " << endl;
-    
-	while (pos < sequence_length[currseq]) 
-	  {
-	    for (j = pos; (j < sequence_length[currseq] && (j+1)%50!=0); ++j)
-	      {
-		if ((j) % 50 == 0)
-		  {
-		    cout.setf (ios::right, ios::adjustfield);
-		    cout << setw (3) << getResId (i+j).getChainId () << flush;
-		    cout.setf (ios::left, ios::adjustfield);
-		    cout << setw (5) << getResId (i+j).getResNo () << " " << flush;
-		  }
-	  
-		cout << (getType (i + j)->isNucleicAcid ()
-			 ? Pdbstream::stringifyResidueType (getType (i+j))
-			 : "X")
-		     << flush;
-	  
-		if ((j + 1) % 10 == 0)
-		  cout << " " << flush;
-	      }
-	    cout << endl;
-	
-	    for (j = pos; (j < sequence_length[currseq] && (j + 1) % 50 != 0); ++j)
-	      {
-		if ((j) % 50 == 0)
-		  cout << setw (8) << " " << " " << flush;
-		cout << marks[i + j] << flush;
-		if ((j + 1) % 10 == 0)
-		  cout << " " << flush;
-	      }
-	    cout << endl;
+	for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
+	  if ((j)%50==0) gOut(0) << setw (8) << " " << " ";
+ 	  if (marks.find(*(i+j)) == marks.end()) gOut(0) << "-";
+          else gOut(0) << marks[*(i+j)];
+	  if ((j+1)%10==0) gOut(0) << " ";
+	}
+	gOut(0) << endl;
 
 //  	for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
-//  	  if ((j)%50==0) cout << setw (6) << "seq" << " " << flush;
-//  	  if (sequence_mask[i+j] == -1) cout << "-" << flush;
-//  	  else cout << sequence_mask[i+j] << flush;
-//  	  if ((j+1)%10==0) cout << " " << flush;
+//  	  if ((j)%50==0)
+//          gOut(0) << setw (6) << "seq" << " ";
+//  	  if (sequence_mask[i+j] == -1)
+//          gOut(0) << "-";
+//  	  else gOut(0) << sequence_mask[i+j];
+//  	  if ((j+1)%10==0)
+//          gOut(0) << " ";
 //  	}
-//  	cout << endl;
+//  	gOut(0) << endl;
 
-	    for (j = pos; (j < sequence_length[currseq] && (j + 1) % 50 != 0); ++j)
-	      {
-		if ((j) % 50 == 0)
-		  cout << setw (8) << "helix" << " " << flush;
-		if (helix_mask[i + j] == -1)
-		  cout << "-" << flush;
-		else
-		  cout << helix_mask[i + j] << flush;
-		if ((j + 1) % 10 == 0)
-		  cout << " " << flush;
-	      }
-	    cout << endl;
+ 	for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
+ 	  if ((j)%50==0) gOut(0) << setw (8) << "helix" << " ";
+ 	  if (helix_mask.find(*(i+j)) == helix_mask.end()) gOut(0) << "-";
+ 	  else gOut(0) << helix_mask[*(i+j)];
+ 	  if ((j+1)%10==0) gOut(0) << " ";
+ 	}
+ 	gOut(0) << endl;
 
 //  	for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
-//  	  if ((j)%50==0) cout << setw (6) << "str" << " " << flush;
-//  	  if (strand_mask[i+j] == -1) cout << "-" << flush;
-//  	  else cout << strand_mask[i+j] << flush;
-//  	  if ((j+1)%10==0) cout << " " << flush;
+//  	  if ((j)%50==0) gOut(0) << setw (6) << "str" << " ";
+//  	  if (strand_mask[i+j] == -1) gOut(0) << "-";
+//  	  else gOut(0) << strand_mask[i+j];
+//  	  if ((j+1)%10==0) gOut(0) << " ";
 //  	}
-//  	cout << endl;
+//  	gOut(0) << endl;
 
 // 	for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
-// 	  if ((j)%50==0) cout << setw (6) << "ter" << " " << flush;
-// 	  if (tertiary_mask[i+j] == -1) cout << "-" << flush;
-// 	  else cout << 'X' << flush;
-// 	  if ((j+1)%10==0) cout << " " << flush;
+// 	  if ((j)%50==0) gOut(0) << setw (6) << "ter" << " ";
+// 	  if (tertiary_mask[i+j] == -1) gOut(0) << "-";
+// 	  else gOut(0) << 'X';
+// 	  if ((j+1)%10==0) gOut(0) << " ";
 // 	}
 
-// 	cout << endl << endl;
+// 	gOut(0) << endl << endl;
 
-	    pos = j + 1;
-	  }
-	i += pos - 1;
+	pos = j+1;
       }
-    cout.setf (ios::left, ios::adjustfield);
+    i += pos-1;
   }
+  gOut(0).setf (ios::left, ios::adjustfield);
+}
 
-
-// void AnnotateModel::dumpGraph () 
-// {
-//   Graph< node, edge >::adjgraph::iterator i;
-//   Graph< node, edge >::adjlist::iterator j;
-//   PropertySet::iterator k;
-
-//   cout << "Graph of relations ----------------------------------------------" << endl;
-
-//   for (i=graph.begin (); i!=graph.end (); ++i) {
-//     for (j=i->second.begin (); j!=i->second.end (); ++j) {
-//       cout << getResId (i->first) << "-" 
-// 	   << getResId (j->first) << " : ";
-//       for (k=relations[j->second].getGlobalProp ().begin (); 
-// 	   k!=relations[j->second].getGlobalProp ().end (); ++k) {
-// 	cout << (const char*)**k << " " ;
-//       }
-//       cout << endl;
-//     }
-//   } 
-// }
-
-
-  void
-  AnnotateModel::dumpConformations () 
-  {
-    UndirectedGraph< node, edge >::iterator i;
+void AnnotatedModel::dumpConformations (void) 
+{
+  GraphModel::const_iterator i;
   
-    for (i = graph.begin (); i != graph.end (); ++i)
-      {
-	cout << getResId (*i) << " : " 
-	     << (const char*) *getType (*i) << " " 
-	     << conformations[*i]->getPucker () << " " 
-	     << conformations[*i]->getGlycosyl () << endl; 
-      }
+  for (i=gfm.begin (); i!=gfm.end (); ++i) {
+    gOut(0) << (*i).getResId () << " : " 
+	 << (*i).getType() << " " 
+	 << (*i).getPucker() << " " 
+	 << (*i).getGlycosyl() << endl; 
   }
+}
 
+void AnnotatedModel::dumpPairs (void) 
+{
+  GraphModel::const_iterator i;
+  GraphModel::edge_const_iterator edgeIt;
+  list< Residue * > neighbor;
+  list< Residue * >::iterator nborIt;
+  set< const PropertyType* >::iterator k;
 
-  void
-  AnnotateModel::dumpPairs () 
-  {
-    UndirectedGraph< node, edge >::iterator i;
-    list< node >::iterator j;
-    list< node > neigh;
-    set< const PropertyType* >::iterator k;
+  for (i=gfm.begin (); i!=gfm.end (); ++i) {
 
-    for (i = graph.begin (); i != graph.end (); ++i)
-      {
+    neighbor = gfm.neighborhood (( (Residue *) &(*i) ));
 
-	neigh = graph.getNeighbors (*i);
+    for (nborIt=neighbor.begin (); nborIt!=neighbor.end (); ++nborIt) {
+      if ((*i).getResId() < (*nborIt)->getResId() && isPairing ((Residue *) &(*i), *nborIt)) {
+	gOut(0) << (*i).getResId() << "-" << (*nborIt)->getResId() << " : ";
 
-	for (j = neigh.begin (); j != neigh.end (); ++j)
-	  {
-	    if (*i < *j && isPairing (*i, *j))
-	      {
-		cout << getResId (*i) << "-" 
-		     << getResId (*j) << " : ";
+	gOut(0) << Pdbstream::stringifyResidueType ((*i).getType()) << "-"
+	     << Pdbstream::stringifyResidueType ((*nborIt)->getType()) << " ";
+	  
+        Relation *e = gfm.getEdge ((Residue *) &(*i), *nborIt);
+        gOut(0) << e->getRefFace () << "/" << e->getResFace () << " ";
 
-		edge e = graph.getEdge (*i, *j);
-
-		cout << Pdbstream::stringifyResidueType (getType (*i)) << "-"
-		     << Pdbstream::stringifyResidueType (getType (*j)) << " ";
-		if (relations[e].getRefFace ())
-		  cout << relations[e].getRefFace () << "/"
-		       << relations[e].getResFace () << " ";
-	
-		for (k = relations[e].getLabels ().begin (); 
-		     k!=relations[e].getLabels ().end (); ++k)
-		  {
-		    cout << **k << " " ;
-		  }
-		cout << endl;
-	      }
-	  } 
+        const set< const PropertyType* > &labels = e->getLabels();
+        copy (labels.begin (), labels.end (), ostream_iterator< const PropertyType* > (gOut(0), " "));          
+	gOut(0) << endl;
       }
+    } 
   }
+}
 
+void AnnotatedModel::dumpStacks (void) 
+{
+  GraphModel::const_iterator i, k;
+  list< Residue * > neighbor;
+  list< Residue * >::iterator nborIt;
+  set< const PropertyType* >::iterator l;
 
-  void
-  AnnotateModel::dumpStacks () 
-  {
-    UndirectedGraph< node, edge >::iterator i, k;
-    list< node >::iterator j;
-    list< node > neigh;
-    set< const PropertyType* >::iterator l;
+  int nb_stacks = 0;
+  int nb_helical_stacks = 0;
+  int nb_adjacent_stacks = 0;
 
-    int nb_stacks = 0;
-    int nb_helical_stacks = 0;
-    int nb_adjacent_stacks = 0;
+  gOut(0) << "Adjacent stackings ----------------------------------------------" << endl;
 
-    cout << "Adjacent stackings ----------------------------------------------" << endl;
-
-    for (i = graph.begin (), k = i, ++k; i != graph.end () && k != graph.end (); ++i, ++k)
-      {
-	neigh = graph.getNeighbors (*i);
-
-	if ((j = std::find (neigh.begin (), neigh.end (), *k)) != neigh.end ()
-	    && relations[graph.getEdge (*i, *j)].is (PropertyType::pAdjacent))
-	  {
-	    if (relations[graph.getEdge (*i, *j)].is (PropertyType::pStack))
-	      {
-		nb_adjacent_stacks++;
-		nb_stacks++;
-		if (helix_mask[*i] == helix_mask[*j] && helix_mask[*i] != -1)
-		  nb_helical_stacks++;
-	      }
-      
-	    cout << getResId (*i) << "-" << getResId (*j) << " : ";
-	    for (l = relations[graph.getEdge (*i, *j)].getLabels ().begin (); 
-		 l != relations[graph.getEdge (*i, *j)].getLabels ().end (); ++l)
-	      {
-		cout << **l << " " ;
-	      }
-	    cout << endl;
-	  }
-      }
-    cout << endl;
-
-    cout << "Non-Adjacent stackings ------------------------------------------" << endl;
-    for (i = graph.begin (); i != graph.end (); ++i)
-      {
-	neigh = graph.getNeighbors (*i);
+  for (i=gfm.begin (), k=i, ++k; i!=gfm.end () && k!=gfm.end (); ++i, ++k) {
     
-	for (j = neigh.begin (); j != neigh.end (); ++j)
-	  {
-	    if (*i < *j
-		&& relations[graph.getEdge (*i, *j)].is (PropertyType::pStack)
-		&& ! relations[graph.getEdge (*i, *j)].is (PropertyType::pAdjacent))
-	      {
-		nb_stacks++;
-		cout << getResId (*i) << "-" << getResId (*j) << " : ";
-		for (l = relations[graph.getEdge (*i, *j)].getLabels ().begin (); 
-		     l != relations[graph.getEdge (*i, *j)].getLabels ().end (); ++l)
-		  {
-		    //if (*l != PropertyType::pReverse)
-		    cout << (const char*)**l << " ";
-		  }
-		cout << endl;
-	      }
-	  }
-      }
+    neighbor = gfm.neighborhood (( (Residue *) &(*i) ));
 
-    cout << "Number of stackings = " << nb_stacks << endl
-	 << "Number of helical stackings = " << nb_helical_stacks << endl
-	 << "Number of adjacent stackings = " << nb_adjacent_stacks << endl
-	 << "Number of non adjacent stackings = "
-	 << nb_stacks - nb_adjacent_stacks << endl;
-  }
-
-
-  void
-  AnnotateModel::dumpHelices () 
-  {
-    vector< Helix >::iterator i;
-    //   Helix::iterator j;
-
-     
-    for (i = helices.begin (); i != helices.end (); ++i)
-      {
-//     char type;
-//     int tmpsize = 0;
-//     if (conformations[i->begin ()->first]->getPucker ()->is (PropertyType::pC3p_endo) &&
-// 	conformations[i->begin ()->first]->getGlycosyl ()->is (PropertyType::pAnti))
-//       type = 'A';
-//     else if (conformations[i->begin ()->first]->getPucker ()->is (PropertyType::pC2p_endo) &&
-// 	     conformations[i->begin ()->first]->getGlycosyl ()->is (PropertyType::pAnti))
-//       type = 'B';
-//     else type = 'X';
-    
-//     for (j=i->begin (); j!=i->end (); ++j) {
-//       if (j->first >= 0) {
-// 	char tmptype = 'X';
-// 	if (conformations[j->first]->getPucker ()->is (PropertyType::pC3p_endo) &&
-// 	    conformations[j->first]->getGlycosyl ()->is (PropertyType::pAnti))
-// 	  tmptype = 'A';
-// 	else if (conformations[j->first]->getPucker ()->is (PropertyType::pC2p_endo) &&
-// 		 conformations[j->first]->getGlycosyl ()->is (PropertyType::pAnti))
-// 	  tmptype = 'B';
-// 	else tmptype = 'X';
-	
-// 	if (type != tmptype) type = 'X';
-	
-// 	if (conformations[j->second]->getPucker ()->is (PropertyType::pC3p_endo) &&
-// 	    conformations[j->second]->getGlycosyl ()->is (PropertyType::pAnti))
-// 	  tmptype = 'A';
-// 	else if (conformations[j->second]->getPucker ()->is (PropertyType::pC2p_endo) &&
-// 		 conformations[j->second]->getGlycosyl ()->is (PropertyType::pAnti))
-// 	  tmptype = 'B';
-// 	else tmptype = 'X';
-	
-// 	if (type != tmptype) type = 'X';
-	
-// 	tmpsize++;
-//       }
-//     }
-    
-
-	cout << "H" << i-helices.begin () << ", length = " 
-	     << i->size () << "" << endl;
-    
-//     cout << "type = " << type << " : " << endl;
-    
-	int k;
-
-
-	cout.setf (ios::right, ios::adjustfield);
-	cout << setw (6) << getResId ((*i)[0].first) << "-" << flush;
-	for (k = 0; k < (int) i->size (); ++k)
-	  {
-	    if ((*i)[k].first >= 0)
-	      {
-		cout << (getType ((*i)[k].first)->isNucleicAcid ()
-			 ? Pdbstream::stringifyResidueType (getType ((*i)[k].first))
-			 : "X")
-		     << flush;
-	      }
-	    else
-	      {
-		if (- (*i)[k].first -1 == 0)
-		  {
-		    cout << "-" << setw (max ((int) floor (log10 ((double)-(*i)[k].first)),
-					      (int) floor (log10 ((double)-(*i)[k].second))) + 1) 
-			 << setfill ('-') << "-" << "-" << flush;
-		  }
-		else
-		  {
-		    cout << "-" << setw (max ((int) floor (log10 ((double)-(*i)[k].first)),
-					      (int) floor (log10 ((double)-(*i)[k].second))) + 1) 
-			 << - (*i)[k].first -1 << "-" << flush;
-		  }
-	      }
-	  }
-	cout << "-" << getResId ((*i)[i->size ()-1].first) << endl;
-    
-	cout.setf (ios::right, ios::adjustfield);
-	cout << setw (6) << getResId ((*i)[0].second) << "-" << flush;
-
-	for (k = 0; k < (int) i->size (); ++k)
-	  {
-	    if ((*i)[k].first >= 0)
-	      {
-		cout << (getType ((*i)[k].second)->isNucleicAcid ()
-			 ? Pdbstream::stringifyResidueType (getType ((*i)[k].second))
-			 : "X")
-		     << flush;
-	      }
-	    else
-	      {
-		if (-(*i)[k].second -1 == 0)
-		  {
-		    cout << "-" << setw (max ((int) floor (log10 ((double)-(*i)[k].first)),
-					      (int) floor (log10 ((double)-(*i)[k].second))) + 1) 
-			 << setfill ('-') << "-" << "-" << flush;
-		  }
-		else
-		  {  
-		    cout << "-" << setw (max ((int) floor (log10 ((double)-(*i)[k].first)),
-					      (int) floor (log10 ((double)-(*i)[k].second))) + 1) 
-			 << - (*i)[k].second -1 << "-" << flush;
-		  }
-	      }
-	  }
-	cout << "-" << getResId ((*i)[i->size ()-1].second)
-	     << setfill (' ') << endl;
-      }
-    cout.setf (ios::left, ios::adjustfield);
-  }
-
-
-  void
-  AnnotateModel::dumpTriples () 
-  {
-    UndirectedGraph< node, edge >::iterator gi;
-    list< node >::iterator gj;
-    list< node > neigh;
-    int count;
-    int nb = 1;
-    set< node > nodes;
-    set< node >::iterator k, l;
-    vector< bool > treated;
-
-    treated.resize (graph.size (), false);
-
-    for (gi = graph.begin (); gi != graph.end (); ++gi)
-      {
-	count = 0;
-	nodes.clear ();
-	if (! treated[*gi])
-	  {
-	    nodes.insert (*gi);
-      
-	    neigh = graph.getNeighbors (*gi);
-
-	    for (gj = neigh.begin (); gj != neigh.end (); ++gj)
-	      {
-		if (isPairing (graph.getEdge (*gi,*gj)))
-		  {
-		    count++;
-		    nodes.insert (*gj);
-		  }
-	      }
-	    if (count > 1)
-	      {
-		cout.setf (ios::left, ios::adjustfield);
-		cout << "T" << setw (5) << nb++ << " "; 
-		for (k = nodes.begin (); k != nodes.end (); ++k)
-		  {
-		    for (l = k; l != nodes.end (); ++l)
-		      {
-			if (k != l && isPairing (*k, *l))
-			  {
-			    cout << getResId (*k) << "-"
-				 << getResId (*l) << " ";
-			    treated[*k] = true;
-			    treated[*l] = true;
-			  }
-		      }
-		  }
-		cout << endl;
-	      }
-	  }
-      }
-    cout.setf (ios::left, ios::adjustfield);
-  }
-
-  
-  void 
-  AnnotateModel::dumpStrands () 
-  {
-    int j;
-    int k;
-  
-    for (j = 0; j < (int) strands.size (); ++j)
-      {
-	cout.setf (ios::left, ios::adjustfield);
-	cout << "S" << setw (5) << j << " " <<  flush;
-    
-	cout.setf (ios::left, ios::adjustfield);
-    
-	if (strands[j].type == OTHER)
-	  cout << setw (16) << "single strand:";
-	else if (strands[j].type == BULGE)
-	  cout << setw (16) << "bulge:";
-	else if (strands[j].type == BULGE_OUT)
-	  cout << setw (16) << "bulge out:";
-	else if (strands[j].type == LOOP)
-	  cout << setw (16) << "loop:";
-	else if (strands[j].type == INTERNAL_LOOP)
-	  cout << setw (16) << "internal loop:";
-    
-	cout << getResId (strands[j].first) << "-" << flush;
-	for (k = strands[j].first; k <= strands[j].second; ++k)
-	  {
-	    cout << (getType (k)->isNucleicAcid ()
-		     ? Pdbstream::stringifyResidueType (getType (k))
-		     : "X")
-		 << flush;
-	  }
-	cout << "-" << getResId (strands[j].second);
-    
-	if (strands[j].type == INTERNAL_LOOP)
-	  {
-	    cout << " -- " << flush;
-	    cout << getResId (strands[strands[j].ref].first) << "-" << flush;
-	    for (k = strands[strands[j].ref].first; k <= strands[strands[j].ref].second; ++k)
-	      {
-		cout << (getType (k)->isNucleicAcid ()
-			 ? Pdbstream::stringifyResidueType (getType (k))
-			 : "X")
-		     << flush;
-	      }
-	    cout << "-" << getResId (strands[strands[j].ref].second);
-	  }
-	cout << endl;
-      }
-  
-    //   for (k=strands[j].first; k<=strands[j].second; ++k) {
-    //     cout << *getType (k) << flush;
-    //   }
-    //   cout << " " << flush;
-    // }
-    cout.setf (ios::left, ios::adjustfield);
-  }
-
-
-  void 
-  AnnotateModel::dumpMcc (const char* pdbname)
-  {
-    char str[256];
-  
-    cout << "//" << endl;
-    cout << "// Annotation results ------------------------------------------------" << endl;
-    cout << "//" << endl;
-    gethostname (str, 255);
-    cout << "// Author         : " << getenv ("LOGNAME") << '@' << str << endl;
-    cout << "// Structure file : " << pdbname << endl;
-    cout << "// Structural annotation generated by " << PACKAGE << " "  << VERSION << endl;
-    cout << "// ";
-    cout << endl;
-  
-    cout << "// Sequences ---------------------------------------------------------" << endl;
-    cout << "// The distance between atoms O3' and P of two residues must be       " << endl;
-    cout << "// inferior to 20nm for them to be considered adjacent.               " << endl;
-    cout << "//" << endl;
+    if ((nborIt = std::find (neighbor.begin (), neighbor.end (), (Residue *) &(*k))) != neighbor.end () 
+	&& gfm.getEdge ((Residue *) &(*i), *nborIt)->is (PropertyType::pAdjacent))
     {
-      int i, j;
-      int currseq = -1;
-    
-      for (i = 0; i < (int) conformations.size (); )
-	{
-	  int pos = 0;
+      
+      if (gfm.getEdge ((Residue *) &(*i), *nborIt)->is (PropertyType::pStack)) {
+	nb_adjacent_stacks++;
+	nb_stacks++;
+	if (helix_mask.end() != helix_mask.find(&(*i))
+            && helix_mask[&(*i)] == helix_mask[*nborIt])
+	  nb_helical_stacks++;
+      }
+      
+      gOut(0) << (*i).getResId () << "-" << (*nborIt)->getResId () << " : ";
+      Relation *e = gfm.getEdge ((Residue *) &(*i), (Residue *) *nborIt);
+      const set< const PropertyType* > &labels = e->getLabels();
+      copy (labels.begin (), labels.end (), ostream_iterator< const PropertyType* > (gOut(0), " "));          
+      gOut(0) << endl;
+    }
+  }
+  gOut(0) << endl;
 
-	  currseq = sequence_mask[i];
-	  cout << "sequence( r " << endl;
-	  while (pos < sequence_length[currseq]) 
-	    {
-	      for (j = pos; (j < sequence_length[currseq] && (j + 1) % 50 !=0 ); ++j)
-		{
-		  if (j == 0)
-		    cout << setw (8) << getResId (i+j) << " ";
-		  cout << getType (i+j)->toString ();
-		  if ((j + 1) % 10 == 0) cout << " ";
-		}
-	      cout << endl;
-	      pos = j + 1;
+  gOut(0) << "Non-Adjacent stackings ------------------------------------------" << endl;
+  for (i=gfm.begin (); i!=gfm.end (); ++i) {
+
+    neighbor = gfm.neighborhood (( (Residue *) &(*i) ));
+    
+    for (nborIt=neighbor.begin (); nborIt!=neighbor.end (); ++nborIt) {
+      if ((*i).getResId() < (*nborIt)->getResId() && 
+	  gfm.getEdge ((Residue *) &(*i), *nborIt)->is (PropertyType::pStack) && 
+	  !gfm.getEdge ((Residue *) &(*i), *nborIt)->is (PropertyType::pAdjacent)) {
+	nb_stacks++;
+	
+      gOut(0) << (*i).getResId () << "-" << (*nborIt)->getResId () << " : ";
+      Relation *e = gfm.getEdge ((Residue *) &(*i), (Residue *) *nborIt);
+      const set< const PropertyType* > &labels = e->getLabels();
+      copy (labels.begin (), labels.end (), ostream_iterator< const PropertyType* > (gOut(0), " "));          
+      gOut(0) << endl;
+      }
+    }
+  }
+
+  gOut(0) << "Number of stackings = " << nb_stacks << endl
+          << "Number of helical stackings = " << nb_helical_stacks << endl
+          << "Number of adjacent stackings = " << nb_adjacent_stacks << endl
+          << "Number of non adjacent stackings = " << nb_stacks - nb_adjacent_stacks << endl;
+}
+
+void AnnotatedModel::dumpTriples (void) 
+{
+/*
+  GraphModel::const_iterator gi;
+  list< Residue * > neighbor;
+  list< Residue * >::iterator nborIt;
+
+  int count;
+  int nb = 1;
+  set< node > nodes;
+  set< node >::iterator k, l;
+  vector< bool > treated;
+
+  treated.resize (gfm.size (), false);
+
+  for (gi=gfm.begin (); gi!=gfm.end (); ++gi) {
+    count = 0;
+    nodes.clear ();
+    if (!treated[*gi]) {
+      nodes.insert (*gi);
+      
+      neighbor = gfm.getNeighbors (*gi);
+
+      for (nborIt=neighbor.begin (); nborIt!=neighbor.end (); ++nborIt) {
+	if (isPairing (gfm.getEdge (*gi,*nborIt))) {
+	  count++;
+	  nodes.insert (*nborIt);
+	}
+      }
+      if (count > 1) {
+	gOut(0).setf (ios::left, ios::adjustfield);
+	gOut(0) << "T" << setw (5) << nb++ << " "; 
+	for (k=nodes.begin (); k!=nodes.end (); ++k) {	
+	  for (l=k; l!=nodes.end (); ++l) {
+	    if (k!=l && isPairing (*k, *l)) {
+	      gOut(0) << getResId (*k) << "-"
+		   << getResId (*l) << " ";
+	      treated[*k] = true;
+	      treated[*l] = true;
 	    }
-      
-	  cout << ")" << endl;
-      
-	  i += pos - 1;
+	  }
 	}
+	gOut(0) << endl;
+      }
     }
+  }
+  gOut(0).setf (ios::left, ios::adjustfield);
+*/
+}
 
-    cout << "//" << endl;
-    cout << "// Nucleotide conformations ------------------------------------------" << endl;
-    cout << "// The distance between atoms O3' and P of two residues must be       " << endl;
-    cout << "// inferior to 20nm for them to be considered adjacent.               " << endl;
-    cout << "//" << endl;
-    {
-      UndirectedGraph< node, edge >::iterator i;
+  ostream&
+  AnnotatedModel::output (ostream &os) const
+  {
+    return os;
+  }
 
-      cout << "residue(" << endl;
-      for (i = graph.begin (); i != graph.end (); ++i)
-	{
-	  cout << setw(8) << getResId (*i) << " { ";
-	  cout.setf (ios::left, ios::adjustfield);
-	  cout << setw(8) << *conformations[*i]->getPucker () << " && " 
-	       << setw(4) << *conformations[*i]->getGlycosyl () << " }"
-	       << "  100%" << endl; 
-	  cout.setf (ios::right, ios::adjustfield);
-	}
-      cout << ")" << endl;
-    }
 
-    cout << "//" << endl;
-    cout << "// Non-adjacent base-pairs and stackings ------------------------" << endl;
-    cout << "//" << endl;
+  iPdbstream&
+  AnnotatedModel::input (iPdbstream &ips)
+  {
+    return ips;
+  }
+  
+  iBinstream&
+  AnnotatedModel::input (iBinstream &is)
+  {
+    return is;
+  }
+  
+  oBinstream&
+  AnnotatedModel::output (oBinstream &os) const
+  {
+    return os;
+  }
  
-    {
-      UndirectedGraph< node, edge >::iterator i;
-      list< node >::iterator j;
-      list< node > neigh;
-      set< const PropertyType* >::iterator k;
-    
-      if (nb_pairings > 0)
-	{
-	  cout << "pair(" << endl;
-	  for (i = graph.begin (); i != graph.end (); ++i)
-	    {
-	      neigh = graph.getNeighbors (*i);
-	      for (j = neigh.begin (); j != neigh.end (); ++j)
-		{
-		  edge e = graph.getEdge (*i, *j);
-	  
-		  if (*i < *j && ! isAdjacent (e))
-		    {
-		      cout << setw(8) << getResId (*i) 
-			   << setw(8) << getResId (*j) << " { ";
-	    
-		      bool useand = false;
-		      if (isPairing (e)
-			  && ! relations[e].is (PropertyType::parseType ("unclassified")))
-			{
-			  cout << (const char*)(*relations[e].getRefFace ()) << "/"
-			       << (const char*)(*relations[e].getResFace ()) << " ";
-			  useand = true;
-			}
-		      for (k = relations[e].getLabels ().begin (); 
-			   k != relations[e].getLabels ().end (); ++k)
-			{
-			  if ((*k) == PropertyType::pReverse
-			      || (*k) == PropertyType::pCis
-			      || (*k) == PropertyType::pTrans
-			      || (*k) == PropertyType::pStack)
-			    {
-			      if (useand)
-				cout << "&& ";
-			      cout << (const char*) **k << " " ;
-			      useand = true;
-			    }
-			}
-		      cout << "}" << "  100%" << endl; 
-		    }
-		}
-	    }
-	  cout << ")" << endl;
-	}
-    }
-  
-    cout << "//" << endl;
-    cout << "// Adjacent relations -------------------------------------------" << endl;
-    cout << "//" << endl;
-
-    {
-      UndirectedGraph< node, edge >::iterator i;
-      list< node >::iterator j;
-      list< node > neigh;
-      set< const PropertyType* >::iterator k;
-  
-      if (nb_connect > 0)
-	{
-	  cout << "connect(" << endl;
-	  for (i = graph.begin (); i != graph.end (); ++i)
-	    {
-	      neigh = graph.getNeighbors (*i);
-	      for (j = neigh.begin (); j != neigh.end (); ++j)
-		{
-		  edge e = graph.getEdge (*i, *j);
-	  
-		  if (*i < *j && isAdjacent (e))
-		    {
-		      cout << setw(8) << getResId (*i) 
-			   << setw(8) << getResId (*j) << " { ";
-	    
-		      if (isPairing (e))
-			{
-			  cout << (const char*)(*relations[e].getRefFace ()) << "/"
-			       << (const char*)(*relations[e].getResFace ())
-			       << " && ";
-			}
-	    
-		      if (isStacking (e))
-			cout << "stack" << " ";
-		      else 
-			cout << "!stack" << " ";
-	    
-		      for (k = relations[e].getLabels ().begin (); 
-			   k != relations[e].getLabels ().end (); ++k)
-			{
-			  if ((*k) == PropertyType::pReverse
-			      || (*k) == PropertyType::pCis
-			      || (*k) == PropertyType::pTrans
-			      || (*k) == PropertyType::pPairing)
-			    {
-			      cout << "&& " << (const char*)**k << " " ;
-			    }
-			}
-		      cout << "}" << "  100%" << endl; 
-		    }
-		} 
-	    }
-	  cout << ")" << endl;    
-	}
-    }
-  
-    cout << "//" << endl;
-    cout << "// Construction order -------------------------------------------" << endl;
-    cout << "// This section defines a spanning tree of minimal height that   " << endl;
-    cout << "// connects all residues of the molecule and states the order in " << endl;
-    cout << "// which they are placed in the modeling process."                 << endl;
-    cout << "//" << endl;
-
-  // Here, we need to find connected components of the initial graph and build a backtrack
-  // for each of them.  The generated script is not guaranteed to work when an annotated
-  // PDB file contains many fragments of RNA...  What should we do???????
-
-    {
-      cout << "global = backtrack(" << endl;
-
-      UndirectedGraph< node, edge >::iterator i;
-      list< node >::iterator j;
-      list< node > neigh;
-    
-      for (i = graph.begin (); i != graph.end (); ++i)
-	{
-	  neigh = graph.getNeighbors (*i);
-	  for (j = neigh.begin (); j != neigh.end (); ++j)
-	    {
-	      edge e = graph.getEdge (*i, *j);
-	
-	      if (isPairing (e)
-		  && ! relations[e].is (PropertyType::parseType ("unclassified")))
-		graph.setEdgeWeight (*i, *j, 1);
-	      else
-		graph.setEdgeWeight (*i, *j, 2);
-	    }
-	}
-
-      vector< pair< node, node > > edges;
-      vector< pair< node, node > >::reverse_iterator k;
-      list< list< node > > treated;
-      list< list< node > >::iterator x;
-      list< node >::iterator y;
-
-      edges = graph.minimumSpanningTree ();
-      for (k = edges.rbegin (); k != edges.rend (); ++k)
-	{
-	  node a, b;
-      
-	  a = *graph.find (k->first);
-	  b = *graph.find (k->second);
-
-	  bool done = false;
-	  for (x = treated.begin (); x != treated.end (); ++x)
-	    {
-	      if (x->front () == b)
-		{
-		  x->push_front (a);
-		  done = true;
-		}
-	      else if (x->back () == a)
-		{
-		  x->push_back (b);
-		  done = true;
-		}
-	      if (done)
-		break;
-	    }
-	  if (!done)
-	    {
-	      list< node > tmp;
-	
-	      tmp.push_back (a);
-	      tmp.push_back (b);
-	      treated.push_front (tmp);
-	    }
-	}
-
-      // correction pass to keep a valid backtrack statement
-      size_t placed_sz = 0;
-      set< int > placed;
-
-      for (y = treated.begin ()->begin (); y != treated.begin ()->end (); ++y)
-	placed.insert (*y);
-
-      if (treated.size () > 1)
-	{
-	  x = treated.begin ();
-	  x++;
-	  for (; x != treated.end (); ++x) 
-	    {
-	      placed_sz = placed.size ();
-	      placed.insert (*x->begin ());
-
-	      if (placed.size () > placed_sz)
-		{
-		  // oups! reference residue not placed yet!
-		  // What if we just flip the sub-list over...
-		  placed_sz = placed.size ();
-		  placed.insert (x->back ());
-
-		  if (placed.size () > placed_sz)
-		    {
-		      // hum...something is really wrong here!
-		      cerr << "Fatal Error: unable to build a valid backtrack statement" << endl;
-		      exit (EXIT_FAILURE);
-		    }
-
-		  // update placed residues set, then flip the sub-list over
-		  list< int > tmp;
-		  for (y = x->begin (); y != x->end (); ++y)
-		    {
-		      placed.insert (*y);
-		      tmp.push_front (*y);
-		    }
-		  x->clear ();
-		  for (y = tmp.begin (); y != tmp.end (); ++y)
-		    x->push_back (*y);
-		}
-	      else
-		{
-		  // just update placed residues set
-		  for (y = x->begin (); y != x->end (); ++y)
-		    placed.insert (*y);
-		}
-	    }
-	}
-    
-      for (x = treated.begin (); x != treated.end (); ++x)
-	{
-	  cout << "  ( ";
-	  for (y = x->begin (); y != x->end (); ++y)
-	    {
-	      cout << getResId (*y) << " ";
-	    }
-	  cout << ")" << endl;
-	}
-      cout << ")" << endl;
-    }
-  
-    cout << "//" << endl;
-    cout << "// Molecule cache -----------------------------------------------" << endl;
-    cout << "// A cache is normally placed on top of the backtrack so         " << endl;
-    cout << "// generated models are kept only if they are different enough   " << endl;
-    cout << "// from previously generated models."                              << endl;
-    cout << "//" << endl;
-
-    cout << "global_cache = cache(" << endl;
-    cout << "  global" << endl;
-    cout << "  rmsd (1.0 align base_only  no_hydrogen)" << endl;
-    cout << ")" << endl;
-  
-    cout << "//" << endl;
-    cout << "// Constraints --------------------------------------------------" << endl;
-    cout << "//" << endl;
-    cout << "adjacency( " << endl
-	 << "  global 1.0 5.0" << endl
-	 << ")" << endl << endl;
-    cout << "res_clash(" << endl
-	 << "  global" << endl
-	 << "  fixed_distance 1.0" << endl
-	 << "  all no_hydrogen" << endl
-	 << ")" << endl;
-    cout << "//" << endl;
-    cout << "// Exploration type ---------------------------------------------" << endl;
-    cout << "//" << endl;
-    cout << "explore(" << endl
-	 << "  global_cache" << endl
-	 << "  file_pdb (\"global-%05d.pdb\" zipped)" << endl
-	 << ")" << endl;
-
-    cout << "//" << endl
-	 << "// --------------------------------------------------------------" << endl
-	 << "//" << endl;
+  iBinstream&
+  operator>> (iBinstream &is, AnnotatedModel &model)
+  {
+    return model.input (is);
   }
 
+  oBinstream&
+  operator<< (oBinstream &os, const AnnotatedModel &model)
+  {
+    return model.output (os);
+  }
 
-// void AnnotateModel::dumpCt (const char* pdbname)
+}
+
+namespace std
+{
+  ostream &
+  operator<< (ostream &out, const annotate::Strand &t)
+  {
+    return t.output (out);
+  }
+
+  /**
+   * Ouputs the residue to the stream.
+   * @param os the output stream.
+   * @param r the residue.
+   * @return the used output stream.
+   */
+  ostream& 
+  operator<< (ostream &os, const annotate::AnnotatedModel &am)
+  {
+    return am.output (os);
+  }  
+}
+  
+namespace annotate {
+
+void 
+AnnotatedModel::dumpMcc (const char* pdbname)
+{
+//   char str[256];
+//   cout << "//" << endl;
+//   cout << "// Annotation results ------------------------------------------------" << endl;
+//   cout << "//" << endl;
+//   gethostname (str, 255);
+//   cout << "// Author         : " << getenv ("LOGNAME") << '@' << str << endl;
+//   cout << "// Structure file : " << pdbname << endl;
+//   cout << "// Structural annotation generated by " << PACKAGE << " "  << VERSION << endl;
+//   cout << "// ";
+//   cout << endl;
+// 
+//   cout << "// Sequences ---------------------------------------------------------" << endl;
+//   cout << "// The distance between atoms O3' and P of two residues must be       " << endl;
+//   cout << "// inferior to 20nm for them to be considered adjacent.               " << endl;
+//   cout << "//" << endl;
+//   {
+//     int i, j;
+//     int currseq = -1;
+//     
+//     for (i=0; i<(int)conformations.size (); ) {
+//       
+//       currseq = sequence_mask[i];
+//       
+//       cout << "sequence( r " << endl;
+//       
+//       int pos = 0;
+//       while (pos < sequence_length[currseq]) 
+// 	{
+// 	  for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
+// 	    if (j==0) cout << setw (8) << getResId (i+j) << " ";
+// 	    cout << getType (i+j)->toString ();
+// 	    if ((j+1)%10==0) cout << " ";
+// 	  }
+// 	  cout << endl;
+// 	  pos = j+1;
+// 	}
+//       
+//       cout << ")" << endl;
+//       
+//       i += pos-1;
+//     }
+//   }
+// 
+//   cout << "//" << endl;
+//   cout << "// Nucleotide conformations ------------------------------------------" << endl;
+//   cout << "// The distance between atoms O3' and P of two residues must be       " << endl;
+//   cout << "// inferior to 20nm for them to be considered adjacent.               " << endl;
+//   cout << "//" << endl;
+//   {
+//     UndirectedGraph< node, edge >::iterator i;
+// 
+//     cout << "residue(" << endl;
+//     for (i=graph.begin (); i!=graph.end (); ++i) {
+//       cout << setw(8) << getResId (*i) << " { ";
+//       cout.setf (ios::left, ios::adjustfield);
+//       cout << setw(8) << *conformations[*i]->getPucker () << " && " 
+// 	   << setw(4) << *conformations[*i]->getGlycosyl () << " }" << "  100%" << endl; 
+//       cout.setf (ios::right, ios::adjustfield);
+//     }
+//     cout << ")" << endl;
+//   }
+// 
+//   cout << "//" << endl;
+//   cout << "// Non-adjacent base-pairs and stackings ------------------------" << endl;
+//   cout << "//" << endl;
+//  
+//   {
+//     UndirectedGraph< node, edge >::iterator i;
+//     list< node >::iterator j;
+//     list< node > neigh;
+//     set< const PropertyType* >::iterator k;
+//     
+//     if (nb_pairings > 0) {
+//       cout << "pair(" << endl;
+//       for (i=graph.begin (); i!=graph.end (); ++i) {
+// 	neigh = graph.getNeighbors (*i);
+// 	for (j=neigh.begin (); j!=neigh.end (); ++j) {
+// 	  edge e = graph.getEdge (*i, *j);
+// 	  if (*i < *j && 
+// 	      !isAdjacent (e)) {
+// 	    
+// 	    cout << setw(8) << getResId (*i) 
+// 		 << setw(8) << getResId (*j) << " { ";
+// 	    
+// 	    bool useand = false;
+// 	    if (isPairing (e) && !relations[e].is (PropertyType::parseType ("unclassified"))) {
+// 	      cout << (const char*)(*relations[e].getRefFace ()) << "/" << flush
+// 		   << (const char*)(*relations[e].getResFace ()) << " " << flush;
+// 	      useand = true;
+// 	    }
+// 	    for (k=relations[e].getLabels ().begin (); 
+// 		 k!=relations[e].getLabels ().end (); ++k) {
+// 	      if ((*k) == PropertyType::pReverse || 
+// 		  (*k) == PropertyType::pCis ||
+// 		  (*k) == PropertyType::pTrans ||
+// 		  (*k) == PropertyType::pStack) {      
+// 		if (useand) cout << "&& ";
+// 		cout << (const char*)**k << " " ;
+// 		useand = true;
+// 	      }
+// 	    }
+// 	    
+// 	    cout << "}" << "  100%" << endl; 
+// 	  }
+// 	}
+//       }
+//       cout << ")" << endl;
+//     }
+//   }
+//   
+//   cout << "//" << endl;
+//   cout << "// Adjacent relations -------------------------------------------" << endl;
+//   cout << "//" << endl;
+// 
+//   {
+//     UndirectedGraph< node, edge >::iterator i;
+//     list< node >::iterator j;
+//     list< node > neigh;
+//     set< const PropertyType* >::iterator k;
+//   
+//     if (nb_connect > 0) {
+//       cout << "connect(" << endl;
+//       for (i=graph.begin (); i!=graph.end (); ++i) {
+// 	neigh = graph.getNeighbors (*i);
+// 	for (j=neigh.begin (); j!=neigh.end (); ++j) {
+// 	  edge e = graph.getEdge (*i, *j);
+// 	  if (*i < *j && 
+// 	      isAdjacent (e)) {
+// 	    
+// 	    cout << setw(8) << getResId (*i) 
+// 		 << setw(8) << getResId (*j) << " { ";
+// 	    
+// 	    if (isPairing (e)) {
+// 	      cout << (const char*)(*relations[e].getRefFace ()) << "/" << flush
+// 		   << (const char*)(*relations[e].getResFace ()) << " " << flush;
+// 	      cout << "&& ";
+// 	    }
+// 	    
+// 	    if (isStacking (e))
+// 	      cout << "stack" << " ";
+// 	    else 
+// 	      cout << "!stack" << " ";
+// 	    
+// 	    for (k=relations[e].getLabels ().begin (); 
+// 		 k!=relations[e].getLabels ().end (); ++k) {
+// 	      if ((*k) == PropertyType::pReverse || 
+// 		  (*k) == PropertyType::pCis ||
+// 		  (*k) == PropertyType::pTrans ||
+// 		  (*k) == PropertyType::pPairing) {
+// 		cout << "&& " << (const char*)**k << " " ;
+// 	      }
+// 	    }
+// 	    cout << "}" << "  100%" << endl; 
+// 	  }
+// 	} 
+//       }
+//       cout << ")" << endl;    
+//     }
+//   }
+//   
+//   cout << "//" << endl;
+//   cout << "// Construction order -------------------------------------------" << endl;
+//   cout << "// This section defines a spanning tree of minimal height that   " << endl;
+//   cout << "// connects all residues of the molecule and states the order in " << endl;
+//   cout << "// which they are placed in the modeling process."                 << endl;
+//   cout << "//" << endl;
+// 
+//   // Here, we need to find connected components of the initial graph and build a backtrack
+//   // for each of them.  The generated script is not guaranteed to work when an annotated
+//   // PDB file contains many fragments of RNA...  What should we do???????
+// 
+//   {
+//     cout << "global = backtrack(" << endl;
+// 
+//     UndirectedGraph< node, edge >::iterator i;
+//     list< node >::iterator j;
+//     list< node > neigh;
+//     
+//     for (i=graph.begin (); i!=graph.end (); ++i) {
+//       neigh = graph.getNeighbors (*i);
+//       for (j=neigh.begin (); j!=neigh.end (); ++j) {
+// 	edge e = graph.getEdge (*i, *j);
+// 	if (isPairing (e) && !relations[e].is (PropertyType::parseType ("unclassified")))
+// 	  graph.setEdgeWeight (*i, *j, 1);
+// 	else
+// 	  graph.setEdgeWeight (*i, *j, 2);
+//       }
+//     }
+// 
+//     vector< pair< node, node > > edges;
+//     vector< pair< node, node > >::reverse_iterator k;
+// 
+//     edges = graph.minimumSpanningTree ();
+// 
+//     list< list< node > > treated;
+//     list< list< node > >::iterator x;
+//     list< node >::iterator y;
+// 
+//     for (k=edges.rbegin (); k!=edges.rend (); ++k) {
+//       node a, b;
+//       a = *graph.find (k->first);
+//       b = *graph.find (k->second);
+// 
+//       bool done = false;
+//       for (x=treated.begin (); x!=treated.end (); ++x) {
+// 	if (x->front () == b) {
+// 	  x->push_front (a);
+// 	  done = true;
+// 	} else if (x->back () == a) {
+// 	  x->push_back (b);
+// 	  done = true;
+// 	}
+// 	if (done) break;
+//       }
+//       if (!done) {
+// 	list< node > tmp;
+// 	tmp.push_back (a);
+// 	tmp.push_back (b);
+// 	treated.push_front (tmp);
+//       }
+//     }
+// 
+//     // correction pass to keep a valid backtrack statement
+// 
+//     size_t placed_sz = 0;
+//     set< int > placed;
+// 
+//     for (y = treated.begin ()->begin (); y != treated.begin ()->end (); ++y)
+//       placed.insert (*y);
+// 
+//     if (treated.size () > 1)
+//       {
+// 	x = treated.begin ();
+// 	x++;
+// 	for (; x != treated.end (); ++x) 
+// 	  {
+// 	    placed_sz = placed.size ();
+// 	    placed.insert (*x->begin ());
+// 
+// 	    if (placed.size () > placed_sz)
+// 	      {
+// 		// oups! reference residue not placed yet!
+// 		// What if we just flip the sub-list over...
+// 		placed_sz = placed.size ();
+// 		placed.insert (x->back ());
+// 
+// 		if (placed.size () > placed_sz)
+// 		  {
+// 		    // hum...something is really wrong here!
+// 		    cerr << "Fatal Error: unable to build a valid backtrack statement" << endl;
+// 		    exit (EXIT_FAILURE);
+// 		  }
+// 
+// 		// update placed residues set, then flip the sub-list over
+// 		list< int > tmp;
+// 		for (y = x->begin (); y != x->end (); ++y)
+// 		  {
+// 		    placed.insert (*y);
+// 		    tmp.push_front (*y);
+// 		  }
+// 		x->clear ();
+// 		for (y = tmp.begin (); y != tmp.end (); ++y)
+// 		  x->push_back (*y);
+// 	      }
+// 	    else
+// 	      {
+// 		// just update placed residues set
+// 		for (y = x->begin (); y != x->end (); ++y)
+// 		  placed.insert (*y);
+// 	      }
+// 
+// 	  }
+//       }
+//     
+//     for (x=treated.begin (); x!=treated.end (); ++x) {
+//       cout << "  ( ";
+//       for (y=x->begin (); y!=x->end (); ++y) {
+// 	cout << getResId (*y) << " ";
+//       }
+//       cout << ")" << endl;
+//     }
+//     
+//     cout << ")" << endl;
+//   }
+//   
+//   cout << "//" << endl;
+//   cout << "// Molecule cache -----------------------------------------------" << endl;
+//   cout << "// A cache is normally placed on top of the backtrack so         " << endl;
+//   cout << "// generated models are kept only if they are different enough   " << endl;
+//   cout << "// from previously generated models."                              << endl;
+//   cout << "//" << endl;
+// 
+//   {
+//     
+//     cout << "global_cache = cache(" << endl;
+//     cout << "  global" << endl;
+//     cout << "  rmsd (1.0 align base_only  no_hydrogen)" << endl;
+//     cout << ")" << endl;
+//   }
+//   
+//   cout << "//" << endl;
+//   cout << "// Constraints --------------------------------------------------" << endl;
+//   cout << "//" << endl;
+//   cout << "adjacency( " << endl
+//        << "  global 1.0 5.0" << endl
+//        << ")" << endl << endl;
+//   cout << "res_clash(" << endl
+//        << "  global" << endl
+//        << "  fixed_distance 1.0" << endl
+//        << "  all no_hydrogen" << endl
+//        << ")" << endl;
+//   cout << "//" << endl;
+//   cout << "// Exploration type ---------------------------------------------" << endl;
+//   cout << "//" << endl;
+//   cout << "explore(" << endl
+//        << "  global_cache" << endl
+//        << "  file_pdb (\"global-%05d.pdb\" zipped)" << endl
+//        << ")" << endl;
+// 
+//   cout << "//" << endl
+//        << "// --------------------------------------------------------------" << endl
+//        << "//" << endl;
+}
+
+
+
+// void AnnotatedModel::dumpCt (const char* pdbname)
 // {
 // //fprintf(ofp, "%5d %c   %5d %4d %4d %4d\n",
 
@@ -1864,7 +1329,7 @@ namespace annotate
 // }
 
 
-// void AnnotateModel::PDF_drawLoop2 (PDF *p, int li, int source_jct)
+// void AnnotatedModel::PDF_drawLoop2 (PDF *p, int li, int source_jct)
 // {
 //   int font = PDF_findfont (p, "Helvetica", "host", 0);
 
@@ -1981,7 +1446,7 @@ namespace annotate
 
 
 
-// void AnnotateModel::PDF_drawHelix (PDF *p, int hi, int li_ref, int x, int y)
+// void AnnotatedModel::PDF_drawHelix (PDF *p, int hi, int li_ref, int x, int y)
 // {
 //   int font = PDF_findfont (p, "Helvetica", "host", 0);
   
@@ -2050,7 +1515,7 @@ namespace annotate
 
 
 
-// void AnnotateModel::PDF_drawLoop (PDF *p, int li, int hi_ref, int x, int y)
+// void AnnotatedModel::PDF_drawLoop (PDF *p, int li, int hi_ref, int x, int y)
 // {
 //   Block *loop = &l_blocks[li];
 //   cout << "Drawing loop " << l_blocks[li] << endl;
@@ -2112,7 +1577,7 @@ namespace annotate
 
 
 
-// void AnnotateModel::dumpPDF (const char* pdfname)
+// void AnnotatedModel::dumpPDF (const char* pdfname)
 // {
 //   float width = 500;//letter_width;
 //   float height = 500;//letter_height;
@@ -2176,7 +1641,7 @@ namespace annotate
 
 
 
-// // void AnnotateModel::PDF_drawGraph (PDF *p, node curr, node prev, int x, int y, int a)
+// // void AnnotatedModel::PDF_drawGraph (PDF *p, node curr, node prev, int x, int y, int a)
 // // {
 // //   int font = PDF_findfont (p, "Helvetica", "host", 0);
 
@@ -2215,7 +1680,7 @@ namespace annotate
 // // }
 
 
-// // void AnnotateModel::dumpSimplePDF (const char* pdbname, const char* pdfname)
+// // void AnnotatedModel::dumpSimplePDF (const char* pdbname, const char* pdfname)
 // // {
 // //   float width = 500;//letter_width;
 // //   float height = 500;//letter_height;
@@ -2254,3 +1719,5 @@ namespace annotate
 // //   PDF_close (p);
 // //   PDF_delete (p);
 // // }
+
+}
