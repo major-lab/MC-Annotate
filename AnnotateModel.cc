@@ -61,6 +61,7 @@ namespace annotate
     set< pair< GraphModel::label , GraphModel::label > > helixPairsCandidates;
 
     nb_pairings = 0;
+    gOut (0) << *this << endl;
     marks.clear ();
     GraphModel::annotate ();
     for (edgeIt = edge_begin (); edge_end () != edgeIt; ++edgeIt)
@@ -1089,34 +1090,34 @@ namespace annotate
 
 
   iPdbstream&
-  AnnotateModel::input (iPdbstream &ips)
+  AnnotateModel::input (iPdbstream &is)
   {
-    return GraphModel::input (ips);
+    return GraphModel::input (is);
   }
   
   iBinstream&
   AnnotateModel::input (iBinstream &is)
   {
-    return is;
+    return GraphModel::input (is);
   }
   
-  oBinstream&
-  AnnotateModel::output (oBinstream &os) const
-  {
-    return os;
-  }
+//   oBinstream&
+//   AnnotateModel::output (oBinstream &os) const
+//   {
+//     return os;
+//   }
  
-  iBinstream&
-  operator>> (iBinstream &is, AnnotateModel &model)
-  {
-    return model.input (is);
-  }
+//   iBinstream&
+//   operator>> (iBinstream &is, AnnotateModel &model)
+//   {
+//     return model.input (is);
+//   }
 
-  oBinstream&
-  operator<< (oBinstream &os, const AnnotateModel &model)
-  {
-    return model.output (os);
-  }
+//   oBinstream&
+//   operator<< (oBinstream &os, const AnnotateModel &model)
+//   {
+//     return model.output (os);
+//   }
 
 }
 

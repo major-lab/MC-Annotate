@@ -17,11 +17,14 @@
 #include <string>
 #include <unistd.h>
 
+#include "mccore/Binstream.h"
 #include "mccore/Messagestream.h"
+#include "mccore/ModelFactoryMethod.h"
 #include "mccore/Molecule.h"
 #include "mccore/Pdbstream.h"
 #include "mccore/PropertyType.h"
 #include "mccore/Relation.h"
+#include "mccore/ResidueFactoryMethod.h"
 
 #include "AnnotateModel.h"
 
@@ -40,13 +43,14 @@ using namespace annotate;
 #define BULGE_MARK 3
 #define LOOP_MARK  4
 
-const char* shortopts = "e:f:hlms:vV";
-ResIdSet selection;
-string selection_file;
-unsigned int size = 0;
-bool verbose = false;
+bool binary = false;
 bool extract = false;
 bool mcsym_file = false;
+ResIdSet selection;
+string selection_file;
+const char* shortopts = "Vbe:f:hlms:v";
+unsigned int size = 0;
+bool verbose = false;
 
 
 
@@ -61,7 +65,7 @@ void
 usage ()
 {
   gOut (0) << "usage: " << PACKAGE
-    << " [-hlmvV] [-e selection -f file_sel -s size] [structure file]"
+    << " [-bhlmvV] [-e selection -f file_sel -s size] [structure file]"
     << endl;
 }
 
@@ -71,6 +75,7 @@ help ()
 {
   gOut (0)
     << "This program annotates a structure (and more)." << endl
+    << "  -b                read binary files instead of pdb files" << endl
     << "  -e sel            extract these residues from the structure" << endl 
     << "  -f pdb            extract residues found in this pdb file from the structure" << endl 
     << "  -h      help      print this help" << endl
@@ -95,6 +100,9 @@ read_options (int argc, char* argv[])
           version ();
           exit (EXIT_SUCCESS);
           break;
+	case 'b':
+	  binary = true;
+	  break;
         case 'e':
           selection = ResIdSet (optarg);
           gErr (3) << "selection = " << selection << endl;
@@ -135,6 +143,52 @@ read_options (int argc, char* argv[])
 }
 
 
+mccore::Molecule*
+loadFile (const string &filename)
+{
+  Molecule *molecule;
+
+  molecule = 0;
+  if (binary)
+    {
+      izfBinstream in;
+
+      in.open (filename.c_str ());
+      if (in.fail ())
+	{
+	  gErr (0) << PACKAGE << ": cannot open binary file '" << filename << "'." << endl;
+	  return 0;
+	}
+      molecule = new Molecule ();
+      in >> *molecule;
+      in.close ();
+    }
+  else
+    {
+#ifdef HAVE_LIBRNAMLC__
+      RnamlReader reader (filename.c_str ());
+      
+      if (0 == (molecule = reader.read ()))
+#endif
+	{
+	  izfPdbstream in;
+	  ResidueFM rFM;
+	  GraphModelFM gFM (&rFM);
+	  
+	  in.open (filename.c_str ());
+	  if (in.fail ())
+	    {
+	      gErr (0) << PACKAGE << ": cannot open pdb file '" << filename << "'." << endl;
+	      return 0;
+	    }
+	  molecule = new Molecule (&gFM);
+	  in >> *molecule;
+	  in.close ();
+	}
+    }
+  return molecule;
+}
+
 
 int
 main (int argc, char *argv[])
@@ -143,26 +197,16 @@ main (int argc, char *argv[])
 
   while (optind < argc)
     {
-      izfPdbstream is;
-
-      is.open (argv[optind]);
-      if (! is.good ())
+      Molecule *molecule;
+      Molecule::iterator molIt;
+      
+      gErr (3) << PACKAGE << ": reading " << argv[optind] << endl;
+      molecule = loadFile (argv[optind]);
+      if (0 != molecule)
 	{
-	  gErr (0) << PACKAGE << ": cannot open pdb file '"
-		   << argv[optind] << "'." << endl;
-	}
-      else
-	{
-	  AnnotateModelFM afm;
-	  Molecule molecule (&afm);
-	  Molecule::iterator molIt;
-
-	  gErr (3) << PACKAGE << ": reading " << argv[optind] << endl;   
-	  is >> molecule;
-	  is.close ();
-	  for (molIt = molecule.begin (); molecule.end () != molIt; ++molIt)
+	  for (molIt = molecule->begin (); molecule->end () != molIt; ++molIt)
 	    {
-	      AnnotateModel &am = (AnnotateModel&) *molIt;
+	      AnnotateModel am (*molIt);
 
 	      am.annotate ();
 	      if (mcsym_file == true) 

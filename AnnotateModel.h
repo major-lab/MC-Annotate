@@ -300,42 +300,42 @@ namespace annotate
 
     /**
      * Reads the model from a pdb input stream.
-     * @param ips the pdb data stream.
+     * @param is the pdb data stream.
      * @return the consumed pdb stream.
      */
-    virtual iPdbstream& input (iPdbstream &ips);
+    virtual iPdbstream& input (iPdbstream &is);
   
-    /**
-     * Writes the model to a binary output stream.
-     * @param obs the binary data stream.
-     * @return the consumed binary stream.
-     */
-    virtual oBinstream& output (oBinstream &obs) const;
+//     /**
+//      * Writes the model to a binary output stream.
+//      * @param obs the binary data stream.
+//      * @return the consumed binary stream.
+//      */
+//     virtual oBinstream& output (oBinstream &obs) const;
 
     /**
      * Reads the model from a binary input stream.
-     * @param obs the binary data stream.
+     * @param is the binary data stream.
      * @return the consumed binary stream.
      */
-    virtual iBinstream& input (iBinstream &ibs);
+    virtual iBinstream& input (iBinstream &iss);
 
   };
 
-  /**
-   * Reads the AnnotateModel from a binary input stream.
-   * @param is the binary input stream.
-   * @param model the AnnotateModel.
-   * @return the consumed binary stream.
-   */
-  iBinstream& operator>> (iBinstream &is, AnnotateModel &model);
+//   /**
+//    * Reads the AnnotateModel from a binary input stream.
+//    * @param is the binary input stream.
+//    * @param model the AnnotateModel.
+//    * @return the consumed binary stream.
+//    */
+//   iBinstream& operator>> (iBinstream &is, AnnotateModel &model);
 
-  /**
-   * Writes the AnnotateModel to a binary output stream.
-   * @param os the binary input stream.
-   * @param model the AnnotateModel.
-   * @return the consumed binary stream.
-   */
-  oBinstream& operator<< (oBinstream &os, const AnnotateModel &model);
+//   /**
+//    * Writes the AnnotateModel to a binary output stream.
+//    * @param os the binary input stream.
+//    * @param model the AnnotateModel.
+//    * @return the consumed binary stream.
+//    */
+//   oBinstream& operator<< (oBinstream &os, const AnnotateModel &model);
 
 }
 
