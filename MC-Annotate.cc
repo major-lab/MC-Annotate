@@ -25,13 +25,11 @@
 #include "mccore/PropertyType.h"
 #include "mccore/Relation.h"
 #include "mccore/ResidueFactoryMethod.h"
+#ifdef HAVE_LIBRNAMLC__
+#include "mccore/RnamlReader.h"
+#endif
 
 #include "AnnotateModel.h"
-
-#undef PACKAGE
-#undef VERSION
-#define PACKAGE "annotate"
-#define VERSION "1.0-mccore1.5"
 
 using namespace mccore;
 using namespace std;
