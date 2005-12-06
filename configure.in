@@ -1,13 +1,11 @@
 #                              -*- Mode: Sh -*- 
 # configure.in
-# Copyright © 2000-04 Laboratoire de Biologie Informatique et Théorique.
+# Copyright © 2000-05 Laboratoire de Biologie Informatique et Théorique.
 #                     Université de Montréal.
 # Author           : Martin Larose
 # Created On       : Tue Sep 19 18:21:58 2000
-# Last Modified By : Philippe Thibault
-# Last Modified On : Tue Jul  6 14:56:34 2004
-# Update Count     : 12
-# Status           : Ok.
+# $Revision$
+# $Id$
 # 
 #  This file is part of mccore.
 #  
@@ -25,15 +23,14 @@
 #  License along with mccore; if not, write to the Free Software
 #  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-
 dnl Process this file with autoconf to produce a configure script.
 
 
-AC_INIT(annotate.cc)
+AC_INIT(MC-Annotate.cc)
 AC_CONFIG_HEADER(config.h)
 
-PACKAGE=annotate
-VERSION=1.3
+PACKAGE=MC-Annotate
+VERSION=1.5
 AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE")
 AC_DEFINE_UNQUOTED(VERSION, "$VERSION")
 

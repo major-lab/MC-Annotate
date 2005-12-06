@@ -48,7 +48,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 	$(CXX) $(CXXFLAGS) $(DEFS) -I. -I$(srcdir) -c $<
 
 
-PROGSOURCES = annotate.cc
+PROGSOURCES = MC-Annotate.cc
 
 SOURCES = AnnotateModel.cc
 
