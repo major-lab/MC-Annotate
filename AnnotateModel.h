@@ -1,6 +1,6 @@
 //                              -*- Mode: C++ -*- 
 // AnnotateModel.h
-// Copyright © 2001-05 Laboratoire de Biologie Informatique et Théorique.
+// Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
@@ -29,8 +29,16 @@
 #include "mccore/Residue.h"
 #include "mccore/ResidueType.h"
 
-using namespace std;
 using namespace mccore;
+using namespace std;
+
+
+
+namespace mccore
+{
+  class iBinstream;
+  class iPdbstream;
+}
 
 
 
@@ -226,14 +234,6 @@ namespace annotate
       : GraphModel (right, fm)
     { }
 
-//     /**
-//      * Initializes the object with the right's content (deep copy).
-//      * @param right the object to copy.
-//      * @param fm the residue factory methods that will instanciate new
-//      * residues (default is @ref ExtendedResidueFM).
-//      */
-//     AnnotateModel (const AnnotateModel &gfm, const ResidueFactoryMethod *fm = 0);
-    
     /**
      * Destroys the object.
      */
@@ -256,15 +256,12 @@ namespace annotate
 
     bool isPairing (const Relation *r)
     {
-      return (r->is (PropertyType::pPairing));
+      return r->is (PropertyType::pPairing);
     }
 
-    bool isPairing (Residue *i, Residue *j) {
-      if (areConnected (i, j))
-	{
-	  return getEdge (i, j)->is (PropertyType::pPairing);
-	}
-      return false;
+    bool isPairing (Residue *i, Residue *j)
+    {
+      return areConnected (i, j) && isPairing (getEdge (i, j));
     }
            
   public:
@@ -339,6 +336,8 @@ namespace annotate
 
 }
 
+
+
 namespace std
 {
   
@@ -346,10 +345,10 @@ namespace std
   operator<< (ostream &out, const annotate::Strand &t);
 
   /**
-   * Ouputs the residue to the stream.
+   * Prints the AnnotateModel to the stream.
    * @param os the output stream.
-   * @param r the residue.
-   * @return the used output stream.
+   * @param am the AnnotateModel.
+   * @return the output stream.
    */
   ostream& operator<< (ostream &os, const annotate::AnnotateModel &am);
   

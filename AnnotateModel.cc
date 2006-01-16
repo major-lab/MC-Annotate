@@ -1,6 +1,6 @@
 //                              -*- Mode: C++ -*- 
 // AnnotateModel.cc
-// Copyright © 2001-05 Laboratoire de Biologie Informatique et Théorique.
+// Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
@@ -16,11 +16,12 @@
 #include <iterator>
 #include <list>
 
+#include "mccore/Binstream.h"
 #include "mccore/UndirectedGraph.h"
-#include "mccore/GraphModel.h"
 #include "mccore/Pdbstream.h"
 
 #include "AnnotateModel.h"
+
 
 
 namespace annotate
@@ -46,12 +47,6 @@ namespace annotate
   {
     return obs;
   }
-
-
-//   AnnotateModel::AnnotateModel (GraphModel &gfm)
-//     : GraphModel (gfm)
-//   {
-//   }
 
 
   void

@@ -1,6 +1,6 @@
 //                              -*- Mode: C++ -*- 
 // annotate.cc
-// Copyright © 2001-05 Laboratoire de Biologie Informatique et Théorique.
+// Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
 // Author           : Patrick Gendron
 // Created On       : Fri May 18 09:38:07 2001
@@ -35,12 +35,6 @@ using namespace mccore;
 using namespace std;
 using namespace annotate;
 
-#define NONE_MARK  0
-#define HELIX_MARK 1
-#define PAIR_MARK  2
-#define BULGE_MARK 3
-#define LOOP_MARK  4
-
 bool binary = false;
 bool extract = false;
 bool mcsym_file = false;
@@ -48,7 +42,6 @@ ResIdSet selection;
 string selection_file;
 const char* shortopts = "Vbe:f:hlms:v";
 unsigned int size = 0;
-bool verbose = false;
 
 
 
@@ -223,6 +216,7 @@ main (int argc, char *argv[])
 		  gOut(0) << am ;
 		}
 	    }
+	  delete molecule;
 	}
       ++optind;
     }
