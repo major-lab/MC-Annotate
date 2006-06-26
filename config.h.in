@@ -1,6 +1,6 @@
 //                              -*- Mode: C++ -*- 
 // config.h.in
-// Copyright © 2001-04 Laboratoire de Biologie Informatique et Théorique.
+// Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal.
 // Author           : Martin Larose <larosem@iro.umontreal.ca>
 // Created On       : Thu Aug 23 11:34:50 2001
@@ -16,14 +16,6 @@
 
 #undef VERSION
 
-#undef HAVE_STRSEP
-
-#undef HAVE_ISFDTYPE
-
-#undef HAVE_ACOSF
-
-#undef HAVE_SQRTF
-
-#undef HAVE_NUMERIC_LIMITS
+#undef HAVE_LIBRNAMLC__
 
 #endif

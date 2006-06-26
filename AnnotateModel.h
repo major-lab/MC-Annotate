@@ -16,7 +16,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-// #include <pdflib.h>
 
 #include "mccore/GraphModel.h"
 #include "mccore/Model.h"
@@ -98,6 +97,16 @@ namespace annotate
    */
   class AnnotateModelFM : public ModelFactoryMethod
   {
+    /**
+     * A comma separated string of residue ids to annotate.
+     */
+    string residueSelection;
+
+    /**
+     * The number of relation layers around the residue selection to
+     * annotate.
+     */
+    unsigned int environment;
 
   public:
 
@@ -105,9 +114,16 @@ namespace annotate
 
     /**
      * Initializes the object.
+     * @param rs a comma separated string of residue ids to annotate.
+     * @param env the number of relation layers around the residue selection to
+     * annotate.
+     * @param fm the residue factory method.
      */
-    AnnotateModelFM (const ResidueFactoryMethod *fm = 0)
-      : ModelFactoryMethod (fm) { }
+    AnnotateModelFM (const string &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
+      : ModelFactoryMethod (fm),
+	residueSelection (rs),
+	environment (env)
+    { }
 
     /**
      * Initializes the object with the right content.
@@ -200,6 +216,10 @@ namespace annotate
     map< label, int > strand_mask;
     map< label, int > sequence_mask;
     map< label, int > tertiary_mask;
+
+    ResIdSet residueSelection;
+
+    unsigned int environment;
         
   public:
     
@@ -207,31 +227,31 @@ namespace annotate
     
     /**
      * Initializes the object.
+     * @param rs a comma separated string of residue ids to annotate.
+     * @param env the number of relation layers around the residue selection to
+     * annotate.
      * @param fm the residue factory methods that will instanciate new
      * residues (default is @ref ExtendedResidueFM).
      */
-    AnnotateModel (const ResidueFactoryMethod *fm = 0)
-      : GraphModel (fm)
+    AnnotateModel (const string &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
+      : GraphModel (fm),
+	residueSelection (rs.c_str ()),
+	environment (env)
     { }
     
     /**
      * Initializes the object with the right's content (deep copy).
      * @param right the object to copy.
+     * @param rs a comma separated string of residue ids to annotate.
+     * @param env the number of relation layers around the residue selection to
+     * annotate.
      * @param fm the residue factory methods that will instanciate new
      * residues (default is @ref ExtendedResidueFM).
      */
-    AnnotateModel (const AbstractModel &right, const ResidueFactoryMethod *fm = 0)
-      : GraphModel (right, fm)
-    { }
-
-    /**
-     * Initializes the object with the right's content (deep copy).
-     * @param right the object to copy.
-     * @param fm the residue factory methods that will instanciate new
-     * residues (default is @ref ExtendedResidueFM).
-     */
-    AnnotateModel (const GraphModel &right, const ResidueFactoryMethod *fm = 0)
-      : GraphModel (right, fm)
+    AnnotateModel (const AbstractModel &right, const string &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
+      : GraphModel (right, fm),
+	residueSelection (rs.c_str ()),
+	environment (env)
     { }
 
     /**
@@ -247,8 +267,9 @@ namespace annotate
 
     /**
      * Builds the graph of relations, find strands and helices.
+     * @param backbone backbone annotation flag (default true).
      */
-    void annotate ();
+    void annotate (bool backbone = true);
     
   private :
     

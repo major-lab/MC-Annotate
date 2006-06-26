@@ -17,8 +17,9 @@
 #include <list>
 
 #include "mccore/Binstream.h"
-#include "mccore/UndirectedGraph.h"
+#include "mccore/Messagestream.h"
 #include "mccore/Pdbstream.h"
+#include "mccore/UndirectedGraph.h"
 
 #include "AnnotateModel.h"
 
@@ -26,19 +27,21 @@
 
 namespace annotate
 {
+  
   static const unsigned int MIN_HELIX_SIZE = 3;
+
   
   AbstractModel* 
   AnnotateModelFM::createModel () const
   {
-    return new AnnotateModel (rFM);
+    return new AnnotateModel (residueSelection, environment, rFM);
   }
 
 
   AbstractModel*
   AnnotateModelFM::createModel (const AbstractModel &model) const
   {
-    return new AnnotateModel (model, rFM);
+    return new AnnotateModel (model, residueSelection, environment, rFM);
   }
   
 
@@ -50,7 +53,7 @@ namespace annotate
 
 
   void
-  AnnotateModel::annotate ()
+  AnnotateModel::annotate (bool backbone)
   {
     edge_const_iterator edgeIt;
     set< pair< GraphModel::label , GraphModel::label > > helixPairsCandidates;
@@ -58,7 +61,7 @@ namespace annotate
     nb_pairings = 0;
     gOut (0) << *this << endl;
     marks.clear ();
-    GraphModel::annotate ();
+    GraphModel::annotate (residueSelection, backbone);
     for (edgeIt = edge_begin (); edge_end () != edgeIt; ++edgeIt)
       {
 	if ((*edgeIt)->is (PropertyType::pPairing)
@@ -106,27 +109,9 @@ namespace annotate
   bool
   AnnotateModel::isHelixPairing (const Relation &r)
   {
-    if (r.is (PropertyType::pPairing))
-      {
-	const vector< pair< const PropertyType*, const PropertyType* > > &faces
-	  = r.getPairedFaces ();
-	vector< pair< const PropertyType*, const PropertyType* > >::const_iterator fIt;
-	
-	for (fIt = faces.begin (); faces.end () != fIt; ++fIt)
-	  {
-	    if (PropertyType::pPhosphate != fIt->first
-		&& PropertyType::pPhosphate != fIt->second
-		&& PropertyType::pRibose != fIt->first
-		&& PropertyType::pRibose != fIt->second)
-	      {
-		return true;
-	      }
-	  }
-      }
-    return false;
-    //     return (relations[e].is (PropertyType::pXX) ||
-    //          relations[e].is (PropertyType::pXIX) ||
-    //          relations[e].is (PropertyType::pXXVIII));
+    return (r.is (PropertyType::pPairing)
+	    && (r.is (PropertyType::pSaenger)
+		|| r.is (PropertyType::pOneHbond)));
   }
     
 

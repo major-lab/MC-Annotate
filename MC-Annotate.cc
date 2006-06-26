@@ -13,7 +13,6 @@
 #endif
 
 #include <cstdlib>
-#include <iostream>
 #include <string>
 #include <unistd.h>
 
@@ -28,6 +27,7 @@
 #ifdef HAVE_LIBRNAMLC__
 #include "mccore/RnamlReader.h"
 #endif
+#include "mccore/Version.h"
 
 #include "AnnotateModel.h"
 
@@ -36,19 +36,26 @@ using namespace std;
 using namespace annotate;
 
 bool binary = false;
-bool extract = false;
-bool mcsym_file = false;
-ResIdSet selection;
-string selection_file;
-const char* shortopts = "Vbe:f:hlms:v";
-unsigned int size = 0;
+unsigned int environment = 0;
+bool oneModel = false;
+unsigned int modelNumber = 0;  // 1 based vector identifyer, 0 means all
+string residueSelection = "";
+#ifdef HAVE_LIBRNAMLC__
+const char* shortopts = "Vbe:f:hlr:vx";
+bool xmlFile = false;
+#else
+const char* shortopts = "Vbe:f:hlr:v";
+#endif
 
 
 
 void
 version ()
 {
-  gOut (0) << PACKAGE << " " << VERSION << " (" << __DATE__ << ")" << endl;
+  mccore::Version mccorev;
+  
+  gOut (0) << PACKAGE << " " << VERSION << " (" << __DATE__ << ")" << endl
+	   << "  using " << mccorev << endl;
 }
 
 
@@ -56,8 +63,11 @@ void
 usage ()
 {
   gOut (0) << "usage: " << PACKAGE
-    << " [-bhlmvV] [-e selection -f file_sel -s size] [structure file]"
-    << endl;
+	   << " [-bhlvV] [-e num] [-f <model number>] [-r <residue ids>]"
+#ifdef HAVE_LIBRNAMLC__
+	   << " [-x]"
+#endif
+	   << " structure file ..." << endl;
 }
 
 
@@ -67,14 +77,17 @@ help ()
   gOut (0)
     << "This program annotates a structure (and more)." << endl
     << "  -b                read binary files instead of pdb files" << endl
-    << "  -e sel            extract these residues from the structure" << endl 
-    << "  -f pdb            extract residues found in this pdb file from the structure" << endl 
-    << "  -h      help      print this help" << endl
-    << "  -l      verbose   be more verbose (log)" << endl
-    << "  -m                produce an output in McSym format (with backtrack)" << endl
-    << "  -s N              extend the selection stated with -e or -f by N connected residues in the graph" << endl
-    << "  -v      verbose   be verbose" << endl
-    << "  -V      version   print the software version info" << endl;
+    << "  -e num            number of surrounding layers of connected residues to annotate" << endl
+    << "  -f model number   model to print" << endl
+    << "  -h                print this help" << endl
+    << "  -l                be more verbose (log)" << endl
+    << "  -r sel            extract these residues from the structure" << endl 
+    << "  -v                be verbose" << endl
+    << "  -V                print the software version info" << endl
+#ifdef HAVE_LIBRNAMLC__
+    << "  -x                save the annotation in rnaml format" << endl
+#endif
+    ;    
 }
 
 
@@ -93,16 +106,30 @@ read_options (int argc, char* argv[])
           break;
 	case 'b':
 	  binary = true;
+	  break; 
+	case 'e':
+	  {
+	    int tmp;
+
+	    tmp = atoi (optarg);
+	    if (0 < tmp)
+	      {
+		environment = tmp;
+	      }
+	  }
 	  break;
-        case 'e':
-          selection = ResIdSet (optarg);
-          gErr (3) << "selection = " << selection << endl;
-          extract = true;
-          break;
-        case 'f':
-          selection_file = optarg;
-          extract = true;
-          break;
+	case 'f':
+	  {
+	    int tmp;
+	   
+	    tmp = atoi (optarg);
+	    if (0 <= tmp)
+	      {
+		modelNumber = tmp;
+		oneModel = true;
+	      }
+	  }
+	  break;
         case 'h':
           usage ();
           help ();
@@ -111,15 +138,17 @@ read_options (int argc, char* argv[])
         case 'l':
           gErr.setVerboseLevel (gErr.getVerboseLevel () + 1);
           break;
-        case 'm':
-          mcsym_file = true;
-          break;
-	case 's':
-	  size = atoi (optarg);
-          break;
+	case 'r':
+	  residueSelection = optarg;
+	  break;
 	case 'v':
 	  gOut.setVerboseLevel (gOut.getVerboseLevel () + 1);
           break;
+#ifdef HAVE_LIBRNAMLC__
+	case 'x':
+	  xmlFile = true;
+	  break;
+#endif
         default:
           usage ();
           exit (EXIT_FAILURE);
@@ -138,6 +167,8 @@ mccore::Molecule*
 loadFile (const string &filename)
 {
   Molecule *molecule;
+  ResidueFM rFM;
+  AnnotateModelFM aFM (residueSelection, environment, &rFM);
 
   molecule = 0;
   if (binary)
@@ -150,21 +181,19 @@ loadFile (const string &filename)
 	  gErr (0) << PACKAGE << ": cannot open binary file '" << filename << "'." << endl;
 	  return 0;
 	}
-      molecule = new Molecule ();
+      molecule = new Molecule (&aFM);
       in >> *molecule;
       in.close ();
     }
   else
     {
 #ifdef HAVE_LIBRNAMLC__
-      RnamlReader reader (filename.c_str ());
+      RnamlReader reader (filename.c_str (), &aFM);
       
       if (0 == (molecule = reader.read ()))
-#endif
 	{
+#endif
 	  izfPdbstream in;
-	  ResidueFM rFM;
-	  GraphModelFM gFM (&rFM);
 	  
 	  in.open (filename.c_str ());
 	  if (in.fail ())
@@ -172,10 +201,12 @@ loadFile (const string &filename)
 	      gErr (0) << PACKAGE << ": cannot open pdb file '" << filename << "'." << endl;
 	      return 0;
 	    }
-	  molecule = new Molecule (&gFM);
+	  molecule = new Molecule (&aFM);
 	  in >> *molecule;
 	  in.close ();
+#ifdef HAVE_LIBRNAMLC__
 	}
+#endif
     }
   return molecule;
 }
@@ -191,29 +222,26 @@ main (int argc, char *argv[])
       Molecule *molecule;
       Molecule::iterator molIt;
       
-      gErr (3) << PACKAGE << ": reading " << argv[optind] << endl;
-      molecule = loadFile (argv[optind]);
+      molecule = loadFile ((string) argv[optind]);
       if (0 != molecule)
 	{
 	  for (molIt = molecule->begin (); molecule->end () != molIt; ++molIt)
 	    {
-	      AnnotateModel am (*molIt);
-
-	      am.annotate ();
-	      if (mcsym_file == true) 
+	      if (0 != modelNumber)
 		{
-		  // NEEDS TO BE FIXED!
-		  //            PdbFileHeader header;
-		  //            header = is.getHeader ();
-		  am.dumpMcc (" "); //header.getPdbId ().c_str ()
-		} 
-	      else if (extract) 
-		{
-		  // NEEDS TO BE FIXED!
+		  --modelNumber;
 		}
 	      else
 		{
+		  AnnotateModel &am = (AnnotateModel&) *molIt;
+		  
+		  am.annotate (true);
 		  gOut(0) << am ;
+		  if (oneModel)
+		    {
+		      optind = argc - 1;
+		      break;
+		    }
 		}
 	    }
 	  delete molecule;
