@@ -1,7 +1,7 @@
 #                           -*- Mode: Makefile -*-
 # Makefile.in
-# Copyright © 2001-05 Laboratoire de Biologie Informatique et Théorique.
-#                     Université de Montréal
+# Copyright Â© 2001-06 Laboratoire de Biologie Informatique et ThÃ©orique.
+#                     UniversitÃ© de MontrÃ©al
 # Author           : Martin Larose <larosem@iro.umontreal.ca>
 # Created On       : Mon May 14 19:22:30 2001
 # $Revision$
@@ -50,7 +50,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
 PROGSOURCES = MC-Annotate.cc
 
-SOURCES = AnnotateModel.cc
+SOURCES = BaseLink.cc BasePair.cc BaseStack.cc Helix.cc AnnotateModel.cc
 
 ALLSOURCES = $(SOURCES) $(PROGSOURCES)
 

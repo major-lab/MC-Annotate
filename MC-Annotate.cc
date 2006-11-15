@@ -1,7 +1,7 @@
 //                              -*- Mode: C++ -*- 
 // annotate.cc
-// Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
-//                     Université de Montréal
+// Copyright Â© 2001-06 Laboratoire de Biologie Informatique et ThÃ©orique.
+//                     UniversitÃ© de MontrÃ©al
 // Author           : Patrick Gendron
 // Created On       : Fri May 18 09:38:07 2001
 // $Revision$
@@ -12,11 +12,13 @@
 #include <config.h>
 #endif
 
+#include <cerrno>
 #include <cstdlib>
 #include <string>
 #include <unistd.h>
 
 #include "mccore/Binstream.h"
+#include "mccore/Exception.h"
 #include "mccore/Messagestream.h"
 #include "mccore/ModelFactoryMethod.h"
 #include "mccore/Molecule.h"
@@ -24,6 +26,7 @@
 #include "mccore/PropertyType.h"
 #include "mccore/Relation.h"
 #include "mccore/ResidueFactoryMethod.h"
+#include "mccore/ResIdSet.h"
 #ifdef HAVE_LIBRNAMLC__
 #include "mccore/RnamlReader.h"
 #endif
@@ -38,14 +41,9 @@ using namespace annotate;
 bool binary = false;
 unsigned int environment = 0;
 bool oneModel = false;
-unsigned int modelNumber = 0;  // 1 based vector identifyer, 0 means all
-string residueSelection = "";
-#ifdef HAVE_LIBRNAMLC__
-const char* shortopts = "Vbe:f:hlr:vx";
-bool xmlFile = false;
-#else
+unsigned int modelNumber = 0;  // 1 based vector identifier, 0 means all
+ResIdSet residueSelection;
 const char* shortopts = "Vbe:f:hlr:v";
-#endif
 
 
 
@@ -63,11 +61,8 @@ void
 usage ()
 {
   gOut (0) << "usage: " << PACKAGE
-	   << " [-bhlvV] [-e num] [-f <model number>] [-r <residue ids>]"
-#ifdef HAVE_LIBRNAMLC__
-	   << " [-x]"
-#endif
-	   << " structure file ..." << endl;
+	   << " [-bhlvV] [-e num] [-f <model number>] [-r <residue ids>] <structure file> ..."
+	   << endl;
 }
 
 
@@ -75,7 +70,7 @@ void
 help ()
 {
   gOut (0)
-    << "This program annotates a structure (and more)." << endl
+    << "This program annotate structures (and more)." << endl
     << "  -b                read binary files instead of pdb files" << endl
     << "  -e num            number of surrounding layers of connected residues to annotate" << endl
     << "  -f model number   model to print" << endl
@@ -83,11 +78,7 @@ help ()
     << "  -l                be more verbose (log)" << endl
     << "  -r sel            extract these residues from the structure" << endl 
     << "  -v                be verbose" << endl
-    << "  -V                print the software version info" << endl
-#ifdef HAVE_LIBRNAMLC__
-    << "  -x                save the annotation in rnaml format" << endl
-#endif
-    ;    
+    << "  -V                print the software version info" << endl;    
 }
 
 
@@ -109,27 +100,35 @@ read_options (int argc, char* argv[])
 	  break; 
 	case 'e':
 	  {
-	    int tmp;
+	    long int tmp;
 
-	    tmp = atoi (optarg);
-	    if (0 < tmp)
+	    tmp = strtol (optarg, 0, 10);
+	    if (ERANGE == errno
+		|| EINVAL == errno
+		|| 0 > tmp)
 	      {
-		environment = tmp;
+		gErr (0) << PACKAGE << ": invalid environment value." << endl;
+		exit (EXIT_FAILURE);
 	      }
+	    environment = tmp;
+	    break;
 	  }
-	  break;
 	case 'f':
 	  {
-	    int tmp;
-	   
-	    tmp = atoi (optarg);
-	    if (0 <= tmp)
+	    long int tmp;
+
+	    tmp = strtol (optarg, 0, 10);
+	    if (ERANGE == errno
+		|| EINVAL == errno
+		|| 0 > tmp)
 	      {
-		modelNumber = tmp;
-		oneModel = true;
+		gErr (0) << PACKAGE << ": invalid model value." << endl;
+		exit (EXIT_FAILURE);
 	      }
+	    modelNumber = tmp;
+	    oneModel = true;
+	    break;
 	  }
-	  break;
         case 'h':
           usage ();
           help ();
@@ -139,16 +138,19 @@ read_options (int argc, char* argv[])
           gErr.setVerboseLevel (gErr.getVerboseLevel () + 1);
           break;
 	case 'r':
-	  residueSelection = optarg;
+	  try
+	    {
+	      residueSelection.insert (optarg);
+	    }
+	  catch (IntLibException &e)
+	    {
+	      gErr (0) << PACKAGE << ": invalid residue selection." << endl;
+	      exit (EXIT_FAILURE);
+	    }
 	  break;
 	case 'v':
 	  gOut.setVerboseLevel (gOut.getVerboseLevel () + 1);
           break;
-#ifdef HAVE_LIBRNAMLC__
-	case 'x':
-	  xmlFile = true;
-	  break;
-#endif
         default:
           usage ();
           exit (EXIT_FAILURE);
@@ -235,11 +237,10 @@ main (int argc, char *argv[])
 		{
 		  AnnotateModel &am = (AnnotateModel&) *molIt;
 		  
-		  am.annotate (true);
-		  gOut(0) << am ;
+		  am.annotate ();
+		  gOut(0) << am;
 		  if (oneModel)
 		    {
-		      optind = argc - 1;
 		      break;
 		    }
 		}

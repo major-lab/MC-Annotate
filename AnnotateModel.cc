@@ -1,7 +1,7 @@
 //                              -*- Mode: C++ -*- 
 // AnnotateModel.cc
-// Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
-//                     Université de Montréal
+// Copyright Â© 2001-06 Laboratoire de Biologie Informatique et ThÃ©orique.
+//                     UniversitÃ© de MontrÃ©al
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
 // $Revision$
@@ -20,6 +20,7 @@
 #include "mccore/Messagestream.h"
 #include "mccore/Pdbstream.h"
 #include "mccore/UndirectedGraph.h"
+#include "mccore/stlio.h"
 
 #include "AnnotateModel.h"
 
@@ -29,6 +30,9 @@ namespace annotate
 {
   
   static const unsigned int MIN_HELIX_SIZE = 3;
+  static const unsigned int PAIRING_MARK = 1;
+  static const unsigned int LHELIX = 2;
+  static const unsigned int RHELIX = 4;
 
   
   AbstractModel* 
@@ -53,58 +57,71 @@ namespace annotate
 
 
   void
-  AnnotateModel::annotate (bool backbone)
+  AnnotateModel::annotate ()
   {
-    edge_const_iterator edgeIt;
-    set< pair< GraphModel::label , GraphModel::label > > helixPairsCandidates;
-
-    nb_pairings = 0;
-    gOut (0) << *this << endl;
+//     sequences.clear ();
+    basepairs.clear ();
+    stacks.clear ();
+    links.clear ();
+// //     helices.clear ();
+// //     bulges.clear ();
+// //     loops.clear ();
+// //     internalloops.clear ();
+// //     multiloops.clear ();
+// //     singlestrands.clear ();
     marks.clear ();
-    GraphModel::annotate (residueSelection, backbone);
-    for (edgeIt = edge_begin (); edge_end () != edgeIt; ++edgeIt)
-      {
-	if ((*edgeIt)->is (PropertyType::pPairing)
-	    && *(*edgeIt)->getRef () < *(*edgeIt)->getRes ())
-	  {
-	    GraphModel::label ref;
-	    GraphModel::label res;
 
-	    ref = getVertexLabel (const_cast < Residue* > ((*edgeIt)->getRef ()));
-	    res = getVertexLabel (const_cast < Residue* > ((*edgeIt)->getRes ()));
-	    marks.insert (make_pair (ref, 'b'));
-	    marks.insert (make_pair (res, 'b'));
-	    ++nb_pairings;
-	    if (isHelixPairing (**edgeIt))
+// //     GraphModel::annotate (residueSelection);
+    GraphModel::annotate ();
+    marks.resize (size (), 0);
+    fillSeqBPStacks ();
+    std::sort (basepairs.begin (), basepairs.end ());
+    std::sort (stacks.begin (), stacks.end ());
+    std::sort (links.begin (), links.end ());
+//     findHelices ();
+// //     findLoops ();
+// //     findInternalLoops ();
+// //     findMultiLoops ();
+// //     findSingleStrands ();
+  }
+
+
+  void
+  AnnotateModel::fillSeqBPStacks ()
+  {
+    edge_iterator eit;
+    
+    for (eit = edge_begin (); edge_end () != eit; ++eit)
+      {
+	const Residue *ref;
+	const Residue *res;
+
+	if ((ref = (*eit)->getRef ())->getResId () < (res = (*eit)->getRes ())->getResId ())
+	  {
+	    GraphModel::label refLabel = getVertexLabel (const_cast< Residue* > (ref));
+	    GraphModel::label resLabel = getVertexLabel (const_cast< Residue* > (res));
+	
+	    if ((*eit)->isPairing ())
 	      {
-		helixPairsCandidates.insert (make_pair (ref, res));
+		marks[refLabel] |= PAIRING_MARK;
+		marks[resLabel] |= PAIRING_MARK;
+		basepairs.push_back (BasePair (refLabel, ref->getResId (),
+					       resLabel, res->getResId ()));
+	      }
+	    if ((*eit)->isStacking ())
+	      {
+		stacks.push_back (BaseStack (refLabel, ref->getResId (),
+					     resLabel, res->getResId ()));
+	      }
+	    if ((*eit)->is (PropertyType::pAdjacent5p))
+	      {
+		links.push_back (BaseLink (refLabel, ref->getResId (),
+					   resLabel, res->getResId ()));
 	      }
 	  }
       }
-
-//     buildStrands ();
-//     findHelices (helixPairsCandidates);
-//     findStrands ();
-//     classifyStrands ();
-    gOut (0) << "Residue conformations -------------------------------------------" << endl;
-    dumpConformations ();
-    dumpStacks ();
-    gOut (0) << "Base-pairs ------------------------------------------------------" << endl;
-//     findKissingHairpins ();
-    dumpPairs ();
-    gOut (0) << "Triples ---------------------------------------------------------" << endl;
-//     dumpTriples ();
-    gOut (0) << "Helices ---------------------------------------------------------" << endl;
-    dumpHelices ();
-    gOut (0) << "Strands ---------------------------------------------------------" << endl;
-//     dumpStrands ();
-    gOut (0) << "Various features ------------------------------------------------" << endl;
-//     findPseudoknots ();
-    gOut (0) << "Sequences -------------------------------------------------------" << endl;
-//     dumpSequences ();
-    gOut (0) << endl;
   }
-
+  
 
   bool
   AnnotateModel::isHelixPairing (const Relation &r)
@@ -115,103 +132,97 @@ namespace annotate
   }
     
 
-    void 
-  AnnotateModel::findHelices (const set< pair< label, label > > &helixPairsCandidates)
+  void 
+  AnnotateModel::findHelices ()
   {
-    list< pair< label, label > > hPC (helixPairsCandidates.begin (), helixPairsCandidates.end ());
-    
-    while (! hPC.empty ())
+    list< BasePair > hPC;
+    vector< BasePair >::const_iterator bpit;
+
+    for (bpit = basepairs.begin (); basepairs.end () != bpit; ++bpit)
       {
-	list< pair< label, label > >::iterator hpcIt;
-	Helix helix;
-
-	hpcIt = hPC.begin ();
-	helix.push_back (make_pair (hpcIt->first, hpcIt->second));
-	hpcIt = hPC.erase (hpcIt);
-	while (hPC.end () != hpcIt)
+	if (isHelixPairing (*internalGetEdge (bpit->first, bpit->second)))
 	  {
-	    label fst = hpcIt->first;
-	    label snd = hpcIt->second;
-	    label hfst = helix.front ().first;
-	    label hsnd = helix.front ().second;
-	    label tfst = helix.back ().first;
-	    label tsnd = helix.back ().second;
-	    bool inserted;
-
-	    inserted = false;
-	    if (internalAreConnected (fst, tfst)
-		&& internalAreConnected (snd, tsnd)
-		&& internalGetEdge (tfst, fst)->is (PropertyType::pAdjacent5p)
-		&& internalGetEdge (tsnd, snd)->isAdjacent ()
-		&& (internalGetEdge (tfst, fst)->isStacking ()
-		    || internalGetEdge (tsnd, snd)->isStacking ()))
-	      {
-		helix.push_back (*hpcIt);
-		inserted = true;
-	      }
-	    else if (internalAreConnected (fst, hfst)
-		     && internalAreConnected (snd, hsnd)
-		     && internalGetEdge (fst, hfst)->is (PropertyType::pAdjacent5p)
-		     && internalGetEdge (snd, hsnd)->isAdjacent ()
-		     && (internalGetEdge (fst, hfst)->isStacking ()
-			 || internalGetEdge (snd, hsnd)->isStacking ()))
-	      {
-		helix.insert (helix.begin (), *hpcIt);
-		inserted = true;
-	      }
-	    else if (internalAreConnected (fst, tsnd)
-		     && internalAreConnected (snd, tfst)
-		     && internalGetEdge (tfst, snd)->is (PropertyType::pAdjacent5p)
-		     && internalGetEdge (tsnd, fst)->isAdjacent ()
-		     && (internalGetEdge (tfst, snd)->isStacking ()
-			 && internalGetEdge (tsnd, fst)->isStacking ()))
-	      {
-		pair< label, label > &p = *hpcIt;
-
-		swap (p.first, p.second);
-		helix.push_back (p);
-		inserted = true;
-	      }
-	    else if (internalAreConnected (fst, hsnd)
-		     && internalAreConnected (snd, hfst)
-		     && internalGetEdge (snd, hfst)->is (PropertyType::pAdjacent5p)
-		     && internalGetEdge (fst, hsnd)->isAdjacent ()
-		     && (internalGetEdge (snd, hfst)->isStacking ()
-			 || internalGetEdge (fst, hsnd)->isStacking ()))
-	      {
-		pair< label, label > &p = *hpcIt;
-
-		swap (p.first, p.second);
-		helix.insert (helix.begin (), p);
-		inserted = true;
-	      }
-	    if (inserted)
-	      {
-		hpcIt = hPC.erase (hpcIt);
-		if (hPC.end () == hpcIt)
-		  {
-		    hpcIt = hPC.begin ();
-		  }
-	      }
-	    else
-	      {
-		++hpcIt;
-	      }
-	  }
-	if (MIN_HELIX_SIZE <= helix.size ())
-	  {
-	    Helix::iterator i;
-		    
-	    for (i = helix.begin (); i != helix.end (); ++i)
-	      {
-		helix_mask[i->first] = helices.size ();
-		marks[i->first] = '(';
-		helix_mask[i->second] = helices.size ();
-		marks[i->second] = ')';
-	      }
-	    helices.push_back (helix);
+	    hPC.push_back (*bpit);
 	  }
       }
+//     while (! hPC.empty ())
+//       {
+// 	Helix helix;
+// 	list< BasePair >::iterator hpcIt;
+// 	label hfst;
+// 	label hsnd;
+// 	label tfst;
+// 	label tsnd;
+
+// 	hpcIt = hPC.begin ();
+// 	helix.push_back (*hpcIt);
+// 	hpcIt = hPC.erase (hpcIt);
+// 	hfst = helix.front ().first;
+// 	hsnd = helix.front ().second;
+// 	tfst = helix.back ().first;
+// 	tsnd = helix.back ().second;
+// 	while (hPC.end () != hpcIt)
+// 	  {
+// 	    label fst = hpcIt->first;
+// 	    label snd = hpcIt->second;
+// 	    bool inserted = false;
+	    
+// 	    if (((internalAreConnected (tfst, fst)
+// 		  && internalGetEdge (tfst, fst)->isAdjacent ())
+// 		 && (internalAreConnected (tsnd, snd)
+// 		     && (internalGetEdge (tsnd, snd)->isAdjacent ())))
+// 		|| ((internalAreConnected (tfst, snd)
+// 		     && internalGetEdge (tfst, snd)->isAdjacent ())
+// 		    && (internalAreConnected (tsnd, fst)
+// 			&& internalGetEdge (tsnd, fst)->isAdjacent ())
+// 		    && (hpcIt->reverse (), std::swap (fst, snd), true)))
+// 	      {
+// 		helix.push_back (*hpcIt);
+// 		tfst = fst;
+// 		tsnd = snd;
+// 		inserted = true;
+// 	      }
+// 	    else if (((internalAreConnected (fst, hfst)
+// 		       && internalGetEdge (fst, hfst)->isAdjacent ())
+// 		      && (internalAreConnected (snd, hsnd)
+// 			  && internalGetEdge (snd, hsnd)->isAdjacent ()))
+// 		     || ((internalAreConnected (fst, hsnd)
+// 			  && internalGetEdge (fst, hsnd)->isAdjacent ())
+// 			 && (internalAreConnected (snd, hfst)
+// 			     && internalGetEdge (snd, hfst)->isAdjacent ())
+// 			 && (hpcIt->reverse (), std::swap (fst,snd), true)))
+// 	      {
+// 		helix.insert (helix.begin (), *hpcIt);
+// 		hfst = fst;
+// 		hsnd = snd;
+// 		inserted = true;
+// 	      }
+// 	    if (inserted)
+// 	      {
+// 		hpcIt = hPC.erase (hpcIt);
+// 		if (hPC.end () == hpcIt)
+// 		  {
+// 		    hpcIt = hPC.begin ();
+// 		  }
+// 	      }
+// 	    else
+// 	      {
+// 		++hpcIt;
+// 	      }
+// 	  }
+// 	if (MIN_HELIX_SIZE <= helix.size ())
+// 	  {
+// 	    Helix::iterator hit;
+	    
+// 	    helix.setId (helices.size ());
+// 	    for (hit = helix.begin (); helix.end () != hit; ++hit)
+// 	      {
+// 		marks[hit->first] = LHELIX;
+// 		marks[hit->second] = RHELIX;
+// 	      }
+// 	    helices.push_back (helix);
+// 	  }
+//       }
   }
 
   //     li = 0;
@@ -888,14 +899,14 @@ namespace annotate
 
   
   void
-  AnnotateModel::dumpConformations ()
+  AnnotateModel::dumpConformations () const
   {
     const_iterator i;
     
     for (i = begin (); i != end (); ++i)
       {
 	gOut(0) << i->getResId ()
-		<< " : " << i->getType ();
+		<< " : " << Pdbstream::stringifyResidueType (i->getType ());
 	if (i->getType ()->isNucleicAcid ())
 	  {
 	    gOut (0) << " " << i->getPucker ()
@@ -907,43 +918,64 @@ namespace annotate
 
   
   void
-  AnnotateModel::dumpPairs () const
+  AnnotateModel::dumpStacks () const
   {
-    const_iterator i;
-    edge_const_iterator edgeIt;
-    list< Residue* > neighbor;
-    list< Residue* >::iterator nborIt;
-    set< const PropertyType* >::iterator k;
+    vector< BaseStack > nonAdjacentStacks;
+    vector< BaseStack >::const_iterator bsit;
 
-    map< pair< ResId, ResId >, const Relation* > pairs;
-    map< pair< ResId, ResId >, const Relation* >::iterator it;
-    edge_const_iterator eIt;
+    gOut(0) << "Adjacent stackings ----------------------------------------------" << endl;
 
-    for (eIt = edge_begin (); edge_end () != eIt; ++eIt)
+    for (bsit = stacks.begin (); stacks.end () != bsit; ++bsit)
       {
-	if ((*eIt)->isPairing ()
-	    && (*eIt)->getRef ()->getResId () < (*eIt)->getRes ()->getResId ())
+	const Relation *rel = internalGetEdge (bsit->first, bsit->second);
+	if (rel->is (PropertyType::pAdjacent))
 	  {
-	    map< pair< ResId, ResId >, const Relation* >::value_type entry
-	      = make_pair (make_pair ((*eIt)->getRef ()->getResId (),
-				      (*eIt)->getRes ()->getResId ()),
-			   *eIt);
+	    const set< const PropertyType* > &labels = rel->getLabels ();
 
-	    pairs.insert (entry);
+	    gOut (0) << bsit->fResId << "-" << bsit->rResId << " : ";
+	    copy (labels.begin (), labels.end (), ostream_iterator< const PropertyType* > (gOut (0), " "));
+	    gOut (0) << endl;
+	  }
+	else
+	  {
+	    nonAdjacentStacks.push_back (*bsit);
 	  }
       }
-
-    for (it = pairs.begin (); pairs.end () != it; ++it)
+    
+    gOut(0) << "Non-Adjacent stackings ------------------------------------------" << endl;
+    
+    for (bsit = nonAdjacentStacks.begin (); nonAdjacentStacks.end () != bsit; ++bsit)
       {
-	const set< const PropertyType* > &labels = it->second->getLabels ();
-	const vector< pair< const PropertyType*, const PropertyType* > > &faces
-	  = it->second->getPairedFaces ();
+	const set< const PropertyType* > &labels = internalGetEdge (bsit->first, bsit->second)->getLabels ();
+	
+	gOut (0) << bsit->fResId << "-" << bsit->rResId << " : ";
+	copy (labels.begin (), labels.end (), ostream_iterator< const PropertyType* > (gOut (0), " "));
+	gOut (0) << endl;
+      }
+
+    gOut(0) << "Number of stackings = " << stacks.size () << endl
+// 	    << "Number of helical stackings = " << nb_helical_stacks << endl
+	    << "Number of adjacent stackings = " << stacks.size () - nonAdjacentStacks.size () << endl
+	    << "Number of non adjacent stackings = " << nonAdjacentStacks.size () << endl;
+  }
+  
+
+  void
+  AnnotateModel::dumpPairs () const
+  {
+    vector< BasePair >::const_iterator bpit;
+
+    for (bpit = basepairs.begin (); basepairs.end () != bpit; ++bpit)
+      {
+	const Relation &rel = *internalGetEdge (bpit->first, bpit->second);
+	const set< const PropertyType* > &labels = rel.getLabels ();
+	const vector< pair< const PropertyType*, const PropertyType* > > &faces = rel.getPairedFaces ();
 	vector< pair< const PropertyType*, const PropertyType* > >::const_iterator pfit;
 
-	gOut(0) << it->first.first << '-' << it->first.second << " : ";
-	gOut(0) << Pdbstream::stringifyResidueType (it->second->getRef ()->getType())
+	gOut(0) << bpit->fResId << '-' << bpit->rResId << " : ";
+	gOut(0) << Pdbstream::stringifyResidueType (rel.getRef ()->getType())
 		<< "-"
-		<< Pdbstream::stringifyResidueType (it->second->getRes ()->getType ())
+		<< Pdbstream::stringifyResidueType (rel.getRes ()->getType ())
 		<< " ";
 	for (pfit = faces.begin (); faces.end () != pfit; ++pfit)
 	  {
@@ -955,64 +987,6 @@ namespace annotate
   }
 
   
-  void
-  AnnotateModel::dumpStacks () const
-  {
-    map< pair< ResId, ResId >, const Relation* > adjacentStacks;
-    map< pair< ResId, ResId >, const Relation* > nonAdjacentStacks;
-    map< pair< ResId, ResId >, const Relation* >::iterator it;
-    edge_const_iterator eIt;
-
-    for (eIt = edge_begin (); edge_end () != eIt; ++eIt)
-      {
-	if ((*eIt)->isStacking ()
-	    && (*eIt)->getRef ()->getResId () < (*eIt)->getRes ()->getResId ())
-	  {
-	    map< pair< ResId, ResId >, const Relation* >::value_type entry
-	      = make_pair (make_pair ((*eIt)->getRef ()->getResId (),
-				      (*eIt)->getRes ()->getResId ()),
-			   *eIt);
-	    if ((*eIt)->isAdjacent ())
-	      {
-		adjacentStacks.insert (entry);
-	      }
-	    else
-	      {
-		nonAdjacentStacks.insert (entry);
-	      }
-	  }
-      }
-
-    gOut(0) << "Adjacent stackings ----------------------------------------------" << endl;
-
-    for (it = adjacentStacks.begin (); adjacentStacks.end () != it; ++it)
-      {
-	const set< const PropertyType* > &labels = it->second->getLabels ();
-
-	gOut (0) << it->first.first << "-" << it->first.second << " : ";
-	copy (labels.begin (), labels.end (), ostream_iterator< const PropertyType* > (gOut (0), " "));
-	gOut (0) << endl;
-      }
-    
-    gOut(0) << "Non-Adjacent stackings ------------------------------------------" << endl;
-    
-    for (it = nonAdjacentStacks.begin (); nonAdjacentStacks.end () != it; ++it)
-      {
-	const set< const PropertyType* > &labels = it->second->getLabels ();
-	
-	gOut (0) << it->first.first << "-" << it->first.second << " : ";
-	copy (labels.begin (), labels.end (), ostream_iterator< const PropertyType* > (gOut (0), " "));
-	  gOut (0) << endl;
-      }
-
-    gOut(0) << "Number of stackings = "
-	    << adjacentStacks.size () + nonAdjacentStacks.size () << endl
-// 	    << "Number of helical stackings = " << nb_helical_stacks << endl
-	    << "Number of adjacent stackings = " << adjacentStacks.size () << endl
-	    << "Number of non adjacent stackings = " << nonAdjacentStacks.size () << endl;
-  }
-  
-
   void
   AnnotateModel::dumpTriples ()
   {
@@ -1065,6 +1039,23 @@ namespace annotate
   ostream&
   AnnotateModel::output (ostream &os) const
   {
+    gOut (0) << "Residue conformations -------------------------------------------" << endl;
+    dumpConformations ();
+    dumpStacks ();
+    gOut (0) << "Base-pairs ------------------------------------------------------" << endl;
+// //     findKissingHairpins ();
+    dumpPairs ();
+//     gOut (0) << "Triples ---------------------------------------------------------" << endl;
+// //     dumpTriples ();
+//     gOut (0) << "Helices ---------------------------------------------------------" << endl;
+//     dumpHelices ();
+//     gOut (0) << "Strands ---------------------------------------------------------" << endl;
+//     dumpStrands ();
+//     gOut (0) << "Various features ------------------------------------------------" << endl;
+// //     findPseudoknots ();
+//     gOut (0) << "Sequences -------------------------------------------------------" << endl;
+// //     dumpSequences ();
+//     gOut (0) << endl;
     return os;
   }
 
@@ -1122,389 +1113,7 @@ namespace std
   }  
 }
   
-namespace annotate {
-
-void 
-AnnotateModel::dumpMcc (const char* pdbname)
-{
-//   char str[256];
-//   cout << "//" << endl;
-//   cout << "// Annotation results ------------------------------------------------" << endl;
-//   cout << "//" << endl;
-//   gethostname (str, 255);
-//   cout << "// Author         : " << getenv ("LOGNAME") << '@' << str << endl;
-//   cout << "// Structure file : " << pdbname << endl;
-//   cout << "// Structural annotation generated by " << PACKAGE << " "  << VERSION << endl;
-//   cout << "// ";
-//   cout << endl;
-// 
-//   cout << "// Sequences ---------------------------------------------------------" << endl;
-//   cout << "// The distance between atoms O3' and P of two residues must be       " << endl;
-//   cout << "// inferior to 20nm for them to be considered adjacent.               " << endl;
-//   cout << "//" << endl;
-//   {
-//     int i, j;
-//     int currseq = -1;
-//     
-//     for (i=0; i<(int)conformations.size (); ) {
-//       
-//       currseq = sequence_mask[i];
-//       
-//       cout << "sequence( r " << endl;
-//       
-//       int pos = 0;
-//       while (pos < sequence_length[currseq]) 
-// 	{
-// 	  for (j=pos; (j<sequence_length[currseq] && (j+1)%50!=0); ++j) {
-// 	    if (j==0) cout << setw (8) << getResId (i+j) << " ";
-// 	    cout << getType (i+j)->toString ();
-// 	    if ((j+1)%10==0) cout << " ";
-// 	  }
-// 	  cout << endl;
-// 	  pos = j+1;
-// 	}
-//       
-//       cout << ")" << endl;
-//       
-//       i += pos-1;
-//     }
-//   }
-// 
-//   cout << "//" << endl;
-//   cout << "// Nucleotide conformations ------------------------------------------" << endl;
-//   cout << "// The distance between atoms O3' and P of two residues must be       " << endl;
-//   cout << "// inferior to 20nm for them to be considered adjacent.               " << endl;
-//   cout << "//" << endl;
-//   {
-//     UndirectedGraph< node, edge >::iterator i;
-// 
-//     cout << "residue(" << endl;
-//     for (i=graph.begin (); i!=graph.end (); ++i) {
-//       cout << setw(8) << getResId (*i) << " { ";
-//       cout.setf (ios::left, ios::adjustfield);
-//       cout << setw(8) << *conformations[*i]->getPucker () << " && " 
-// 	   << setw(4) << *conformations[*i]->getGlycosyl () << " }" << "  100%" << endl; 
-//       cout.setf (ios::right, ios::adjustfield);
-//     }
-//     cout << ")" << endl;
-//   }
-// 
-//   cout << "//" << endl;
-//   cout << "// Non-adjacent base-pairs and stackings ------------------------" << endl;
-//   cout << "//" << endl;
-//  
-//   {
-//     UndirectedGraph< node, edge >::iterator i;
-//     list< node >::iterator j;
-//     list< node > neigh;
-//     set< const PropertyType* >::iterator k;
-//     
-//     if (nb_pairings > 0) {
-//       cout << "pair(" << endl;
-//       for (i=graph.begin (); i!=graph.end (); ++i) {
-// 	neigh = graph.getNeighbors (*i);
-// 	for (j=neigh.begin (); j!=neigh.end (); ++j) {
-// 	  edge e = graph.getEdge (*i, *j);
-// 	  if (*i < *j && 
-// 	      !isAdjacent (e)) {
-// 	    
-// 	    cout << setw(8) << getResId (*i) 
-// 		 << setw(8) << getResId (*j) << " { ";
-// 	    
-// 	    bool useand = false;
-// 	    if (isPairing (e) && !relations[e].is (PropertyType::parseType ("unclassified"))) {
-// 	      cout << (const char*)(*relations[e].getRefFace ()) << "/" << flush
-// 		   << (const char*)(*relations[e].getResFace ()) << " " << flush;
-// 	      useand = true;
-// 	    }
-// 	    for (k=relations[e].getLabels ().begin (); 
-// 		 k!=relations[e].getLabels ().end (); ++k) {
-// 	      if ((*k) == PropertyType::pReverse || 
-// 		  (*k) == PropertyType::pCis ||
-// 		  (*k) == PropertyType::pTrans ||
-// 		  (*k) == PropertyType::pStack) {      
-// 		if (useand) cout << "&& ";
-// 		cout << (const char*)**k << " " ;
-// 		useand = true;
-// 	      }
-// 	    }
-// 	    
-// 	    cout << "}" << "  100%" << endl; 
-// 	  }
-// 	}
-//       }
-//       cout << ")" << endl;
-//     }
-//   }
-//   
-//   cout << "//" << endl;
-//   cout << "// Adjacent relations -------------------------------------------" << endl;
-//   cout << "//" << endl;
-// 
-//   {
-//     UndirectedGraph< node, edge >::iterator i;
-//     list< node >::iterator j;
-//     list< node > neigh;
-//     set< const PropertyType* >::iterator k;
-//   
-//     if (nb_connect > 0) {
-//       cout << "connect(" << endl;
-//       for (i=graph.begin (); i!=graph.end (); ++i) {
-// 	neigh = graph.getNeighbors (*i);
-// 	for (j=neigh.begin (); j!=neigh.end (); ++j) {
-// 	  edge e = graph.getEdge (*i, *j);
-// 	  if (*i < *j && 
-// 	      isAdjacent (e)) {
-// 	    
-// 	    cout << setw(8) << getResId (*i) 
-// 		 << setw(8) << getResId (*j) << " { ";
-// 	    
-// 	    if (isPairing (e)) {
-// 	      cout << (const char*)(*relations[e].getRefFace ()) << "/" << flush
-// 		   << (const char*)(*relations[e].getResFace ()) << " " << flush;
-// 	      cout << "&& ";
-// 	    }
-// 	    
-// 	    if (isStacking (e))
-// 	      cout << "stack" << " ";
-// 	    else 
-// 	      cout << "!stack" << " ";
-// 	    
-// 	    for (k=relations[e].getLabels ().begin (); 
-// 		 k!=relations[e].getLabels ().end (); ++k) {
-// 	      if ((*k) == PropertyType::pReverse || 
-// 		  (*k) == PropertyType::pCis ||
-// 		  (*k) == PropertyType::pTrans ||
-// 		  (*k) == PropertyType::pPairing) {
-// 		cout << "&& " << (const char*)**k << " " ;
-// 	      }
-// 	    }
-// 	    cout << "}" << "  100%" << endl; 
-// 	  }
-// 	} 
-//       }
-//       cout << ")" << endl;    
-//     }
-//   }
-//   
-//   cout << "//" << endl;
-//   cout << "// Construction order -------------------------------------------" << endl;
-//   cout << "// This section defines a spanning tree of minimal height that   " << endl;
-//   cout << "// connects all residues of the molecule and states the order in " << endl;
-//   cout << "// which they are placed in the modeling process."                 << endl;
-//   cout << "//" << endl;
-// 
-//   // Here, we need to find connected components of the initial graph and build a backtrack
-//   // for each of them.  The generated script is not guaranteed to work when an annotated
-//   // PDB file contains many fragments of RNA...  What should we do???????
-// 
-//   {
-//     cout << "global = backtrack(" << endl;
-// 
-//     UndirectedGraph< node, edge >::iterator i;
-//     list< node >::iterator j;
-//     list< node > neigh;
-//     
-//     for (i=graph.begin (); i!=graph.end (); ++i) {
-//       neigh = graph.getNeighbors (*i);
-//       for (j=neigh.begin (); j!=neigh.end (); ++j) {
-// 	edge e = graph.getEdge (*i, *j);
-// 	if (isPairing (e) && !relations[e].is (PropertyType::parseType ("unclassified")))
-// 	  graph.setEdgeWeight (*i, *j, 1);
-// 	else
-// 	  graph.setEdgeWeight (*i, *j, 2);
-//       }
-//     }
-// 
-//     vector< pair< node, node > > edges;
-//     vector< pair< node, node > >::reverse_iterator k;
-// 
-//     edges = graph.minimumSpanningTree ();
-// 
-//     list< list< node > > treated;
-//     list< list< node > >::iterator x;
-//     list< node >::iterator y;
-// 
-//     for (k=edges.rbegin (); k!=edges.rend (); ++k) {
-//       node a, b;
-//       a = *graph.find (k->first);
-//       b = *graph.find (k->second);
-// 
-//       bool done = false;
-//       for (x=treated.begin (); x!=treated.end (); ++x) {
-// 	if (x->front () == b) {
-// 	  x->push_front (a);
-// 	  done = true;
-// 	} else if (x->back () == a) {
-// 	  x->push_back (b);
-// 	  done = true;
-// 	}
-// 	if (done) break;
-//       }
-//       if (!done) {
-// 	list< node > tmp;
-// 	tmp.push_back (a);
-// 	tmp.push_back (b);
-// 	treated.push_front (tmp);
-//       }
-//     }
-// 
-//     // correction pass to keep a valid backtrack statement
-// 
-//     size_t placed_sz = 0;
-//     set< int > placed;
-// 
-//     for (y = treated.begin ()->begin (); y != treated.begin ()->end (); ++y)
-//       placed.insert (*y);
-// 
-//     if (treated.size () > 1)
-//       {
-// 	x = treated.begin ();
-// 	x++;
-// 	for (; x != treated.end (); ++x) 
-// 	  {
-// 	    placed_sz = placed.size ();
-// 	    placed.insert (*x->begin ());
-// 
-// 	    if (placed.size () > placed_sz)
-// 	      {
-// 		// oups! reference residue not placed yet!
-// 		// What if we just flip the sub-list over...
-// 		placed_sz = placed.size ();
-// 		placed.insert (x->back ());
-// 
-// 		if (placed.size () > placed_sz)
-// 		  {
-// 		    // hum...something is really wrong here!
-// 		    cerr << "Fatal Error: unable to build a valid backtrack statement" << endl;
-// 		    exit (EXIT_FAILURE);
-// 		  }
-// 
-// 		// update placed residues set, then flip the sub-list over
-// 		list< int > tmp;
-// 		for (y = x->begin (); y != x->end (); ++y)
-// 		  {
-// 		    placed.insert (*y);
-// 		    tmp.push_front (*y);
-// 		  }
-// 		x->clear ();
-// 		for (y = tmp.begin (); y != tmp.end (); ++y)
-// 		  x->push_back (*y);
-// 	      }
-// 	    else
-// 	      {
-// 		// just update placed residues set
-// 		for (y = x->begin (); y != x->end (); ++y)
-// 		  placed.insert (*y);
-// 	      }
-// 
-// 	  }
-//       }
-//     
-//     for (x=treated.begin (); x!=treated.end (); ++x) {
-//       cout << "  ( ";
-//       for (y=x->begin (); y!=x->end (); ++y) {
-// 	cout << getResId (*y) << " ";
-//       }
-//       cout << ")" << endl;
-//     }
-//     
-//     cout << ")" << endl;
-//   }
-//   
-//   cout << "//" << endl;
-//   cout << "// Molecule cache -----------------------------------------------" << endl;
-//   cout << "// A cache is normally placed on top of the backtrack so         " << endl;
-//   cout << "// generated models are kept only if they are different enough   " << endl;
-//   cout << "// from previously generated models."                              << endl;
-//   cout << "//" << endl;
-// 
-//   {
-//     
-//     cout << "global_cache = cache(" << endl;
-//     cout << "  global" << endl;
-//     cout << "  rmsd (1.0 align base_only  no_hydrogen)" << endl;
-//     cout << ")" << endl;
-//   }
-//   
-//   cout << "//" << endl;
-//   cout << "// Constraints --------------------------------------------------" << endl;
-//   cout << "//" << endl;
-//   cout << "adjacency( " << endl
-//        << "  global 1.0 5.0" << endl
-//        << ")" << endl << endl;
-//   cout << "res_clash(" << endl
-//        << "  global" << endl
-//        << "  fixed_distance 1.0" << endl
-//        << "  all no_hydrogen" << endl
-//        << ")" << endl;
-//   cout << "//" << endl;
-//   cout << "// Exploration type ---------------------------------------------" << endl;
-//   cout << "//" << endl;
-//   cout << "explore(" << endl
-//        << "  global_cache" << endl
-//        << "  file_pdb (\"global-%05d.pdb\" zipped)" << endl
-//        << ")" << endl;
-// 
-//   cout << "//" << endl
-//        << "// --------------------------------------------------------------" << endl
-//        << "//" << endl;
-}
-
-
-
-// void AnnotateModel::dumpCt (const char* pdbname)
-// {
-// //fprintf(ofp, "%5d %c   %5d %4d %4d %4d\n",
-
-//   //  char str[256];
-//   int i, j;
-
-//   cout << setw (5) << (int)conformations.size () 
-//        << " ENERGY = -0.0 " << pdbname << endl;
-
-//   int modelId = sequence_mask[0];
-
-//   for (i=0; i<(int)conformations.size (); ++i) {
-//     if (sequence_mask[i] != modelId) return;
-//     cout << setw (6) << i+1 << " "
-// 	 << *getType (i) << "   " 
-// 	 << setw (5) << ((i>0)?i-1:0) << " " 
-// 	 << setw (4) << ((i<(int)conformations.size ()-1)?i+2:0) << " ";
-//     if ((j=helix_mask[i]) != -1) {
-
-//       for (int k=0; k<(int)helices[j].size (); ++k) {
-// 	if (helices[j][k].first == i)
-// 	  cout << setw (4) << helices[j][k].second+1 << " ";
-// 	else if (helices[j][k].second == i)
-// 	  cout << setw (4) <<helices[j][k].first+1 << " ";
-//       }
-//     }
-//     else cout << setw (4) << 0 << " ";
-//     cout << setw (4) << i+1 << endl;
-//   }
-
-
-// //    for (i=0; i<(int)conformations.size (); ++i) {
-// //      cout << setw (6) << getResId (i).GetResNo () << " "
-// //  	 << *getType (i) << "   " 
-// //  	 << setw (5) << ((i>0)?getResId (i-1).GetResNo ():0) << " " 
-// //  	 << setw (4) << ((i<(int)conformations.size ()-1)?getResId (i+1).GetResNo ():0) << " ";
-// //      if ((j=helix_mask[i]) != -1) {
-
-// //        for (int k=0; k<helices[j].size (); ++k) {
-// //  	if (helices[j][k].first == i)
-// //  	  cout << setw (4) << getResId (helices[j][k].second).GetResNo () << " ";
-// //  	else if (helices[j][k].second == i)
-// //  	  cout << setw (4) << getResId (helices[j][k].first).GetResNo () << " ";
-// //        }
-// //      }
-// //      else cout << setw (4) << 0 << " ";
-// //      cout << setw (4) << getResId (i).GetResNo () << endl;
-// //    }
-
-// }
-
+// namespace annotate {
 
 // void AnnotateModel::PDF_drawLoop2 (PDF *p, int li, int source_jct)
 // {
@@ -1897,4 +1506,4 @@ AnnotateModel::dumpMcc (const char* pdbname)
 // //   PDF_delete (p);
 // // }
 
-}
+// }

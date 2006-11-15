@@ -1,7 +1,7 @@
 //                              -*- Mode: C++ -*- 
 // AnnotateModel.h
-// Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
-//                     Université de Montréal
+// Copyright Â© 2001-06 Laboratoire de Biologie Informatique et ThÃ©orique.
+//                     UniversitÃ© de MontrÃ©al
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
 // $Revision$
@@ -27,6 +27,11 @@
 #include "mccore/ResIdSet.h"
 #include "mccore/Residue.h"
 #include "mccore/ResidueType.h"
+
+#include "BaseLink.h"
+#include "BasePair.h"
+#include "BaseStack.h"
+#include "Helix.h"
 
 using namespace mccore;
 using namespace std;
@@ -98,9 +103,9 @@ namespace annotate
   class AnnotateModelFM : public ModelFactoryMethod
   {
     /**
-     * A comma separated string of residue ids to annotate.
+     * A ResIdSet of residues to annotate.
      */
-    string residueSelection;
+    ResIdSet residueSelection;
 
     /**
      * The number of relation layers around the residue selection to
@@ -114,12 +119,12 @@ namespace annotate
 
     /**
      * Initializes the object.
-     * @param rs a comma separated string of residue ids to annotate.
+     * @param rs a ResIdSet of residue ids to annotate.
      * @param env the number of relation layers around the residue selection to
      * annotate.
      * @param fm the residue factory method.
      */
-    AnnotateModelFM (const string &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
+    AnnotateModelFM (const ResIdSet &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
       : ModelFactoryMethod (fm),
 	residueSelection (rs),
 	environment (env)
@@ -200,17 +205,19 @@ namespace annotate
     int nb_pairings;
     int min_helix_size;
 
-    typedef vector< pair< label, label > > Helix;
     struct OStrand : public pair< label, label > {
       stype type;
       int ref;
     };
 
+    vector< BasePair > basepairs;
+    vector< BaseStack > stacks;
+    vector< BaseLink > links;
     vector< Helix > helices;
-    vector< OStrand > strands;
-  
-    vector< int > sequence_length;
-    map< label, char > marks;
+//     vector< OStrand > strands;
+    
+//     vector< int > sequence_length;
+    vector< unsigned int > marks;
 
     map< label, int > helix_mask;
     map< label, int > strand_mask;
@@ -227,30 +234,30 @@ namespace annotate
     
     /**
      * Initializes the object.
-     * @param rs a comma separated string of residue ids to annotate.
+     * @param rs a ResIdSet of residues to annotate.
      * @param env the number of relation layers around the residue selection to
      * annotate.
      * @param fm the residue factory methods that will instanciate new
      * residues (default is @ref ExtendedResidueFM).
      */
-    AnnotateModel (const string &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
+    AnnotateModel (const ResIdSet &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
       : GraphModel (fm),
-	residueSelection (rs.c_str ()),
+	residueSelection (rs),
 	environment (env)
     { }
     
     /**
      * Initializes the object with the right's content (deep copy).
      * @param right the object to copy.
-     * @param rs a comma separated string of residue ids to annotate.
+     * @param rs a ResIdSet of residues to annotate.
      * @param env the number of relation layers around the residue selection to
      * annotate.
      * @param fm the residue factory methods that will instanciate new
      * residues (default is @ref ExtendedResidueFM).
      */
-    AnnotateModel (const AbstractModel &right, const string &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
+    AnnotateModel (const AbstractModel &right, const ResIdSet &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
       : GraphModel (right, fm),
-	residueSelection (rs.c_str ()),
+	residueSelection (rs),
 	environment (env)
     { }
 
@@ -267,9 +274,8 @@ namespace annotate
 
     /**
      * Builds the graph of relations, find strands and helices.
-     * @param backbone backbone annotation flag (default true).
      */
-    void annotate (bool backbone = true);
+    void annotate ();
     
   private :
     
@@ -287,6 +293,12 @@ namespace annotate
            
   public:
  
+
+    void fillSeqBPStacks ();
+    void findHelices ();
+
+
+
     void buildStrands();
     
     void findHelices (const set< pair< label, label > > &helixPairsCandidates);
@@ -300,15 +312,12 @@ namespace annotate
 
     void dumpSequences (bool detailed = true) ;
     void dumpPairs () const;
-    void dumpConformations () ;
+    void dumpConformations () const;
     void dumpTriples () ;
     void dumpStacks () const;
 
     // I/O  -----------------------------------------------------------------
   
-    void dumpMcc (const char* pdbname);
-    
-      
     /**
      * Ouputs the model to the stream.
      * @param os the output stream.
