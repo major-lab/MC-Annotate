@@ -13,14 +13,22 @@
 #endif
 
 #include <algorithm>
+#include <cmath>
 #include <iterator>
 #include <list>
+#include <time.h>
 
 #include "mccore/Binstream.h"
 #include "mccore/Messagestream.h"
 #include "mccore/Pdbstream.h"
 #include "mccore/UndirectedGraph.h"
 #include "mccore/stlio.h"
+
+extern "C" {
+#include "cliquer.h"
+#include "graph.h"
+#include "set.h"
+}
 
 #include "AnnotateModel.h"
 
@@ -33,6 +41,40 @@ namespace annotate
   static const unsigned int PAIRING_MARK = 1;
   static const unsigned int LHELIX = 2;
   static const unsigned int RHELIX = 4;
+  static unsigned int weight_GC = 100;
+  static unsigned int weight_AU = 99;
+  static unsigned int weight_GU = 95;
+  static unsigned int weight_GA = 90;
+  static unsigned int weight_AC = 90;
+  static unsigned int weight_CU = 90;
+  static unsigned int weight_GG = 90;
+  static unsigned int weight_AA = 90;
+  static unsigned int weight_CC = 90;
+  static unsigned int weight_UU = 90;
+  
+  
+  static void
+  print_clique (set_t s, graph_t *g)
+  {
+    unsigned int i;
+
+    printf ("size=%d, weight=%d:  ",set_size(s),graph_subgraph_weight(g,s));
+    for (i=0; i<SET_MAX_SIZE(s); i++) {
+      if (SET_CONTAINS(s,i)) {
+	printf(" %d",i);
+      }
+    }
+    printf("\n");
+    return;
+  }
+
+  
+  static boolean
+  print_clique_func (set_t s,graph_t *g,clique_options *opts)
+  {
+    print_clique(s,g);
+    return true;
+  }
 
   
   AbstractModel* 
@@ -54,12 +96,157 @@ namespace annotate
   {
     return obs;
   }
+  
+  
+  bool 
+  areLinked (const pair< AnnotateModel::label, AnnotateModel::label> &p , const pair< AnnotateModel::label, AnnotateModel::label> &q)
+  {
+    return (((p.first <= q.first) && (q.first <= p.second) && (p.second <= q.second))
+	    || ((q.first <= p.first) && (p.first <= q.second) && (q.second <= p.second)));
+  }
 
 
+  const ResidueType*
+  generalizeType (const ResidueType *type)
+  {
+    return (type->isA ()
+	    ? ResidueType::rA
+	    : (type->isC ()
+	       ? ResidueType::rC
+	       : (type->isG ()
+		  ? ResidueType::rG
+		  : (type->isU () || type->isT ()
+		     ? ResidueType::rU
+		     : ResidueType::rNull))));		     
+  }
+
+
+  unsigned int
+  getWeight (const ResidueType *tf, const ResidueType *ts)
+  {
+    return ((tf == ResidueType::rG && ts == ResidueType::rC)
+	    || (tf == ResidueType::rC && ts == ResidueType::rG)
+	    ? weight_GC
+	    : ((tf == ResidueType::rA && ts == ResidueType::rU)
+	       || (tf == ResidueType::rU && ts == ResidueType::rA)
+	       ? weight_AU
+	       : ((tf == ResidueType::rG && ts == ResidueType::rU)
+		  || (tf == ResidueType::rU && ts == ResidueType::rG)
+		  ? weight_GU
+		  : ((tf == ResidueType::rG && ts == ResidueType::rA)
+		     || (tf == ResidueType::rA && ts == ResidueType::rG)
+		     ? weight_GA
+		     : ((tf == ResidueType::rC && ts == ResidueType::rA)
+			|| (tf == ResidueType::rA && ts == ResidueType::rC)
+			? weight_AC
+			: ((tf == ResidueType::rC && ts == ResidueType::rU)
+			   || (tf == ResidueType::rU && ts == ResidueType::rC)
+			   ? weight_CU
+			   : (tf == ts
+			      ? (tf == ResidueType::rG
+				 ? weight_GG
+				 : (tf == ResidueType::rA
+				    ? weight_AA
+				    : (tf == ResidueType::rC
+				       ? weight_CC
+				       : (tf == ResidueType::rU
+					  ? weight_UU
+					  : 0))))
+			      : 0)))))));
+  }
+  
+  
+  void
+  AnnotateModel::s_secondaire (set< pair< AnnotateModel::label, AnnotateModel::label > > &stable)
+  {
+    vector< pair< AnnotateModel::label, AnnotateModel::label > > paire;
+    vector< pair< AnnotateModel::label, AnnotateModel::label > >::iterator pit;
+    AnnotateModel::label ref;
+    graph_t *g;
+    int i;
+  
+    stable.clear ();
+    for (ref = 0; size () != ref; ++ref)
+      {
+	list< AnnotateModel::label > neighboors = internalNeighborhood (ref);
+	list< AnnotateModel::label >::iterator rit;
+      
+	for (rit = neighboors.begin (); neighboors.end () != rit; ++rit)
+	  {
+	    AnnotateModel::label res = *rit;
+
+	    if (ref < res && internalGetEdge (ref, res)->isPairing ())
+	      {
+		paire.push_back (make_pair (ref, res));
+	      }
+	  }
+      }
+    
+    // creation du graphe de compatibilite
+    g = graph_new (paire.size ());
+  
+    for (i = 0, pit = paire.begin (); paire.end () != pit; ++i, ++pit)
+      {
+// 	const ResidueType *ref = generalizeType (internalGetVertex (pit->first)->getType ());
+// 	const ResidueType *res = generalizeType (internalGetVertex (pit->second)->getType ());
+	
+// 	g->weights[i] = getWeight (ref, res);
+	g->weights[i] = 1;
+      }
+  
+    unsigned int p = 0;
+    
+    for (pit = paire.begin (); paire.end () != pit; ++pit, ++p)
+      {
+	vector< pair< AnnotateModel::label, AnnotateModel::label > >::iterator qit = pit;
+	unsigned int q;
+
+	for (++qit, q = qit - paire.begin (); paire.end () != qit; ++qit, ++q)
+	  {
+	    if (! areLinked (*pit, *qit))
+	      {
+		GRAPH_ADD_EDGE (g, p, q);
+	      }
+	  }
+      }
+
+//     graph_print (g);
+//     fflush (stdout);
+//     cout << endl;
+
+    // recherche de stable
+    static int min_weight = 0;
+    static int max_weight = 0;
+    static boolean maximal = FALSE;
+    clique_options *opts;
+    
+    opts = (clique_options*) malloc (sizeof (clique_options));
+    opts->time_function = NULL;
+    opts->output = stderr;
+    opts->reorder_function = reorder_by_default;
+    opts->reorder_map = NULL;
+    opts->user_function = print_clique_func;
+    opts->user_data = NULL;
+    opts->clique_list = NULL;
+    opts->clique_list_length = 0;
+    
+    set_t s = clique_find_single (g, min_weight, max_weight, maximal, opts);
+  
+    for (pit = paire.begin (), p = 0; paire.end () != pit; ++pit, ++p)
+      {
+	if (SET_CONTAINS (s, p))
+	  {
+	    stable.insert (*pit);
+	  }
+      }  
+  }
+  
+  
   void
   AnnotateModel::annotate ()
   {
-//     sequences.clear ();
+    time_t t;
+    
     basepairs.clear ();
     stacks.clear ();
     links.clear ();
@@ -72,12 +259,35 @@ namespace annotate
     marks.clear ();
 
 // //     GraphModel::annotate (residueSelection);
+    time (&t);
     GraphModel::annotate ();
+    gOut (3) << "annotate " << time (0) - t << "s" << endl;
+
+    time (&t);
     marks.resize (size (), 0);
-    fillSeqBPStacks ();
+    fillBPStacks ();
+    gOut (3) << "fillBPStacks " << time (0) - t << "s" << endl;
+    
     std::sort (basepairs.begin (), basepairs.end ());
     std::sort (stacks.begin (), stacks.end ());
-    std::sort (links.begin (), links.end ());
+//     buildSequences ();
+    set< pair< AnnotateModel::label, AnnotateModel::label > > stable;
+    set< pair< AnnotateModel::label, AnnotateModel::label > >::const_iterator sit;
+    
+    time (&t);
+    s_secondaire (stable);
+    gOut (3) << "s_secondaire " << time (0) - t << "s" << endl;
+    
+    gOut (0) << "Structure Secondaire:";
+    for (sit = stable.begin (); stable.end () != sit; ++sit)
+      {
+	const pair< AnnotateModel::label, AnnotateModel::label > &paire = *sit;
+
+	gOut (0) << " (" << internalGetVertex (paire.first)->getResId () << ' '
+		 << internalGetVertex (paire.second)->getResId () << ")";
+      }
+    gOut (0) << endl;
+
 //     findHelices ();
 // //     findLoops ();
 // //     findInternalLoops ();
@@ -87,7 +297,7 @@ namespace annotate
 
 
   void
-  AnnotateModel::fillSeqBPStacks ()
+  AnnotateModel::fillBPStacks ()
   {
     edge_iterator eit;
     
@@ -101,7 +311,7 @@ namespace annotate
 	    GraphModel::label refLabel = getVertexLabel (const_cast< Residue* > (ref));
 	    GraphModel::label resLabel = getVertexLabel (const_cast< Residue* > (res));
 	
-	    if ((*eit)->isPairing ())
+	    if ((*eit)->isPairing () || (*eit)->isBHbond ())
 	      {
 		marks[refLabel] |= PAIRING_MARK;
 		marks[resLabel] |= PAIRING_MARK;
@@ -113,22 +323,15 @@ namespace annotate
 		stacks.push_back (BaseStack (refLabel, ref->getResId (),
 					     resLabel, res->getResId ()));
 	      }
-	    if ((*eit)->is (PropertyType::pAdjacent5p))
-	      {
-		links.push_back (BaseLink (refLabel, ref->getResId (),
-					   resLabel, res->getResId ()));
-	      }
 	  }
       }
   }
-  
+
 
   bool
   AnnotateModel::isHelixPairing (const Relation &r)
   {
-    return (r.is (PropertyType::pPairing)
-	    && (r.is (PropertyType::pSaenger)
-		|| r.is (PropertyType::pOneHbond)));
+    return r.is (PropertyType::pPairing);
   }
     
 
@@ -806,8 +1009,30 @@ namespace annotate
   }
  
   void
-  AnnotateModel::dumpSequences (bool detailed)
+  AnnotateModel::dumpSequences (bool detailed) const
   {
+    vector< Sequence >::const_iterator it;
+    unsigned int currseq;
+
+    gOut (0) << "Sequences -------------------------------------------------------"
+	     << endl;
+    for (it = sequences.begin (), currseq = 0; sequences.end () != it; ++it, ++currseq)
+      {
+	const Sequence &sequence = *it;
+	Sequence::const_iterator sit;
+
+	gOut (0) << "Sequence " << currseq << " (length = " 
+		 << sequence.size () << "): " << endl;
+	gOut(0).setf (ios::right, ios::adjustfield);
+	gOut(0) << setw (2) << " ";
+	gOut(0).setf (ios::left, ios::adjustfield);
+	gOut(0) << setw (7) << internalGetVertex (*sequence.begin ())->getResId();
+	for (sit = sequence.begin (); sequence.end () != sit; ++sit)
+	  {
+	    gOut (0) << Pdbstream::stringifyResidueType (internalGetVertex (*sit)->getType ());
+	  }
+	gOut (0) << endl;
+      }
 //   iterator i;
 //   int j = 0;
 //   int currseq = -1;
@@ -1053,9 +1278,7 @@ namespace annotate
 //     dumpStrands ();
 //     gOut (0) << "Various features ------------------------------------------------" << endl;
 // //     findPseudoknots ();
-//     gOut (0) << "Sequences -------------------------------------------------------" << endl;
-// //     dumpSequences ();
-//     gOut (0) << endl;
+    dumpSequences ();
     return os;
   }
 

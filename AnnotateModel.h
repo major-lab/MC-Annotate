@@ -32,6 +32,7 @@
 #include "BasePair.h"
 #include "BaseStack.h"
 #include "Helix.h"
+#include "Sequence.h"
 
 using namespace mccore;
 using namespace std;
@@ -199,8 +200,15 @@ namespace annotate
      */
     PdbFileHeader fileHeader;
 
-//     GraphModel &gfm;
-    StrandSet sequences;
+    /**
+     * Collection of AnnotateModel sequences.
+     */
+    vector< Sequence > sequences;
+
+
+
+
+//     StrandSet sequences;
 
     int nb_pairings;
     int min_helix_size;
@@ -272,6 +280,12 @@ namespace annotate
     
     // METHODS --------------------------------------------------------------
 
+  private:
+
+    void s_secondaire (set< pair< AnnotateModel::label, AnnotateModel::label > > &stable);
+
+  public:
+    
     /**
      * Builds the graph of relations, find strands and helices.
      */
@@ -294,7 +308,11 @@ namespace annotate
   public:
  
 
-    void fillSeqBPStacks ();
+    void fillBPStacks ();
+    void buildSequences ();
+    void buildSequence5p (set< AnnotateModel::label > &vertexSet, Sequence &seq, AnnotateModel::label loc);
+    void buildSequence3p (set< AnnotateModel::label > &vertexSet, Sequence &seq, AnnotateModel::label loc);
+    
     void findHelices ();
 
 
@@ -310,7 +328,7 @@ namespace annotate
     void findKissingHairpins ();
     void findPseudoknots ();
 
-    void dumpSequences (bool detailed = true) ;
+    void dumpSequences (bool detailed = true) const;
     void dumpPairs () const;
     void dumpConformations () const;
     void dumpTriples () ;
