@@ -1,7 +1,7 @@
-//                              -*- Mode: C++ -*- 
+//                    -*- Mode: C++; coding: UTF-8 -*- 
 // BaseLink.h
-// Copyright Â© 2006 Laboratoire de Biologie Informatique et ThÃ©orique
-//                  UniversitÃ© de MontrÃ©al.
+// Copyright © 2006-07 Laboratoire de Biologie Informatique et Théorique
+//                  Université de Montréal.
 // Author           : Martin Larose <larosem@iro.umontreal.ca>
 // Created On       : Wed Aug  2 18:34:59 2006
 // $Revision$
@@ -14,8 +14,9 @@
 
 #include <utility>
 
-#include "mccore/GraphModel.h"
 #include "mccore/ResId.h"
+
+#include "AnnotateModel.h"
 
 using namespace mccore;
 using namespace std;
@@ -25,7 +26,7 @@ using namespace std;
 namespace annotate
 {
 
-  class BaseLink : public pair< GraphModel::label, GraphModel::label >
+  class BaseLink : public pair< AnnotateModel::label, AnnotateModel::label >
   {
 
   public:
@@ -36,7 +37,7 @@ namespace annotate
     
     // LIFECYCLE ------------------------------------------------------------
 
-    BaseLink (GraphModel::label l, const ResId &fResId, GraphModel::label r, const ResId &rResId)
+    BaseLink (AnnotateModel::label l, const ResId &fResId, AnnotateModel::label r, const ResId &rResId);
       : pair< GraphModel::label, GraphModel::label > (l, r),
 	fResId (fResId),
 	rResId (rResId)

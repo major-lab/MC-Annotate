@@ -1,7 +1,7 @@
-//                              -*- Mode: C++ -*- 
+//                    -*- Mode: C++; coding: UTF-8 -*- 
 // BaseLink.cc
-// Copyright Â© 2006 Laboratoire de Biologie Informatique et ThÃ©orique
-//                  UniversitÃ© de MontrÃ©al.
+// Copyright © 2006-07 Laboratoire de Biologie Informatique et Théorique
+//                  Université de Montréal.
 // Author           : Martin Larose <larosem@iro.umontreal.ca>
 // Created On       : Wed Aug  2 18:35:35 2006
 // $Revision$

@@ -1,4 +1,4 @@
-//                              -*- Mode: C++ -*- 
+//                    -*- Mode: C++; coding: UTF-8 -*- 
 // AnnotateResidue.h
 // Copyright © 2007 Laboratoire de Biologie Informatique et Théorique.
 //                  Université de Montréal

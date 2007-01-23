@@ -1,4 +1,4 @@
-//                              -*- Mode: C++ -*- 
+//                    -*- Mode: C++; coding: UTF-8 -*- 
 // annotate.cc
 // Copyright © 2001-07 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
@@ -33,7 +33,6 @@
 #include "mccore/Version.h"
 
 #include "AnnotateModel.h"
-#include "AnnotateResidue.h"
 
 using namespace mccore;
 using namespace std;
@@ -170,8 +169,7 @@ mccore::Molecule*
 loadFile (const string &filename)
 {
   Molecule *molecule;
-  AnnotateResidueFM rFM;
-  AnnotateModelFM aFM (residueSelection, environment, &rFM);
+  AnnotateModelFM aFM (residueSelection, environment);
 
   molecule = 0;
   if (binary)

@@ -1,7 +1,7 @@
-//                              -*- Mode: C++ -*- 
+//                    -*- Mode: C++; coding: UTF-8 -*- 
 // SStructure.cc
-// Copyright © 2006 Laboratoire de Biologie Informatique et Théorique
-//                  Université de Montréal.
+// Copyright © 2006-07 Laboratoire de Biologie Informatique et Théorique
+//                     Université de Montréal.
 // Author           : Martin Larose <larosem@iro.umontreal.ca>
 // Created On       : Tue Nov 21 16:24:43 2006
 // $Revision$

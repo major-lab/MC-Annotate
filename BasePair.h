@@ -1,7 +1,7 @@
-//                              -*- Mode: C++ -*- 
+//                    -*- Mode: C++; coding: UTF-8 -*- 
 // BasePair.h
-// Copyright Â© 2006 Laboratoire de Biologie Informatique et ThÃ©orique
-//                  UniversitÃ© de MontrÃ©al.
+// Copyright © 2006-07 Laboratoire de Biologie Informatique et Théorique
+//                     Université de Montréal.
 // Author           : Martin Larose <larosem@iro.umontreal.ca>
 // Created On       : Wed Jul 12 16:27:16 2006
 // $Revision$
@@ -103,6 +103,21 @@ namespace annotate
     {
       std::swap (first, second);
       std::swap (fResId, rResId);
+    }
+
+    /**
+     * Test whether both base pairs are linked.
+     * @param right the other base pair.
+     * @return true if both base pairs are linked.
+     */
+    bool areLinked (const BasePair &right) const
+    {
+      return (((first <= right.first)
+	       && (right.first <= second)
+	       && (second <= right.second))
+	      || ((right.first <= first)
+		  && (first <= right.second)
+		  && (right.second <= second)));
     }
 
     // I/O  -----------------------------------------------------------------

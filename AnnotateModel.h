@@ -1,6 +1,6 @@
-//                              -*- Mode: C++ -*- 
+//                    -*- Mode: C++; coding: UTF-8 -*- 
 // AnnotateModel.h
-// Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
+// Copyright © 2001-07 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
@@ -28,6 +28,7 @@
 #include "mccore/Residue.h"
 #include "mccore/ResidueType.h"
 
+#include "AnnotateResidue.h"
 #include "BaseLink.h"
 #include "BasePair.h"
 #include "BaseStack.h"
@@ -103,6 +104,7 @@ namespace annotate
    */
   class AnnotateModelFM : public ModelFactoryMethod
   {
+
     /**
      * A ResIdSet of residues to annotate.
      */
@@ -125,8 +127,8 @@ namespace annotate
      * annotate.
      * @param fm the residue factory method.
      */
-    AnnotateModelFM (const ResIdSet &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
-      : ModelFactoryMethod (fm),
+    AnnotateModelFM (const ResIdSet &rs, unsigned int env)
+      : ModelFactoryMethod (new AnnotateResidueFM ()),
 	residueSelection (rs),
 	environment (env)
     { }
@@ -190,6 +192,26 @@ namespace annotate
    */
   class AnnotateModel : public GraphModel
   {
+    
+  public:
+    
+    static const unsigned int MIN_HELIX_SIZE = 3;
+    static const unsigned int PAIRING_MARK = 1;
+    static const unsigned int LHELIX = 2;
+    static const unsigned int RHELIX = 4;
+    static const unsigned int weight_GC = 100;
+    static const unsigned int weight_AU = 99;
+    static const unsigned int weight_GU = 95;
+    static const unsigned int weight_GA = 90;
+    static const unsigned int weight_AC = 90;
+    static const unsigned int weight_CU = 90;
+    static const unsigned int weight_GG = 90;
+    static const unsigned int weight_AA = 90;
+    static const unsigned int weight_CC = 90;
+    static const unsigned int weight_UU = 90;
+
+  private:
+    
     /**
      * The model name.
      */
@@ -245,11 +267,9 @@ namespace annotate
      * @param rs a ResIdSet of residues to annotate.
      * @param env the number of relation layers around the residue selection to
      * annotate.
-     * @param fm the residue factory methods that will instanciate new
-     * residues (default is @ref ExtendedResidueFM).
      */
-    AnnotateModel (const ResIdSet &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
-      : GraphModel (fm),
+    AnnotateModel (const ResIdSet &rs, unsigned int env)
+      : GraphModel (new AnnotateResidueFM ()),
 	residueSelection (rs),
 	environment (env)
     { }
@@ -260,11 +280,9 @@ namespace annotate
      * @param rs a ResIdSet of residues to annotate.
      * @param env the number of relation layers around the residue selection to
      * annotate.
-     * @param fm the residue factory methods that will instanciate new
-     * residues (default is @ref ExtendedResidueFM).
      */
-    AnnotateModel (const AbstractModel &right, const ResIdSet &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
-      : GraphModel (right, fm),
+    AnnotateModel (const AbstractModel &right, const ResIdSet &rs, unsigned int env)
+      : GraphModel (right, new AnnotateResidueFM ()),
 	residueSelection (rs),
 	environment (env)
     { }
@@ -282,7 +300,7 @@ namespace annotate
 
   private:
 
-    void s_secondaire (set< pair< AnnotateModel::label, AnnotateModel::label > > &stable);
+    void s_secondaire (const vector< BasePair > &bps, set< BasePair > &stable);
 
   public:
     
@@ -307,7 +325,6 @@ namespace annotate
            
   public:
  
-
     void fillBPStacks ();
     void buildSequences ();
     void buildSequence5p (set< AnnotateModel::label > &vertexSet, Sequence &seq, AnnotateModel::label loc);

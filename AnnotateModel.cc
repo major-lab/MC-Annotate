@@ -1,6 +1,6 @@
-//                              -*- Mode: C++ -*- 
+//                    -*- Mode: C++; coding: UTF-8 -*- 
 // AnnotateModel.cc
-// Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
+// Copyright © 2001-07 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
 // Author           : Patrick Gendron
 // Created On       : Fri Nov 16 13:46:22 2001
@@ -37,22 +37,6 @@ extern "C" {
 namespace annotate
 {
   
-  static const unsigned int MIN_HELIX_SIZE = 3;
-  static const unsigned int PAIRING_MARK = 1;
-  static const unsigned int LHELIX = 2;
-  static const unsigned int RHELIX = 4;
-  static unsigned int weight_GC = 100;
-  static unsigned int weight_AU = 99;
-  static unsigned int weight_GU = 95;
-  static unsigned int weight_GA = 90;
-  static unsigned int weight_AC = 90;
-  static unsigned int weight_CU = 90;
-  static unsigned int weight_GG = 90;
-  static unsigned int weight_AA = 90;
-  static unsigned int weight_CC = 90;
-  static unsigned int weight_UU = 90;
-  
-  
   static void
   print_clique (set_t s, graph_t *g)
   {
@@ -80,14 +64,14 @@ namespace annotate
   AbstractModel* 
   AnnotateModelFM::createModel () const
   {
-    return new AnnotateModel (residueSelection, environment, rFM);
+    return new AnnotateModel (residueSelection, environment);
   }
 
 
   AbstractModel*
   AnnotateModelFM::createModel (const AbstractModel &model) const
   {
-    return new AnnotateModel (model, residueSelection, environment, rFM);
+    return new AnnotateModel (model, residueSelection, environment);
   }
   
 
@@ -98,121 +82,81 @@ namespace annotate
   }
   
   
-  bool 
-  areLinked (const pair< AnnotateModel::label, AnnotateModel::label> &p , const pair< AnnotateModel::label, AnnotateModel::label> &q)
-  {
-    return (((p.first <= q.first) && (q.first <= p.second) && (p.second <= q.second))
-	    || ((q.first <= p.first) && (p.first <= q.second) && (q.second <= p.second)));
-  }
-
-
-  const ResidueType*
-  generalizeType (const ResidueType *type)
-  {
-    return (type->isA ()
-	    ? ResidueType::rA
-	    : (type->isC ()
-	       ? ResidueType::rC
-	       : (type->isG ()
-		  ? ResidueType::rG
-		  : (type->isU () || type->isT ()
-		     ? ResidueType::rU
-		     : ResidueType::rNull))));		     
-  }
-
-
   unsigned int
   getWeight (const ResidueType *tf, const ResidueType *ts)
   {
     return ((tf == ResidueType::rG && ts == ResidueType::rC)
 	    || (tf == ResidueType::rC && ts == ResidueType::rG)
-	    ? weight_GC
+	    ? AnnotateModel::weight_GC
 	    : ((tf == ResidueType::rA && ts == ResidueType::rU)
 	       || (tf == ResidueType::rU && ts == ResidueType::rA)
-	       ? weight_AU
+	       ? AnnotateModel::weight_AU
 	       : ((tf == ResidueType::rG && ts == ResidueType::rU)
 		  || (tf == ResidueType::rU && ts == ResidueType::rG)
-		  ? weight_GU
+		  ? AnnotateModel::weight_GU
 		  : ((tf == ResidueType::rG && ts == ResidueType::rA)
 		     || (tf == ResidueType::rA && ts == ResidueType::rG)
-		     ? weight_GA
+		     ? AnnotateModel::weight_GA
 		     : ((tf == ResidueType::rC && ts == ResidueType::rA)
 			|| (tf == ResidueType::rA && ts == ResidueType::rC)
-			? weight_AC
+			? AnnotateModel::weight_AC
 			: ((tf == ResidueType::rC && ts == ResidueType::rU)
 			   || (tf == ResidueType::rU && ts == ResidueType::rC)
-			   ? weight_CU
+			   ? AnnotateModel::weight_CU
 			   : (tf == ts
 			      ? (tf == ResidueType::rG
-				 ? weight_GG
+				 ? AnnotateModel::weight_GG
 				 : (tf == ResidueType::rA
-				    ? weight_AA
+				    ? AnnotateModel::weight_AA
 				    : (tf == ResidueType::rC
-				       ? weight_CC
+				       ? AnnotateModel::weight_CC
 				       : (tf == ResidueType::rU
-					  ? weight_UU
+					  ? AnnotateModel::weight_UU
 					  : 0))))
 			      : 0)))))));
   }
   
   
   void
-  AnnotateModel::s_secondaire (set< pair< AnnotateModel::label, AnnotateModel::label > > &stable)
+  AnnotateModel::s_secondaire (const vector< BasePair > &bps, set< BasePair > &stable)
   {
-    vector< pair< AnnotateModel::label, AnnotateModel::label > > paire;
-    vector< pair< AnnotateModel::label, AnnotateModel::label > >::iterator pit;
-    AnnotateModel::label ref;
+    vector< BasePair > paire;
+    vector< BasePair >::const_iterator bpsit;
     graph_t *g;
-    int i;
+    unsigned int i;
   
     stable.clear ();
-    for (ref = 0; size () != ref; ++ref)
+    for (bpsit = bps.begin (); bps.end () != bpsit; ++bpsit)
       {
-	list< AnnotateModel::label > neighboors = internalNeighborhood (ref);
-	list< AnnotateModel::label >::iterator rit;
-      
-	for (rit = neighboors.begin (); neighboors.end () != rit; ++rit)
+	if (internalGetEdge (bpsit->first, bpsit->second)->isPairing ())
 	  {
-	    AnnotateModel::label res = *rit;
-
-	    if (ref < res && internalGetEdge (ref, res)->isPairing ())
-	      {
-		paire.push_back (make_pair (ref, res));
-	      }
+	    paire.push_back (*bpsit);
 	  }
       }
     
     // creation du graphe de compatibilite
     g = graph_new (paire.size ());
   
-    for (i = 0, pit = paire.begin (); paire.end () != pit; ++i, ++pit)
+    for (i = 0; i < paire.size (); ++i)
       {
-// 	const ResidueType *ref = generalizeType (internalGetVertex (pit->first)->getType ());
-// 	const ResidueType *res = generalizeType (internalGetVertex (pit->second)->getType ());
-	
-// 	g->weights[i] = getWeight (ref, res);
 	g->weights[i] = 1;
       }
   
     unsigned int p = 0;
     
-    for (pit = paire.begin (); paire.end () != pit; ++pit, ++p)
+    for (bpsit = paire.begin (); paire.end () != bpsit; ++bpsit, ++p)
       {
-	vector< pair< AnnotateModel::label, AnnotateModel::label > >::iterator qit = pit;
+	vector< BasePair >::const_iterator qit = bpsit;
 	unsigned int q;
 
 	for (++qit, q = qit - paire.begin (); paire.end () != qit; ++qit, ++q)
 	  {
-	    if (! areLinked (*pit, *qit))
+	    if (! bpsit->areLinked (*qit))
 	      {
 		GRAPH_ADD_EDGE (g, p, q);
 	      }
 	  }
       }
-
-//     graph_print (g);
-//     fflush (stdout);
-//     cout << endl;
 
     // recherche de stable
     static int min_weight = 0;
@@ -232,11 +176,11 @@ namespace annotate
     
     set_t s = clique_find_single (g, min_weight, max_weight, maximal, opts);
   
-    for (pit = paire.begin (), p = 0; paire.end () != pit; ++pit, ++p)
+    for (bpsit = paire.begin (), p = 0; paire.end () != bpsit; ++bpsit, ++p)
       {
 	if (SET_CONTAINS (s, p))
 	  {
-	    stable.insert (*pit);
+	    stable.insert (*bpsit);
 	  }
       }  
   }
@@ -250,15 +194,15 @@ namespace annotate
     basepairs.clear ();
     stacks.clear ();
     links.clear ();
-// //     helices.clear ();
-// //     bulges.clear ();
-// //     loops.clear ();
-// //     internalloops.clear ();
-// //     multiloops.clear ();
-// //     singlestrands.clear ();
+//     helices.clear ();
+//     bulges.clear ();
+//     loops.clear ();
+//     internalloops.clear ();
+//     multiloops.clear ();
+//     singlestrands.clear ();
     marks.clear ();
 
-// //     GraphModel::annotate (residueSelection);
+//     GraphModel::annotate (residueSelection);
     time (&t);
     GraphModel::annotate ();
     gOut (3) << "annotate " << time (0) - t << "s" << endl;
@@ -270,21 +214,20 @@ namespace annotate
     
     std::sort (basepairs.begin (), basepairs.end ());
     std::sort (stacks.begin (), stacks.end ());
-//     buildSequences ();
-    set< pair< AnnotateModel::label, AnnotateModel::label > > stable;
-    set< pair< AnnotateModel::label, AnnotateModel::label > >::const_iterator sit;
+    buildSequences ();
+    set< BasePair > stable;
+    set< BasePair >::const_iterator sit;
     
     time (&t);
-    s_secondaire (stable);
+    s_secondaire (basepairs, stable);
     gOut (3) << "s_secondaire " << time (0) - t << "s" << endl;
     
     gOut (0) << "Structure Secondaire:";
     for (sit = stable.begin (); stable.end () != sit; ++sit)
       {
-	const pair< AnnotateModel::label, AnnotateModel::label > &paire = *sit;
+	const BasePair &paire = *sit;
 
-	gOut (0) << " (" << internalGetVertex (paire.first)->getResId () << ' '
-		 << internalGetVertex (paire.second)->getResId () << ")";
+	gOut (0) << " (" << paire.fResId << ' ' << paire.rResId << ")";
       }
     gOut (0) << endl;
 
@@ -323,10 +266,51 @@ namespace annotate
 		stacks.push_back (BaseStack (refLabel, ref->getResId (),
 					     resLabel, res->getResId ()));
 	      }
+	    if ((*eit)->isAdjacent ())
+	      {
+		if ((*eit)->is (PropertyType::pAdjacent5p))
+		  {
+		    links.push_back (BaseLink (refLabel, ref->getResId (),
+					       resLabel, res->getResId ()));
+		  }
+		else
+		  {
+		    links.push_back (BaseLink (resLabel, res->getResId (),
+					       refLabel, ref->getResId ()));
+		  }
+	      }
 	  }
       }
   }
 
+
+  void
+  AnnotateModel::buildSequences ()
+  {
+    
+    set< AnnotateModel::label > vertexSet;
+    AnnotateModel::iterator it;
+
+    for (it = begin (); end () != it; ++it)
+      {
+	vertexSet.insert (getVertexLabel (&*it));
+      }
+    while (! vertexSet.empty ())
+      {
+	AnnotateModel::label loc;
+	Sequence sequence;
+
+	vertexSet.erase (loc = *vertexSet.begin ());
+	sequence.push_back (loc);
+	buildSequence5p (vertexSet, sequence, loc);
+	buildSequence3p (vertexSet, sequence, loc);
+	if (1 < sequence.size ())
+	  {
+	    sequences.push_back (sequence);
+	  }
+      }
+  }
+  
 
   bool
   AnnotateModel::isHelixPairing (const Relation &r)

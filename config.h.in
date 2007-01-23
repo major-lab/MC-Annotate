@@ -1,6 +1,6 @@
-//                              -*- Mode: C++ -*- 
-// config.h.in
-// Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
+//                    -*- Mode: C++; coding: UTF-8 -*- 
+// BasePair.h
+// Copyright © 2001-07 Laboratoire de Biologie Informatique et Théorique
 //                     Université de Montréal.
 // Author           : Martin Larose <larosem@iro.umontreal.ca>
 // Created On       : Thu Aug 23 11:34:50 2001
