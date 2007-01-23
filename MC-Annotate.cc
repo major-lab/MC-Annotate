@@ -1,6 +1,6 @@
 //                              -*- Mode: C++ -*- 
 // annotate.cc
-// Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
+// Copyright © 2001-07 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
 // Author           : Patrick Gendron
 // Created On       : Fri May 18 09:38:07 2001
@@ -15,6 +15,7 @@
 #include <cerrno>
 #include <cstdlib>
 #include <string>
+#include <time.h>
 #include <unistd.h>
 
 #include "mccore/Binstream.h"
@@ -25,7 +26,6 @@
 #include "mccore/Pdbstream.h"
 #include "mccore/PropertyType.h"
 #include "mccore/Relation.h"
-#include "mccore/ResidueFactoryMethod.h"
 #include "mccore/ResIdSet.h"
 #ifdef HAVE_LIBRNAMLC__
 #include "mccore/RnamlReader.h"
@@ -33,6 +33,7 @@
 #include "mccore/Version.h"
 
 #include "AnnotateModel.h"
+#include "AnnotateResidue.h"
 
 using namespace mccore;
 using namespace std;
@@ -169,7 +170,7 @@ mccore::Molecule*
 loadFile (const string &filename)
 {
   Molecule *molecule;
-  ResidueFM rFM;
+  AnnotateResidueFM rFM;
   AnnotateModelFM aFM (residueSelection, environment, &rFM);
 
   molecule = 0;
@@ -217,6 +218,8 @@ loadFile (const string &filename)
 int
 main (int argc, char *argv[])
 {
+  time_t t;
+
   read_options (argc, argv);
 
   while (optind < argc)
@@ -224,7 +227,9 @@ main (int argc, char *argv[])
       Molecule *molecule;
       Molecule::iterator molIt;
       
+      time (&t);
       molecule = loadFile ((string) argv[optind]);
+      gOut (3) << "load " << time (0) - t << "s" << endl;
       if (0 != molecule)
 	{
 	  for (molIt = molecule->begin (); molecule->end () != molIt; ++molIt)
@@ -236,9 +241,11 @@ main (int argc, char *argv[])
 	      else
 		{
 		  AnnotateModel &am = (AnnotateModel&) *molIt;
-		  
+
+		  time (&t);
 		  am.annotate ();
-		  gOut(0) << am;
+		  gOut (3) << "annotation " << time (0) - t << "s" << endl;
+		  gOut (0) << am;
 		  if (oneModel)
 		    {
 		      break;

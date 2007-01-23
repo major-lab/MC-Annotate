@@ -1,6 +1,6 @@
 #                           -*- Mode: Makefile -*-
 # Makefile.in
-# Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
+# Copyright © 2001-07 Laboratoire de Biologie Informatique et Théorique.
 #                     Université de Montréal
 # Author           : Martin Larose <larosem@iro.umontreal.ca>
 # Created On       : Mon May 14 19:22:30 2001
@@ -21,6 +21,8 @@ datadir = @datadir@
 includedir = @includedir@
 libdir = @libdir@
 
+CC = @CC@
+CFLAGS = @CFLAGS@
 CXX = @CXX@
 CXXFLAGS = @CXXFLAGS@
 DEPFLAGS = @DEPFLAGS@
@@ -44,25 +46,35 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 	    | sed '\''s/\($*\)\.o[ :]*/\1.o $@ : /g'\'' > $@; \
 	      [ -s $@ ] || rm -f $@'
 
+%.d: %.c
+	@ $(SHELL) -ec '$(CC) $(DEPFLAGS) $(CFLAGS) $(DEFS) -I. -I$(srcdir) $< \
+	    | sed '\''s/\($*\)\.o[ :]*/\1.o $@ : /g'\'' > $@; \
+	      [ -s $@ ] || rm -f $@'
+
 %.o: %.cc
 	$(CXX) $(CXXFLAGS) $(DEFS) -I. -I$(srcdir) -c $<
 
 
+%.o: %.c
+	$(CC) $(CFLAGS) $(DEFS) -I. -I$(srcdir) -c $<
+
+
 PROGSOURCES = MC-Annotate.cc
 
-SOURCES = BaseLink.cc BasePair.cc BaseStack.cc Helix.cc AnnotateModel.cc
+SOURCES = BaseLink.cc BasePair.cc BaseStack.cc Helix.cc AnnotateModel.cc \
+AnnotateResidue.cc
 
-ALLSOURCES = $(SOURCES) $(PROGSOURCES)
+CSOURCES = reorder.c cliquer.c graph.c
 
 HEADERS = $(SOURCES:%.cc=%.h)
 
-OBJECTS = $(ALLSOURCES:%.cc=%.o)
+OBJECTS = $(SOURCES:%.cc=%.o) $(CSOURCES:%.c=%.o) $(PROGSOURCES:%.cc=%.o)
 
-DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(ALLSOURCES) $(HEADERS) \
-config.guess config.h.in config.sub configure configure.in install-sh \
-mkinstalldirs stamp-h.in
+DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(PROGSOURCES) $(SOURCES) \
+$(CSOURCES) $(HEADERS) config.guess config.h.in config.sub configure \
+configure.in install-sh mkinstalldirs stamp-h.in
 
-SUBDIRS =
+SUBDIRS = 
 
 RELEASESUBDIRS =
 
@@ -82,7 +94,7 @@ all-static static: $(PROGRAM)-static TAGS
 $(PROGRAM) $(PROGRAM)-static: $(OBJECTS)
 	$(LD) $(LINKOPTIONS) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
 
-TAGS: $(ALLSOURCES) $(HEADERS)
+TAGS: $(SOURCES) $(CSOURCES) $(PROGSOURCES) $(HEADERS)
 	@ etags --c++ $^
 
 
@@ -189,4 +201,6 @@ $(srcdir)/configure: $(srcdir)/configure.in
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
 
--include $(ALLSOURCES:.cc=.d)
+-include $(SOURCES:%.cc=%.d)
+-include $(CSOURCES:%.c=%.d)
+-include $(PROGSOURCES:%.cc=%.d)
