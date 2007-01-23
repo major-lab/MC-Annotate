@@ -1,4 +1,4 @@
-//                              -*- Mode: C++ -*- 
+ //                              -*- Mode: C++ -*- 
 // MolecularComplex.cc
 // Copyright © 2002, 2003 Laboratoire de Biologie Informatique et Théorique.
 // Author           : Patrick Gendron
