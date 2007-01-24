@@ -16,6 +16,7 @@
 #include <cmath>
 #include <iterator>
 #include <list>
+#include <sstream>
 #include <time.h>
 
 #include "mccore/Binstream.h"
@@ -190,52 +191,50 @@ namespace annotate
   AnnotateModel::annotate ()
   {
     time_t t;
+    set< BasePair > stable;
+    set< BasePair >::const_iterator sit;
     
     basepairs.clear ();
     stacks.clear ();
     links.clear ();
-//     helices.clear ();
+    sequences.clear ();
+    helices.clear ();
 //     bulges.clear ();
 //     loops.clear ();
 //     internalloops.clear ();
 //     multiloops.clear ();
 //     singlestrands.clear ();
-    marks.clear ();
 
-//     GraphModel::annotate (residueSelection);
     time (&t);
+//     GraphModel::annotate (residueSelection);
     GraphModel::annotate ();
     gOut (3) << "annotate " << time (0) - t << "s" << endl;
 
     time (&t);
-    marks.resize (size (), 0);
     fillBPStacks ();
     gOut (3) << "fillBPStacks " << time (0) - t << "s" << endl;
     
     std::sort (basepairs.begin (), basepairs.end ());
     std::sort (stacks.begin (), stacks.end ());
     buildSequences ();
-    set< BasePair > stable;
-    set< BasePair >::const_iterator sit;
     
     time (&t);
     s_secondaire (basepairs, stable);
     gOut (3) << "s_secondaire " << time (0) - t << "s" << endl;
     
-    gOut (0) << "Structure Secondaire:";
+    gOut (3) << "Structure Secondaire:";
     for (sit = stable.begin (); stable.end () != sit; ++sit)
       {
 	const BasePair &paire = *sit;
 
-	gOut (0) << " (" << paire.fResId << ' ' << paire.rResId << ")";
+	gOut (3) << " (" << paire.fResId << ' ' << paire.rResId << ")";
       }
-    gOut (0) << endl;
-
-//     findHelices ();
-// //     findLoops ();
-// //     findInternalLoops ();
-// //     findMultiLoops ();
-// //     findSingleStrands ();
+    gOut (3) << endl;
+    findHelices (stable);
+//     findLoops ();
+//     findInternalLoops ();
+//     findMultiLoops ();
+//     findSingleStrands ();
   }
 
 
@@ -246,18 +245,19 @@ namespace annotate
     
     for (eit = edge_begin (); edge_end () != eit; ++eit)
       {
-	const Residue *ref;
-	const Residue *res;
+	AnnotateResidue *ref;
+	AnnotateResidue *res;
 
-	if ((ref = (*eit)->getRef ())->getResId () < (res = (*eit)->getRes ())->getResId ())
+	if ((ref = (AnnotateResidue*) (*eit)->getRef ())->getResId ()
+	    < (res = (AnnotateResidue*) (*eit)->getRes ())->getResId ())
 	  {
-	    GraphModel::label refLabel = getVertexLabel (const_cast< Residue* > (ref));
-	    GraphModel::label resLabel = getVertexLabel (const_cast< Residue* > (res));
+	    AnnotateModel::label refLabel = getVertexLabel (ref);
+	    AnnotateModel::label resLabel = getVertexLabel (res);
 	
 	    if ((*eit)->isPairing () || (*eit)->isBHbond ())
 	      {
-		marks[refLabel] |= PAIRING_MARK;
-		marks[resLabel] |= PAIRING_MARK;
+		ref->setProperties (AnnotateResidue::B);
+		res->setProperties (AnnotateResidue::B);
 		basepairs.push_back (BasePair (refLabel, ref->getResId (),
 					       resLabel, res->getResId ()));
 	      }
@@ -287,264 +287,160 @@ namespace annotate
   void
   AnnotateModel::buildSequences ()
   {
-    
-    set< AnnotateModel::label > vertexSet;
-    AnnotateModel::iterator it;
+    vector< BaseLink >::const_iterator blit;
+    list< Sequence >::iterator sit;
 
-    for (it = begin (); end () != it; ++it)
+    for (blit = links.begin (); links.end () != blit; ++blit)
       {
-	vertexSet.insert (getVertexLabel (&*it));
-      }
-    while (! vertexSet.empty ())
-      {
-	AnnotateModel::label loc;
-	Sequence sequence;
+	const BaseLink &bl = *blit;
 
-	vertexSet.erase (loc = *vertexSet.begin ());
-	sequence.push_back (loc);
-	buildSequence5p (vertexSet, sequence, loc);
-	buildSequence3p (vertexSet, sequence, loc);
-	if (1 < sequence.size ())
+	for (sit = sequences.begin (); sequences.end () != sit; ++sit)
 	  {
-	    sequences.push_back (sequence);
+	    if (bl.second == sit->front ())
+	      {
+		sit->insert (sit->begin (), bl.first);
+		break;
+	      }
+	    if (bl.first == sit->back ())
+	      {
+		sit->push_back (bl.second);
+		break;
+	      }
+	  }
+	if (sequences.end () == sit)
+	  {
+	    Sequence seq;
+	    
+	    seq.push_back (blit->first);
+	    seq.push_back (blit->second);
+	    sequences.push_back (seq);
+	  }
+      }
+
+    // Merge sequences.
+    for (sit = sequences.begin (); sequences.end () != sit; ++sit)
+      {
+	list< Sequence >::iterator s2it;
+
+	for (s2it = sit, ++s2it; sequences.end () != s2it; ++s2it)
+	  {
+	    if (sit->back () == s2it->front ())
+	      {
+		sit->insert (sit->end (), ++(s2it->begin ()), s2it->end ());
+		sequences.erase (s2it);
+		s2it = sit;
+	      }
+	    else if (sit->front () == s2it->back ())
+	      {
+		sit->insert (sit->begin (), s2it->begin (), --(s2it->end ()));
+		sequences.erase (s2it);
+		s2it = sit;
+	      }
 	  }
       }
   }
   
 
+//   bool
+//   AnnotateModel::isHelixPairing (const Relation &r)
+//   {
+//     return r.is (PropertyType::pPairing);
+//   }
+
   bool
-  AnnotateModel::isHelixPairing (const Relation &r)
+  AnnotateModel::areHelix (const BasePair &bp1, const BasePair &bp2) const
   {
-    return r.is (PropertyType::pPairing);
+    return (internalAreConnected (bp1.first, bp2.first)
+	    && internalGetEdge (bp1.first, bp2.first)->is (PropertyType::pAdjacent5p)
+	    && internalAreConnected (bp2.second, bp1.second)
+	    && internalGetEdge (bp2.second, bp1.second)->is (PropertyType::pAdjacent5p));
   }
-    
+
 
   void 
-  AnnotateModel::findHelices ()
+  AnnotateModel::findHelices (const set< BasePair > &stable)
   {
-    list< BasePair > hPC;
-    vector< BasePair >::const_iterator bpit;
+    set< BasePair >::const_iterator bpit;
+    list< Helix >::iterator hit;
 
-    for (bpit = basepairs.begin (); basepairs.end () != bpit; ++bpit)
+    for (bpit = stable.begin (); stable.end () != bpit; ++bpit)
       {
-	if (isHelixPairing (*internalGetEdge (bpit->first, bpit->second)))
+	const BasePair &bp2 = *bpit;
+	const Relation *rel = internalGetEdge (bp2.first, bp2.second);
+
+	if (rel->is (PropertyType::pXXVIII)
+	    || rel->is (PropertyType::pXIX)
+	    || rel->is (PropertyType::pXX))
 	  {
-	    hPC.push_back (*bpit);
+	    for (hit = helices.begin (); helices.end () != hit; ++hit)
+	      {
+		const BasePair &bp1 = hit->back ();
+
+		if (areHelix (bp1, bp2))
+		  {
+		    hit->push_back (bp2);
+		    break;
+		  }
+		if (areHelix (bp2, bp1))
+		  {
+		    hit->insert (hit->begin (), bp2);
+		    break;
+		  }
+	      }
+	    if (helices.end () == hit)
+	      {
+		Helix helix;
+	    
+		helix.push_back (bp2);
+		helices.push_back (helix);
+	      }
 	  }
       }
-//     while (! hPC.empty ())
-//       {
-// 	Helix helix;
-// 	list< BasePair >::iterator hpcIt;
-// 	label hfst;
-// 	label hsnd;
-// 	label tfst;
-// 	label tsnd;
 
-// 	hpcIt = hPC.begin ();
-// 	helix.push_back (*hpcIt);
-// 	hpcIt = hPC.erase (hpcIt);
-// 	hfst = helix.front ().first;
-// 	hsnd = helix.front ().second;
-// 	tfst = helix.back ().first;
-// 	tsnd = helix.back ().second;
-// 	while (hPC.end () != hpcIt)
-// 	  {
-// 	    label fst = hpcIt->first;
-// 	    label snd = hpcIt->second;
-// 	    bool inserted = false;
-	    
-// 	    if (((internalAreConnected (tfst, fst)
-// 		  && internalGetEdge (tfst, fst)->isAdjacent ())
-// 		 && (internalAreConnected (tsnd, snd)
-// 		     && (internalGetEdge (tsnd, snd)->isAdjacent ())))
-// 		|| ((internalAreConnected (tfst, snd)
-// 		     && internalGetEdge (tfst, snd)->isAdjacent ())
-// 		    && (internalAreConnected (tsnd, fst)
-// 			&& internalGetEdge (tsnd, fst)->isAdjacent ())
-// 		    && (hpcIt->reverse (), std::swap (fst, snd), true)))
-// 	      {
-// 		helix.push_back (*hpcIt);
-// 		tfst = fst;
-// 		tsnd = snd;
-// 		inserted = true;
-// 	      }
-// 	    else if (((internalAreConnected (fst, hfst)
-// 		       && internalGetEdge (fst, hfst)->isAdjacent ())
-// 		      && (internalAreConnected (snd, hsnd)
-// 			  && internalGetEdge (snd, hsnd)->isAdjacent ()))
-// 		     || ((internalAreConnected (fst, hsnd)
-// 			  && internalGetEdge (fst, hsnd)->isAdjacent ())
-// 			 && (internalAreConnected (snd, hfst)
-// 			     && internalGetEdge (snd, hfst)->isAdjacent ())
-// 			 && (hpcIt->reverse (), std::swap (fst,snd), true)))
-// 	      {
-// 		helix.insert (helix.begin (), *hpcIt);
-// 		hfst = fst;
-// 		hsnd = snd;
-// 		inserted = true;
-// 	      }
-// 	    if (inserted)
-// 	      {
-// 		hpcIt = hPC.erase (hpcIt);
-// 		if (hPC.end () == hpcIt)
-// 		  {
-// 		    hpcIt = hPC.begin ();
-// 		  }
-// 	      }
-// 	    else
-// 	      {
-// 		++hpcIt;
-// 	      }
-// 	  }
-// 	if (MIN_HELIX_SIZE <= helix.size ())
-// 	  {
-// 	    Helix::iterator hit;
-	    
-// 	    helix.setId (helices.size ());
-// 	    for (hit = helix.begin (); helix.end () != hit; ++hit)
-// 	      {
-// 		marks[hit->first] = LHELIX;
-// 		marks[hit->second] = RHELIX;
-// 	      }
-// 	    helices.push_back (helix);
-// 	  }
-//       }
-  }
+    // Merge helices.
+    for (hit = helices.begin (); helices.end () != hit; ++hit)
+      {
+	list< Helix >::iterator h2it;
 
-  //     li = 0;
-  // //     while (gi != end ())
-  //     while (li < size ())
-  //       {
-  // 	// Find a pairing involving gi
-  // // 	neighbor = neighborhood (&*gi);
-  // 	neighbor = internalNeighborhood (li);
-  // 	for (nborIt = neighbor.begin (); neighbor.end () != nborIt; ++nborIt)
-  // 	  {
-  // // 	    if (isHelixPairing (getEdge ((Residue*) &*gi, *nborIt)))
-  // 	    if (isHelixPairing (*internalGetEdge (li, *nborIt)))
-  // 	      {
-  // 		break;
-  // 	      }
-  // 	  }
-
-  // 	if (nborIt != neighbor.end ())
-  // 	  {
-  // 	    Residue *ri = internalGetVertex (li);
-  // 	    Residue *rj = internalGetVertex (*nborIt);
-	    
-  // 	    if (ri->getResId () < rj->getResId () 
-  // 		&& marks.end () != marks.find (rj)
-  // 		&& marks[rj] != '('
-  // 		&& marks[rj] != ')')
-  // 	      {
-  // 		helix.push_back (make_pair (ri, rj));
-          
-  // 		// Extending with bulge detection
-  // 		while (true)
-  // 		  {
-  // 		    lip++ = li;
-  // 		    if (gip == size ()
-  // 		      {
-  // 			break;
-  // 		      }
-  // 		    if (gk == begin ())
-  // 		      {
-  // 			break;
-  // 		      }
-  // 		    gkp-- = gk;
-        
-  // 		    if (sequence_mask[&*gip] == sequence_mask[&*gi]
-  // 			&& sequence_mask[&*gkp] == sequence_mask[&*gk])
-  // 		      {
-  // 			neighbor = neighborhood ((Residue*) &*gip);
-  // 			if ((nborIt = std::find (neighbor.begin (), neighbor.end (), (Residue*) &*gkp)) != neighbor.end ()
-  // 			    && isHelixPairing (getEdge ((Residue*) &*gip, (Residue*) &*gkp)))
-  // 			  {
-  // 			    helix.push_back (make_pair ((Residue*) &*gip, (Residue*) &*gkp));
-  // 			    gi = gip;
-  // 			    gk = gkp;
-  // 			  }
-  // 			else
-  // 			  {
-  // 			    break;
-  // 			  }
-  // 		      }
-  // 		    else
-  // 		      {
-  // 			break;
-  // 		      }
-  // 		  }
-		
-  // 		if ((int) helix.size () >= MIN_HELIX_SIZE)
-  // 		  {
-  // 		    Helix::iterator i;
-		    
-  // 		    for (i = helix.begin (); i != helix.end (); ++i)
-  // 		      {
-  // 			helix_mask[i->first] = helices.size ();
-  // 			marks[i->first] = '(';
-  // 			helix_mask[i->second] = helices.size ();
-  // 			marks[i->second] = ')';
-  // 		      }
-  // 		    helices.push_back (helix);
-  // 		  } 
-  // 		helix.clear ();
-  // 	      }
-  // 	  }
-  // 	++gi;
-  //       }
-  //   }
-
-  /**
-   * Output helices in text representation
-   * Ex:
-   * H0, length = 14
-   *      A1-UUAUAUAUAUAUAA-A14
-   *      B14-AAUAUAUAUAUAUU-B1
-   */
-  void
-  AnnotateModel::dumpHelices () const 
-  {
-    vector< Helix >::const_iterator i;
+	for (h2it = hit, ++h2it; helices.end () != h2it; ++h2it)
+	  {
+	    if (areHelix (hit->back (), h2it->front ()))
+	      {
+		hit->insert (hit->end (), h2it->begin (), h2it->end ());
+		helices.erase (h2it);
+		h2it = hit;
+	      }
+	    else if (areHelix (h2it->back (), hit->front ()))
+	      {
+		hit->insert (hit->begin (), h2it->begin (), h2it->end ());
+		helices.erase (h2it);
+		h2it = hit;
+	      }
+	  }
+      }
     
-    for (i = helices.begin (); helices.end () != i; ++i)
+    // Remove helices who's size is less than AnnotateModel::MIN_HELIX_SIZE
+    // and mark the residues with AnnotateResidue::LPAREN and
+    // AnnotateResidue::RPAREN
+    for (hit = helices.begin (); helices.end () != hit; )
       {
-	Helix::const_iterator hIt;
-	
-	// Helix index and length
-	gOut (0) << "H" << i - helices.begin () << ", length = " << i->size ()
-		 << endl;
-	
-	// First strand
-	gOut (0).setf (ios::right, ios::adjustfield);
-	gOut (0) << setw (6) << internalGetVertex (i->front ().first)->getResId () << "-";
-	for (hIt = i->begin (); i->end () != hIt; ++hIt)
+	if (AnnotateModel::MIN_HELIX_SIZE > hit->size ())
 	  {
-	    const ResidueType *type = internalGetVertex (hIt->first)->getType ();
-	    
-	    gOut (0) << (type->isNucleicAcid ()
-			 ? Pdbstream::stringifyResidueType (type)
-			 : "X");
+	    hit = helices.erase (hit);
 	  }
-	--hIt;
-	gOut (0) << "-" << internalGetVertex (hIt->first)->getResId () << endl;
+	else
+	  {
+	    Helix &helix = *hit;
+	    Helix::iterator helixit;
 
-	// Second strand 
-	gOut (0).setf (ios::right, ios::adjustfield);
-	gOut (0) << setw (6) << internalGetVertex (i->front ().second)->getResId () << "-";
-	for (hIt = i->begin (); i->end () != hIt; ++hIt)
-	  {
-	    const ResidueType *type = internalGetVertex (hIt->second)->getType ();
-	    
-	    gOut (0) << (type->isNucleicAcid ()
-			 ? Pdbstream::stringifyResidueType (type)
-			 : "X");
+	    for (helixit = helix.begin (); helix.end () != helixit; ++helixit)
+	      {
+		((AnnotateResidue*) internalGetVertex (helixit->first))->setProperties (AnnotateResidue::LPAREN);
+		((AnnotateResidue*) internalGetVertex (helixit->second))->setProperties (AnnotateResidue::RPAREN);
+	      }
+	    ++hit;
 	  }
-	--hIt;
-	gOut (0) << "-" << internalGetVertex (hIt->second)->getResId() << endl;
       }
-    gOut (0).setf (ios::left, ios::adjustfield);
   }
 
   
@@ -790,6 +686,7 @@ namespace annotate
 //     int j;
 //     const_iterator k;
   
+//     gOut (0) << "Strands ---------------------------------------------------------" << endl;
 //     for (j=0; j<(int)strands.size (); ++j) {
       
 //       gOut(0).setf (ios::left, ios::adjustfield);
@@ -992,44 +889,155 @@ namespace annotate
 //   }
   }
  
+  /**
+   * Output helices in text representation
+   * Ex:
+   * H0, length = 14
+   *      A1-UUAUAUAUAUAUAA-A14
+   *      B14-AAUAUAUAUAUAUU-B1
+   */
   void
-  AnnotateModel::dumpSequences (bool detailed) const
+  AnnotateModel::dumpHelices () const 
   {
-    vector< Sequence >::const_iterator it;
+    list< Helix >::const_iterator hit;
+    unsigned int counter;
+    
+    gOut (0) << endl << endl << "Helices ---------------------------------------------------------" << endl;
+    for (hit = helices.begin (), counter = 1; helices.end () != hit; ++hit, ++counter)
+      {
+	const Helix &helix = *hit;
+	Helix::const_iterator hIt;
+	ostringstream secondstrandoss;
+	
+	gOut (0) << "H" << counter << ", length = " << helix.size ()
+		 << endl;
+	gOut.setf (ios::right, ios::adjustfield);
+	gOut << setw (8) << helix.front ().fResId << "-";
+	secondstrandoss.setf (ios::right, ios::adjustfield);
+	secondstrandoss << setw (8) << helix.front ().rResId << "-";
+	for (hIt = helix.begin (); helix.end () != hIt; ++hIt)
+	  {
+	    string tmp1 = Pdbstream::stringifyResidueType (internalGetVertex (hIt->first)->getType ());
+	    string tmp2 = Pdbstream::stringifyResidueType (internalGetVertex (hIt->second)->getType ());
+	    bool oversized;
+
+	    oversized = ((1 < tmp1.size () || 1 < tmp2.size ())
+			 ? true
+			 : false);
+	    if (oversized && 1 < tmp1.size ())
+	      {
+		gOut << '\'' << tmp1 << '\'';
+	      }
+	    else if (oversized && 1 == tmp1.size ())
+	      {
+		gOut << setw (2) << " " << tmp1 << setw (2) << " ";
+	      }
+	    else
+	      {
+		gOut << tmp1;
+	      }
+	    if (oversized && 1 < tmp2.size ())
+	      {
+		secondstrandoss << '\'' << tmp2 << '\'';
+	      }
+	    else if (oversized && 1 == tmp2.size ())
+	      {
+		secondstrandoss << setw (2) << " " << tmp2 << setw (2) << " ";
+	      }
+	    else
+	      {
+		secondstrandoss << tmp2;
+	      }
+	  }
+	gOut << "-" << helix.back ().fResId << endl;
+	secondstrandoss << "-" << helix.back ().rResId;
+	gOut << secondstrandoss.str () << endl;
+      }
+    gOut.setf (ios::left, ios::adjustfield);
+  }
+
+  
+  void
+  AnnotateModel::dumpSequences () const
+  {
+    list< Sequence >::const_iterator it;
     unsigned int currseq;
 
-    gOut (0) << "Sequences -------------------------------------------------------"
-	     << endl;
+    gOut (0) << endl << endl << "Sequences -------------------------------------------------------" << endl;
     for (it = sequences.begin (), currseq = 0; sequences.end () != it; ++it, ++currseq)
       {
 	const Sequence &sequence = *it;
 	Sequence::const_iterator sit;
+	unsigned int counter;
+	ostringstream proposs;
 
-	gOut (0) << "Sequence " << currseq << " (length = " 
+	gOut << "Sequence " << currseq << " (length = " 
 		 << sequence.size () << "): " << endl;
-	gOut(0).setf (ios::right, ios::adjustfield);
-	gOut(0) << setw (2) << " ";
-	gOut(0).setf (ios::left, ios::adjustfield);
-	gOut(0) << setw (7) << internalGetVertex (*sequence.begin ())->getResId();
-	for (sit = sequence.begin (); sequence.end () != sit; ++sit)
+
+	for (sit = sequence.begin (), counter = 0; sequence.end () != sit; ++sit, ++counter)
 	  {
-	    gOut (0) << Pdbstream::stringifyResidueType (internalGetVertex (*sit)->getType ());
+	    string tmp = Pdbstream::stringifyResidueType (internalGetVertex (*sit)->getType ());
+	    char prop;
+
+	    if (0 == counter % 50)
+	      {
+		gOut.setf (ios::right, ios::adjustfield);
+		gOut << setw (2) << " ";
+		gOut.setf (ios::left, ios::adjustfield);
+		gOut << setw (8) << internalGetVertex (*sit)->getResId();
+		proposs.str ("");
+		proposs << setw (10) << " ";
+	      }
+	    if (1 < tmp.size ())
+	      {
+		gOut << '\'';
+		proposs << setw (2) << " ";
+	      }
+	    gOut << tmp;
+
+	    switch (((const AnnotateResidue*) internalGetVertex (*sit))->getProperties ())
+	      {
+	      case AnnotateResidue::LPAREN:
+		prop = '(';
+		break;
+	      case AnnotateResidue::RPAREN:
+		prop = ')';
+		break;
+	      case AnnotateResidue::X:
+		prop = 'X';
+		break;
+	      case AnnotateResidue::B:
+		prop = 'b';
+		break;
+	      default:
+		prop = '-';
+		break;
+	      }
+	    proposs << prop;
+	    if (1 < tmp.size ())
+	      {
+		gOut << '\'';
+		proposs << setw (2) << " ";
+	      }
+	    if (9 == counter % 10)
+	      {
+		gOut << ' ';
+		proposs << ' ';
+	      }
+	    if (49 == counter % 50)
+	      {
+		gOut << endl << proposs.str () << endl << endl;
+	      }
 	  }
-	gOut (0) << endl;
+	if (49 != counter % 50)
+	  {
+	    gOut << endl << proposs.str () << endl << endl;
+	  }
       }
 //   iterator i;
 //   int j = 0;
 //   int currseq = -1;
 //   int size = 0;
-  
-//   if (!detailed) {
-// //    for (i=0; i<(int)conformations.size (); ++i) {
-// //      if (i==0 || sequence_mask[i] != sequence_mask[i-1])
-// //	gOut(0) << " " << setw (8) << getResId (i) << " ";
-// //      gOut(0) << getType (i)->toString ();
-// //    }	
-//     return;
-//   } 
   
 //   for (i=begin (); i!=end (); ) {
     
@@ -1112,6 +1120,7 @@ namespace annotate
   {
     const_iterator i;
     
+    gOut (0) << "Residue conformations -------------------------------------------" << endl;
     for (i = begin (); i != end (); ++i)
       {
 	gOut(0) << i->getResId ()
@@ -1132,7 +1141,7 @@ namespace annotate
     vector< BaseStack > nonAdjacentStacks;
     vector< BaseStack >::const_iterator bsit;
 
-    gOut(0) << "Adjacent stackings ----------------------------------------------" << endl;
+    gOut(0) << endl << endl << "Adjacent stackings ----------------------------------------------" << endl;
 
     for (bsit = stacks.begin (); stacks.end () != bsit; ++bsit)
       {
@@ -1151,7 +1160,7 @@ namespace annotate
 	  }
       }
     
-    gOut(0) << "Non-Adjacent stackings ------------------------------------------" << endl;
+    gOut(0) << endl << endl << "Non-Adjacent stackings ------------------------------------------" << endl;
     
     for (bsit = nonAdjacentStacks.begin (); nonAdjacentStacks.end () != bsit; ++bsit)
       {
@@ -1174,6 +1183,7 @@ namespace annotate
   {
     vector< BasePair >::const_iterator bpit;
 
+    gOut (0) << endl << endl << "Base-pairs ------------------------------------------------------" << endl;
     for (bpit = basepairs.begin (); basepairs.end () != bpit; ++bpit)
       {
 	const Relation &rel = *internalGetEdge (bpit->first, bpit->second);
@@ -1209,6 +1219,7 @@ namespace annotate
 //     set< node >::iterator k, l;
 //     vector< bool > treated;
 
+//     gOut (0) << "Triples ---------------------------------------------------------" << endl;
 //     treated.resize (size (), false);
 
 //     for (gi=begin (); gi!=end (); ++gi) {
@@ -1248,17 +1259,12 @@ namespace annotate
   ostream&
   AnnotateModel::output (ostream &os) const
   {
-    gOut (0) << "Residue conformations -------------------------------------------" << endl;
     dumpConformations ();
     dumpStacks ();
-    gOut (0) << "Base-pairs ------------------------------------------------------" << endl;
-// //     findKissingHairpins ();
+//     findKissingHairpins ();
     dumpPairs ();
-//     gOut (0) << "Triples ---------------------------------------------------------" << endl;
-// //     dumpTriples ();
-//     gOut (0) << "Helices ---------------------------------------------------------" << endl;
-//     dumpHelices ();
-//     gOut (0) << "Strands ---------------------------------------------------------" << endl;
+//     dumpTriples ();
+    dumpHelices ();
 //     dumpStrands ();
 //     gOut (0) << "Various features ------------------------------------------------" << endl;
 // //     findPseudoknots ();

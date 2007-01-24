@@ -11,6 +11,7 @@
 #ifndef _annotate_AnnotateModel_h_
 #define _annotate_AnnotateModel_h_
 
+#include <list>
 #include <map>
 #include <set>
 #include <string>
@@ -225,34 +226,29 @@ namespace annotate
     /**
      * Collection of AnnotateModel sequences.
      */
-    vector< Sequence > sequences;
-
-
-
+    list< Sequence > sequences;
+    list< Helix > helices;
 
 //     StrandSet sequences;
 
-    int nb_pairings;
-    int min_helix_size;
+//     int nb_pairings;
 
-    struct OStrand : public pair< label, label > {
-      stype type;
-      int ref;
-    };
+//     struct OStrand : public pair< label, label > {
+//       stype type;
+//       int ref;
+//     };
 
     vector< BasePair > basepairs;
     vector< BaseStack > stacks;
     vector< BaseLink > links;
-    vector< Helix > helices;
 //     vector< OStrand > strands;
     
 //     vector< int > sequence_length;
-    vector< unsigned int > marks;
 
-    map< label, int > helix_mask;
-    map< label, int > strand_mask;
-    map< label, int > sequence_mask;
-    map< label, int > tertiary_mask;
+//     map< label, int > helix_mask;
+//     map< label, int > strand_mask;
+//     map< label, int > sequence_mask;
+//     map< label, int > tertiary_mask;
 
     ResIdSet residueSelection;
 
@@ -301,6 +297,7 @@ namespace annotate
   private:
 
     void s_secondaire (const vector< BasePair > &bps, set< BasePair > &stable);
+    bool areHelix (const BasePair &bp1, const BasePair &bp2) const;
 
   public:
     
@@ -327,32 +324,23 @@ namespace annotate
  
     void fillBPStacks ();
     void buildSequences ();
-    void buildSequence5p (set< AnnotateModel::label > &vertexSet, Sequence &seq, AnnotateModel::label loc);
-    void buildSequence3p (set< AnnotateModel::label > &vertexSet, Sequence &seq, AnnotateModel::label loc);
-    
-    void findHelices ();
-
-
-
+    void findHelices (const set< BasePair > &stable);
     void buildStrands();
-    
-    void findHelices (const set< pair< label, label > > &helixPairsCandidates);
-    void dumpHelices () const;
-    
     void findStrands ();
     void classifyStrands ();
-    void dumpStrands ();
     void findKissingHairpins ();
     void findPseudoknots ();
 
-    void dumpSequences (bool detailed = true) const;
+    // I/O  -----------------------------------------------------------------
+  
+    void dumpHelices () const;
+    void dumpStrands ();
+    void dumpSequences () const;
     void dumpPairs () const;
     void dumpConformations () const;
     void dumpTriples () ;
     void dumpStacks () const;
 
-    // I/O  -----------------------------------------------------------------
-  
     /**
      * Ouputs the model to the stream.
      * @param os the output stream.

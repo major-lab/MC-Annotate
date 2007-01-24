@@ -15,7 +15,7 @@
 #include <iostream>
 #include <vector>
 
-#include "AnnotateModel.h"
+#include "mccore/GraphModel.h"
 
 using namespace mccore;
 using namespace std;
@@ -24,11 +24,11 @@ using namespace std;
 
 namespace annotate
 {
-  class Sequence : public vector< AnnotateModel::label >
+  class Sequence : public vector< GraphModel::label >
   {
   public:
 
-    Sequence () : vector< AnnotateModel::label > () { }
+    Sequence () : vector< GraphModel::label > () { }
 
     virtual ~Sequence () { }
 

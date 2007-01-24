@@ -14,9 +14,8 @@
 
 #include <utility>
 
+#include "mccore/GraphModel.h"
 #include "mccore/ResId.h"
-
-#include "AnnotateModel.h"
 
 using namespace mccore;
 using namespace std;
@@ -26,7 +25,7 @@ using namespace std;
 namespace annotate
 {
 
-  class BaseLink : public pair< AnnotateModel::label, AnnotateModel::label >
+  class BaseLink : public pair< GraphModel::label, GraphModel::label >
   {
 
   public:
@@ -37,7 +36,7 @@ namespace annotate
     
     // LIFECYCLE ------------------------------------------------------------
 
-    BaseLink (AnnotateModel::label l, const ResId &fResId, AnnotateModel::label r, const ResId &rResId);
+    BaseLink (GraphModel::label l, const ResId &fResId, GraphModel::label r, const ResId &rResId)
       : pair< GraphModel::label, GraphModel::label > (l, r),
 	fResId (fResId),
 	rResId (rResId)

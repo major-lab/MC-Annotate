@@ -171,6 +171,12 @@ namespace mccore
      */
     unsigned int getProperties () const { return properties; }
 
+    /**
+     * Sets the annotation properties.
+     * @param prop the annotation properties.
+     */
+    void setProperties (unsigned int prop) { properties = prop; }
+
   };
 
 
