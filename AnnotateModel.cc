@@ -348,7 +348,7 @@ namespace annotate
 //   }
 
   bool
-  AnnotateModel::areHelix (const BasePair &bp1, const BasePair &bp2) const
+  AnnotateModel::areHelixPairs (const BasePair &bp1, const BasePair &bp2) const
   {
     return (internalAreConnected (bp1.first, bp2.first)
 	    && internalGetEdge (bp1.first, bp2.first)->is (PropertyType::pAdjacent5p)
@@ -376,12 +376,12 @@ namespace annotate
 	      {
 		const BasePair &bp1 = hit->back ();
 
-		if (areHelix (bp1, bp2))
+		if (areHelixPairs (bp1, bp2))
 		  {
 		    hit->push_back (bp2);
 		    break;
 		  }
-		if (areHelix (bp2, bp1))
+		if (areHelixPairs (bp2, bp1))
 		  {
 		    hit->insert (hit->begin (), bp2);
 		    break;
@@ -404,13 +404,13 @@ namespace annotate
 
 	for (h2it = hit, ++h2it; helices.end () != h2it; ++h2it)
 	  {
-	    if (areHelix (hit->back (), h2it->front ()))
+	    if (areHelixPairs (hit->back (), h2it->front ()))
 	      {
 		hit->insert (hit->end (), h2it->begin (), h2it->end ());
 		helices.erase (h2it);
 		h2it = hit;
 	      }
-	    else if (areHelix (h2it->back (), hit->front ()))
+	    else if (areHelixPairs (h2it->back (), hit->front ()))
 	      {
 		hit->insert (hit->begin (), h2it->begin (), h2it->end ());
 		helices.erase (h2it);
