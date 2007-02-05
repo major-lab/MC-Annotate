@@ -297,7 +297,7 @@ namespace annotate
   private:
 
     void s_secondaire (const vector< BasePair > &bps, set< BasePair > &stable);
-    bool areHelix (const BasePair &bp1, const BasePair &bp2) const;
+    bool areHelixPairs (const BasePair &bp1, const BasePair &bp2) const;
 
   public:
     
