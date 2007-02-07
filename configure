@@ -271,7 +271,7 @@ PACKAGE_VERSION=
 PACKAGE_STRING=
 PACKAGE_BUGREPORT=
 
-ac_unique_file="annotate.cc"
+ac_unique_file="MC-Annotate.cc"
 ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS SET_MAKE CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT build build_cpu build_vendor build_os host host_cpu host_vendor host_os INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA PACKAGE VERSION DEPFLAGS LDNAMEPARAM LINKOPTIONS LIBALLFLAGSTART LIBALLFLAGSTOP LIBOBJS LTLIBOBJS'
 ac_subst_files=''
 
@@ -804,7 +804,6 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-rnaml            include rnaml reader and writer classes
-  --with-malloc           replace STL allocator with malloc
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -1255,8 +1254,8 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
           ac_config_headers="$ac_config_headers config.h"
 
 
-PACKAGE=annotate
-VERSION=1.3
+PACKAGE=MC-Annotate
+VERSION=1.5
 cat >>confdefs.h <<_ACEOF
 #define PACKAGE "$PACKAGE"
 _ACEOF
@@ -2017,90 +2016,6 @@ test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL}'
 
 test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
-# AC_CHECK_FUNCS(strsep)
-# AC_CHECK_FUNCS(isfdtype)
-# AC_CHECK_FUNCS(acosf)
-# AC_CHECK_FUNCS(sqrtf)
-
-
-echo "$as_me:$LINENO: checking whether the compiler has numeric_limits<T>" >&5
-echo $ECHO_N "checking whether the compiler has numeric_limits<T>... $ECHO_C" >&6
-if test "${ac_cv_cxx_have_numeric_limits+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-
-
- ac_ext=cc
-ac_cpp='$CXXCPP $CPPFLAGS'
-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
-
- cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-#include <limits>
- using namespace std;
-
-int
-main ()
-{
-double e = numeric_limits<double>::epsilon(); return 0;
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext
-if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
-  (eval $ac_compile) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-	 { ac_try='test -z "$ac_cxx_werror_flag"
-			 || test ! -s conftest.err'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest.$ac_objext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  ac_cv_cxx_have_numeric_limits=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-ac_cv_cxx_have_numeric_limits=no
-fi
-rm -f conftest.err conftest.$ac_objext conftest.$ac_ext
- ac_ext=cc
-ac_cpp='$CXXCPP $CPPFLAGS'
-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
-
-
-fi
-echo "$as_me:$LINENO: result: $ac_cv_cxx_have_numeric_limits" >&5
-echo "${ECHO_T}$ac_cv_cxx_have_numeric_limits" >&6
-if test "$ac_cv_cxx_have_numeric_limits" = yes; then
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_NUMERIC_LIMITS
-_ACEOF
-
-fi
-
 
 if eval "test -z \"`echo $GXX`\""; then # not gnu compiler
     case "$host" in
@@ -2120,6 +2035,7 @@ if eval "test -z \"`echo $GXX`\""; then # not gnu compiler
 	  LDFLAGS="$LDFLAGS -L$t";
 	  echo "        " $t;
 	done
+
 
 echo "$as_me:$LINENO: checking for gzopen in -lz" >&5
 echo $ECHO_N "checking for gzopen in -lz... $ECHO_C" >&6
@@ -2268,6 +2184,7 @@ _ACEOF
 
 fi
 
+	LIBS="$LIBALLFLAGSTOP $LIBS"
 
 # Check whether --with-rnaml or --without-rnaml was given.
 if test "${with_rnaml+set}" = set; then
@@ -2565,80 +2482,6 @@ if test $ac_cv_lib_m_exp = yes; then
 _ACEOF
 
   LIBS="-lm $LIBS"
-
-fi
-
-
-echo "$as_me:$LINENO: checking for xmlcpginit in -lrnamlc++" >&5
-echo $ECHO_N "checking for xmlcpginit in -lrnamlc++... $ECHO_C" >&6
-if test "${ac_cv_lib_rnamlcpp_xmlcpginit+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lrnamlc++  $LIBS"
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-
-/* Override any gcc2 internal prototype to avoid an error.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-/* We use char because int might match the return type of a gcc2
-   builtin and then its argument prototype would still apply.  */
-char xmlcpginit ();
-int
-main ()
-{
-xmlcpginit ();
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
-  (eval $ac_link) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-	 { ac_try='test -z "$ac_cxx_werror_flag"
-			 || test ! -s conftest.err'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest$ac_exeext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  ac_cv_lib_rnamlcpp_xmlcpginit=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-ac_cv_lib_rnamlcpp_xmlcpginit=no
-fi
-rm -f conftest.err conftest.$ac_objext \
-      conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-echo "$as_me:$LINENO: result: $ac_cv_lib_rnamlcpp_xmlcpginit" >&5
-echo "${ECHO_T}$ac_cv_lib_rnamlcpp_xmlcpginit" >&6
-if test $ac_cv_lib_rnamlcpp_xmlcpginit = yes; then
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBRNAMLC__ 1
-_ACEOF
-
-  LIBS="-lrnamlc++ $LIBS"
 
 fi
 
@@ -2994,17 +2837,6 @@ fi
 	LIBALLFLAGSTART="-Wl,-whole-archive"
 	LIBALLFLAGSTOP="-Wl,-no-whole-archive";
 fi
-
-
-
-# Check whether --with-malloc or --without-malloc was given.
-if test "${with_malloc+set}" = set; then
-  withval="$with_malloc"
-  cat >>confdefs.h <<\_ACEOF
-#define __USE_MALLOC 1
-_ACEOF
-
-fi;
 
 
 
