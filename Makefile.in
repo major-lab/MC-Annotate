@@ -1,6 +1,6 @@
 #                           -*- Mode: Makefile -*-
 # Makefile.in
-# Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
+# Copyright © 2001-07 Laboratoire de Biologie Informatique et Théorique.
 #                     Université de Montréal
 # Author           : Martin Larose <larosem@iro.umontreal.ca>
 # Created On       : Mon May 14 19:22:30 2001
@@ -26,6 +26,7 @@ CXXFLAGS = @CXXFLAGS@
 DEPFLAGS = @DEPFLAGS@
 DEFS = @DEFS@
 LD = @CXX@
+LDCC = @CONDOR_COMPILE@
 LDFLAGS = @LDFLAGS@
 LINKOPTIONS = @LINKOPTIONS@
 LIBS = @LIBS@
@@ -79,8 +80,16 @@ all-static static: $(PROGRAM)-static TAGS
 	   (cd $$subdir && $(MAKE) $@) || exit 1; \
 	  done
 
+condor: $(PROGRAM)-condor TAGS
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+
 $(PROGRAM) $(PROGRAM)-static: $(OBJECTS)
 	$(LD) $(LINKOPTIONS) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
+
+$(PROGRAM)-condor: $(OBJECTS)
+	$(LDCC) $(LD) $(LINKOPTIONS) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
 
 TAGS: $(ALLSOURCES) $(HEADERS)
 	@ etags --c++ $^
@@ -102,6 +111,13 @@ install-static: $(PROGRAM)-static
 	   (cd $$subdir && $(MAKE) $@) || exit 1; \
 	  done
 
+install-condor: condor
+	@ $(srcdir)/mkinstalldirs $(bindir)
+	@ $(INSTALL_PROGRAM) -s $(PROGRAM)-condor $(bindir)/$(PROGRAM)
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+
 uninstall:
 	@ $(RM) $(bindir)/$(PROGRAM)-$(VERSION)
 	@ $(RM) $(bindir)/$(PROGRAM)
@@ -116,7 +132,7 @@ mostlyclean-local:
 clean: clean-recursive clean-local
 
 clean-local: mostlyclean-local
-	@ $(RM) $(PROGRAM) $(PROGRAM)-static $(OBJECTS) *.d TAGS
+	@ $(RM) $(PROGRAM) $(PROGRAM)-static $(PROGRAM)-condor $(OBJECTS) *.d TAGS
 	@- rm -rf ii_files
 
 distclean: distclean-recursive distclean-local

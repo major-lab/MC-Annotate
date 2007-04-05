@@ -1,6 +1,6 @@
 #                              -*- Mode: Sh -*- 
 # configure.in
-# Copyright © 2000-06 Laboratoire de Biologie Informatique et Théorique.
+# Copyright © 2000-07 Laboratoire de Biologie Informatique et Théorique.
 #                     Université de Montréal.
 # Author           : Martin Larose
 # Created On       : Tue Sep 19 18:21:58 2000
@@ -25,6 +25,15 @@ AC_PROG_CXX
 AC_CANONICAL_HOST
 
 AC_PROG_INSTALL
+
+AC_ARG_WITH(condor,
+    [  --with-condor[=PATH]    enable condor compilation],
+    if eval "test \"`echo $with_condor`\" = yes"; then
+	AC_CHECK_PROG([CONDOR_COMPILE],[condor_compile],[condor_compile])
+    else
+	AC_CHECK_PROG([CONDOR_COMPILE],[condor_compile],[$with_condor/condor_compile],,[$with_condor])
+    fi,
+)
 
 if eval "test -z \"`echo $GXX`\""; then # not gnu compiler
     case "$host" in
