@@ -1,0 +1,208 @@
+#                           -*- Mode: Makefile -*-
+# Makefile.in
+# Copyright © 2001-07 Laboratoire de Biologie Informatique et Théorique.
+#                     Université de Montréal
+# Author           : Martin Larose <larosem@iro.umontreal.ca>
+# Created On       : Mon May 14 19:22:30 2001
+# $Revision$
+# $Id$
+
+
+PACKAGE = @PACKAGE@
+VERSION = @VERSION@
+
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+datadir = @datadir@
+includedir = @includedir@
+libdir = @libdir@
+
+CXX = @CXX@
+CXXFLAGS = @CXXFLAGS@
+DEPFLAGS = @DEPFLAGS@
+DEFS = @DEFS@
+LD = @CXX@
+LDCC = @CONDOR_COMPILE@
+LDFLAGS = @LDFLAGS@
+LINKOPTIONS = @LINKOPTIONS@
+LIBS = @LIBS@
+
+AR = @AR@
+
+INSTALL = @INSTALL@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+
+
+.SUFFIXES:
+
+%.d: %.cc
+	@ $(SHELL) -ec '$(CXX) $(DEPFLAGS) $(CXXFLAGS) $(DEFS) -I. -I$(srcdir) $< \
+	    | sed '\''s/\($*\)\.o[ :]*/\1.o $@ : /g'\'' > $@; \
+	      [ -s $@ ] || rm -f $@'
+
+%.o: %.cc
+	$(CXX) $(CXXFLAGS) $(DEFS) -I. -I$(srcdir) -c $<
+
+
+PROGSOURCES = MC-Annotate.cc
+
+SOURCES = BaseLink.cc BasePair.cc BaseStack.cc Helix.cc AnnotateModel.cc
+
+ALLSOURCES = $(SOURCES) $(PROGSOURCES)
+
+HEADERS = $(SOURCES:%.cc=%.h)
+
+OBJECTS = $(ALLSOURCES:%.cc=%.o)
+
+DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(ALLSOURCES) $(HEADERS) \
+config.guess config.h.in config.sub configure configure.in install-sh \
+mkinstalldirs stamp-h.in
+
+SUBDIRS =
+
+RELEASESUBDIRS =
+
+PROGRAM = $(PROGSOURCES:%.cc=%)
+
+
+all: $(PROGRAM) TAGS
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+
+all-static static: $(PROGRAM)-static TAGS
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+
+condor: $(PROGRAM)-condor TAGS
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+
+$(PROGRAM) $(PROGRAM)-static: $(OBJECTS)
+	$(LD) $(LINKOPTIONS) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
+
+$(PROGRAM)-condor: $(OBJECTS)
+	$(LDCC) $(LD) $(LINKOPTIONS) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
+
+TAGS: $(ALLSOURCES) $(HEADERS)
+	@ etags --c++ $^
+
+
+
+install: $(PROGRAM)
+	@ $(srcdir)/mkinstalldirs $(bindir)
+	@ $(INSTALL_PROGRAM) $(PROGRAM) $(bindir)/$(PROGRAM)
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+
+install-static: $(PROGRAM)-static
+	@ $(srcdir)/mkinstalldirs $(bindir)
+	@ $(INSTALL_PROGRAM) -s $(PROGRAM)-static $(bindir)/$(PROGRAM)-$(VERSION)
+	@ $(INSTALL_PROGRAM) -s $(PROGRAM)-static $(bindir)/$(PROGRAM)
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+
+install-condor: condor
+	@ $(srcdir)/mkinstalldirs $(bindir)
+	@ $(INSTALL_PROGRAM) -s $(PROGRAM)-condor $(bindir)/$(PROGRAM)
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+
+uninstall:
+	@ $(RM) $(bindir)/$(PROGRAM)-$(VERSION)
+	@ $(RM) $(bindir)/$(PROGRAM)
+
+
+
+mostlyclean: mostlyclean-recursive mostlyclean-local
+
+mostlyclean-local:
+	@ $(RM) *~
+
+clean: clean-recursive clean-local
+
+clean-local: mostlyclean-local
+	@ $(RM) $(PROGRAM) $(PROGRAM)-static $(PROGRAM)-condor $(OBJECTS) *.d TAGS
+	@- rm -rf ii_files
+
+distclean: distclean-recursive distclean-local
+
+distclean-local: clean-local
+	@ $(RM) Makefile config.cache config.h config.log config.status
+	@ $(RM) stamp-h
+
+mostlyclean-recursive clean-recursive distclean-recursive topclean-recursive:
+	@ for subdir in $(SUBDIRS); do \
+	   target=`echo $@ | sed 's/-recursive//'`; \
+	   (cd $$subdir && $(MAKE) $$target) || exit 1; \
+	  done
+
+
+release: static
+	@ $(srcdir)/mkinstalldirs ../mcsym-release/bin
+	@ $(INSTALL_PROGRAM) -s $(PROGRAM)-static ../mcsym-release/bin/$(PROGRAM)
+	@ for subdir in $(RELEASESUBDIRS); do \
+	   mkdir ../mcsym-release/$$subdir; \
+	   chmod 777 ../mcsym-release/$$subdir; \
+	  done
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+
+dist:
+	@ rm -fr $(PACKAGE)-$(VERSION)
+	@ mkdir $(PACKAGE)-$(VERSION)
+	@ chmod 777 $(PACKAGE)-$(VERSION)
+	@ echo Copying distribution files
+	@ for file in $(DISTFILES); do \
+	   ln $(srcdir)/$$file $(PACKAGE)-$(VERSION) 2> /dev/null \
+	     || cp -p $(srcdir)/$$file $(PACKAGE)-$(VERSION); \
+	  done
+	@ for subdir in $(SUBDIRS); do \
+	   echo Making $@ in $$subdir; \
+	   mkdir $(PACKAGE)-$(VERSION)/$$subdir; \
+	   chmod 777 $(PACKAGE)-$(VERSION)/$$subdir; \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+	@ chmod -R a+r $(PACKAGE)-$(VERSION)
+	@ tar chof $(PACKAGE)-$(VERSION).tar $(PACKAGE)-$(VERSION)
+	@ gzip -9 $(PACKAGE)-$(VERSION).tar
+	@ rm -fr $(PACKAGE)-$(VERSION)
+
+
+
+Makefile: $(srcdir)/Makefile.in ./config.status
+	@ ./config.status $@
+
+config.status: $(srcdir)/configure
+	@ ./config.status --recheck
+
+$(srcdir)/config.h.in: $(srcdir)/stamp-h.in
+
+$(srcdir)/stamp-h.in: $(srcdir)/configure.in
+	@ echo timestamp > $@
+
+config.h: stamp-h
+
+stamp-h: $(srcdir)/config.h.in config.status
+	@ ./config.status config.h
+	@ echo timestamp > $@
+
+$(srcdir)/configure: $(srcdir)/configure.in
+	@ cd $(srcdir) && autoconf
+
+# Tell versions [3.59,3.63) of GNU make not to export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:
+
+-include $(ALLSOURCES:.cc=.d)

@@ -1,0 +1,129 @@
+#                              -*- Mode: Sh -*- 
+# configure.in
+# Copyright © 2000-07 Laboratoire de Biologie Informatique et Théorique.
+#                     Université de Montréal.
+# Author           : Martin Larose
+# Created On       : Tue Sep 19 18:21:58 2000
+# $Revision$
+# $Id$
+
+dnl Process this file with autoconf to produce a configure script.
+
+
+AC_INIT(MC-Annotate.cc)
+AC_CONFIG_HEADER(config.h)
+
+PACKAGE=MC-Annotate
+VERSION=1.5
+AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE")
+AC_DEFINE_UNQUOTED(VERSION, "$VERSION")
+
+AC_PROG_MAKE_SET
+
+AC_LANG(C++)
+AC_PROG_CXX
+AC_CANONICAL_HOST
+
+AC_PROG_INSTALL
+
+AC_ARG_WITH(condor,
+    [  --with-condor[=PATH]    enable condor compilation],
+    if eval "test \"`echo $with_condor`\" = yes"; then
+	AC_CHECK_PROG([CONDOR_COMPILE],[condor_compile],[condor_compile])
+    else
+	AC_CHECK_PROG([CONDOR_COMPILE],[condor_compile],[$with_condor/condor_compile],,[$with_condor])
+    fi,
+)
+
+if eval "test -z \"`echo $GXX`\""; then # not gnu compiler
+    case "$host" in
+    *-sgi-*)
+        CXXFLAGS="$CXXFLAGS -O2 -LANG:std"
+  	DEPFLAGS="-M"
+	echo "appending values of CPLUS_INCLUDE_PATH to include path..."
+	for t in `echo $CPLUS_INCLUDE_PATH | sed "s/\.*:/ /g"`; do
+	  CXXFLAGS="$CXXFLAGS -I$t";
+ 	  DEPFLAGS="$DEPFLAGS -I$t";
+	  echo "        " $t;
+	done
+	LINKOPTIONS="-LANG:std"
+	LDNAMEPARAM="-Wl,-soname,"
+	echo "appending values of LIBRARY_PATH to lib path..."
+	for t in `echo $LIBRARY_PATH | sed "s/\.*:/ /g"`; do
+	  LDFLAGS="$LDFLAGS -L$t";    
+	  echo "        " $t;
+	done
+        AC_CHECK_LIB(z,gzopen)
+	AC_CHECK_LIB(m,exp)
+	LIBS="$LIBALLFLAGSTOP $LIBS"
+	AC_ARG_WITH(rnaml,
+	    [  --with-rnaml            include rnaml reader and writer classes],
+	    AC_CHECK_LIB(rnamlc++,xmlcpginit),
+	)
+	AC_MSG_CHECKING([for Vector3D in -lmccore])
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include "mccore/Vector3D.h"]],
+		[[new mccore::Vector3D ();]])],
+	    AC_MSG_RESULT([yes])
+	    AC_DEFINE(HAVE_LIBMCCORE)
+	    LIBS="-lmccore $LIBS",
+	    AC_MSG_RESULT([no]))
+	LIBALLFLAGSTART="-all"
+	LIBALLFLAGSTOP="-notall"
+	;;
+    *-sun-*)
+	CXXFLAGS="$CXXFLAGS -xO2"
+	DEPFLAGS="-xM"
+	echo "appending values of CPLUS_INCLUDE_PATH to include path..."
+	for t in `echo $CPLUS_INCLUDE_PATH | sed "s/\.*:/ /g"`; do
+	  CXXFLAGS="$CXXFLAGS -I$t";
+ 	  DEPFLAGS="$DEPFLAGS -I$t";
+	  echo "        " $t;
+	done
+	LINKOPTIONS=""
+	LDNAMEPARAM="-h"
+	echo "appending values of LIBRARY_PATH to lib path..."
+	for t in `echo $LIBRARY_PATH | sed "s/\.*:/ /g"`; do
+	  LDFLAGS="$LDFLAGS -L$t";    
+	  echo "        " $t;
+	done
+        AC_CHECK_LIB(z,gzopen)
+	AC_CHECK_LIB(m,exp)
+	AC_ARG_WITH(rnaml,
+	    [  --with-rnaml            include rnaml reader and writer classes],
+	    AC_CHECK_LIB(rnamlc++,xmlcpginit),
+	)
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include "mccore/Vector3D.h"]],
+		[[new mccore::Vector3D ();]])],
+	    AC_MSG_RESULT([yes])
+	    AC_DEFINE(HAVE_LIBMCCORE)
+	    LIBS="-lmccore $LIBS",
+	    AC_MSG_RESULT([no]))
+	LIBALLFLAGSTART="-z allextract"
+	LIBALLFLAGSTOP="-z defaultextract"
+	;;
+    esac;
+elif eval "test \"`echo $GXX`\" = yes"; then     # gnu compiler
+        AC_CHECK_LIB(z,main)
+	AC_ARG_WITH(rnaml,
+	    [  --with-rnaml            include rnaml reader and writer classes],
+	    AC_CHECK_LIB(rnamlc++,main),
+	)
+	AC_CHECK_LIB(mccore,main)
+	CXXFLAGS="$CXXFLAGS -Wall"
+	DEPFLAGS="-MM"
+	LDNAMEPARAM="-Wl,-soname,"
+	LINKOPTIONS=""
+	LIBALLFLAGSTART="-Wl,-whole-archive"
+	LIBALLFLAGSTOP="-Wl,-no-whole-archive";
+fi
+
+AC_SUBST(PACKAGE)
+AC_SUBST(VERSION)
+AC_SUBST(DEPFLAGS)
+AC_SUBST(LDFLAGS)
+AC_SUBST(LDNAMEPARAM)
+AC_SUBST(LINKOPTIONS)
+AC_SUBST(LIBALLFLAGSTART)
+AC_SUBST(LIBALLFLAGSTOP)
+
+AC_OUTPUT( Makefile, echo timestamp > stamp-h )
