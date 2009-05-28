@@ -51,7 +51,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
 PROGSOURCES = MC-Annotate.cc
 
-SOURCES = BaseLink.cc BasePair.cc BaseStack.cc Helix.cc AnnotateModel.cc
+SOURCES = BaseLink.cc BasePair.cc BaseStack.cc Helix.cc Stem.cc HairpinLoop.cc AnnotateModel.cc
 
 ALLSOURCES = $(SOURCES) $(PROGSOURCES)
 
@@ -92,7 +92,7 @@ $(PROGRAM)-condor: $(OBJECTS)
 	$(LDCC) $(LD) $(LINKOPTIONS) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
 
 TAGS: $(ALLSOURCES) $(HEADERS)
-	@ etags --c++ $^
+	@ etags $^
 
 
 

@@ -32,6 +32,8 @@
 #include "BasePair.h"
 #include "BaseStack.h"
 #include "Helix.h"
+#include "Stem.h"
+#include "HairpinLoop.h"
 
 using namespace mccore;
 using namespace std;
@@ -201,6 +203,7 @@ namespace annotate
 
 //     GraphModel &gfm;
     StrandSet sequences;
+    std::vector< std::vector< const Residue * > > chains;
 
     int nb_pairings;
     int min_helix_size;
@@ -214,6 +217,8 @@ namespace annotate
     vector< BaseStack > stacks;
     vector< BaseLink > links;
     vector< Helix > helices;
+    std::vector< Stem > stems;
+    std::vector< HairpinLoop > hairpinLoops;
 //     vector< OStrand > strands;
     
 //     vector< int > sequence_length;
@@ -278,6 +283,8 @@ namespace annotate
     void annotate ();
     
   private :
+  
+  	std::set< BasePair > getWWBasePairs();
     
     bool isHelixPairing (const Relation &r);
 
@@ -290,14 +297,29 @@ namespace annotate
     {
       return areConnected (i, j) && isPairing (getEdge (i, j));
     }
+    
+    void dumpPair (const BasePair& aBasePair) const;
+    void dumpHairpinLoop (const HairpinLoop& aLoop) const;
+    bool enclose(const BasePair& aBasePair, const Stem& aStem);
+    std::vector<const Stem*> getEnclosedStems(const BasePair& aBasePair);
+    std::vector<const Residue*> getStrandBetween(const_iterator itStart, const_iterator itEnd);
            
   public:
  
+ 	void findStems ();
+ 	void dumpStems () const;
+ 	
+ 	void findHairpinLoops();
+ 	void dumpHairpinLoops() const;
+ 	
+// 	void findInnerLoops();
+// 	void dumpInnerLoops() const;
+ 	
+ 	void findChains();
+ 	void dumpChains () const;
 
     void fillSeqBPStacks ();
     void findHelices ();
-
-
 
     void buildStrands();
     

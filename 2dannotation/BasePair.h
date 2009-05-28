@@ -98,6 +98,12 @@ namespace annotate
     // ACCESS ---------------------------------------------------------------
 
     // METHODS --------------------------------------------------------------
+	bool areContiguous(const BasePair &aBasePair) const
+	{
+		bool bContiguous = fResId.areContiguous(aBasePair.fResId);
+		bContiguous |= rResId.areContiguous(aBasePair.rResId);
+		return bContiguous;
+	}
 
     void reverse ()
     {

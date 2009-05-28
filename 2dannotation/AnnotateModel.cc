@@ -17,14 +17,14 @@
 #include <list>
 
 #include "mccore/Binstream.h"
+#include "mccore/Cycle.h"
 #include "mccore/Messagestream.h"
+#include "mccore/Molecule.h"
 #include "mccore/Pdbstream.h"
 #include "mccore/UndirectedGraph.h"
 #include "mccore/stlio.h"
 
 #include "AnnotateModel.h"
-
-
 
 namespace annotate
 {
@@ -59,7 +59,7 @@ namespace annotate
   void
   AnnotateModel::annotate ()
   {
-//     sequences.clear ();
+//    sequences.clear ();
     basepairs.clear ();
     stacks.clear ();
     links.clear ();
@@ -83,6 +83,14 @@ namespace annotate
 // //     findInternalLoops ();
 // //     findMultiLoops ();
 // //     findSingleStrands ();
+
+	findChains();
+
+	// Find the stems
+	findStems();
+	
+	// Find hairpin loops
+	findHairpinLoops();
   }
 
 
@@ -122,7 +130,215 @@ namespace annotate
       }
   }
   
+  std::set< BasePair > AnnotateModel::getWWBasePairs()
+  {
+  	set< BasePair> oWWBasePairs;
+  	vector< BasePair >::const_iterator bpit;
 
+	for (bpit = basepairs.begin (); basepairs.end () != bpit; ++bpit)
+	{
+		const Relation &rel = *internalGetEdge (bpit->first, bpit->second);
+		const vector< pair< const PropertyType*, const PropertyType* > > &faces = rel.getPairedFaces ();
+		vector< pair< const PropertyType*, const PropertyType* > >::const_iterator pfit;
+
+		for (pfit = faces.begin (); faces.end () != pfit; ++pfit)
+	  	{
+	  		const PropertyType* pProp1 = pfit->first;
+	  		const PropertyType* pProp2 = pfit->second;
+	  		std::string face1 = pProp1->toString();
+	  		std::string face2 = pProp2->toString();
+	  		if(	(0 < face1.size() && face1[0] == 'W') 
+	  			&& (0 < face2.size() && face2[0] == 'W'))
+	  		{
+	  			BasePair oWWPair = *bpit;
+	  			if(oWWPair.rResId < oWWPair.fResId)
+	  			{
+	  				oWWPair.reverse();	  				
+	  			}
+	  			oWWBasePairs.insert(oWWPair);
+	  		}
+		}
+  	}
+  	return oWWBasePairs;
+  }
+  
+  void 
+  AnnotateModel::findStems ()
+  {
+	std::set< BasePair > potentials;
+	potentials = getWWBasePairs();
+	
+	Stem currentStem;
+	std::set< BasePair >::const_iterator it = potentials.begin();
+	for( ; it != potentials.end(); ++ it)
+	{
+		if(currentStem.continues(*it))
+		{
+			currentStem.push_back(*it);
+		}
+		else
+		{
+			if(1 < currentStem.size())
+			{
+				stems.push_back(currentStem);
+			}
+			currentStem.clear();
+		}
+	}
+	
+	if(1 < currentStem.size())
+	{
+		stems.push_back(currentStem);
+	}
+  }
+  
+	void 
+	AnnotateModel::dumpStems () const 
+	{
+  		int i=0;
+    	vector< Stem >::const_iterator it;	
+    
+    	for (it = stems.begin (); stems.end () != it; ++it)
+	    {
+	    	ResId r1, r2, r3, r4;
+	    	r1 = (*it).basePairs().front().fResId;
+	    	r2 = (*it).basePairs().back().fResId;
+	    	r3= (*it).basePairs().front().rResId;
+	    	r4 = (*it).basePairs().back().rResId;
+	    	gOut(0) << "Stem " << i << " : " << r1 << "-" << r2;
+	    	gOut(0) << ", " << r3 << "-" << r4 << std::endl; 
+	    	i ++;
+    	}
+	}
+	
+	bool
+	AnnotateModel::enclose(const BasePair& aBasePair, const Stem& aStem)
+	{
+		bool bEnclose = false;
+		BasePair encEnd = aStem.basePairs().front();
+		if(aBasePair.fResId < encEnd.fResId && encEnd.rResId < aBasePair.rResId)
+		{
+			bEnclose = true;
+		}
+		return bEnclose;		
+	}
+	
+	std::vector<const Residue*>
+	AnnotateModel::getStrandBetween(const_iterator itStart, const_iterator itEnd)
+	{
+		std::vector<const Residue*> residues;
+		const_iterator it = itStart;
+		it ++;
+		while(it != itEnd)
+		{
+			residues.push_back(&(*it));
+			++ it;
+		}
+		return residues;
+	}
+	
+	std::vector<const Stem*> 
+	AnnotateModel::getEnclosedStems(const BasePair& aBasePair)
+	{
+		std::vector< const Stem* > enclosed;
+		std::vector< Stem >::const_iterator itEnc;
+		for(itEnc = stems.begin(); itEnc != stems.end(); ++itEnc)
+		{
+			if(enclose(aBasePair, *itEnc))
+			{
+				enclosed.push_back(&(*itEnc));
+			}
+		}
+		return enclosed;
+	}
+	
+	void 
+	AnnotateModel::findHairpinLoops() 
+	{
+		std::vector< Stem >::const_iterator it;
+		for(it = stems.begin(); it != stems.end(); ++it)
+		{
+			BasePair stemEnd = (*it).basePairs().back();
+			std::vector< const Stem* > enclosed = getEnclosedStems(stemEnd);
+			
+			if(0 == enclosed.size())
+			{
+				std::vector< const Residue* > residues;
+				const_iterator itStart, itEnd;
+				itStart = GraphModel::find(stemEnd.fResId);
+				itEnd = GraphModel::find(stemEnd.rResId);
+				residues = getStrandBetween(itStart, itEnd);
+				HairpinLoop hairpinLoop(residues);
+				hairpinLoops.push_back(hairpinLoop);
+			}
+			else
+			{
+				enclosed.clear();
+			}			
+		}
+	}
+	
+	/*
+	void 
+	AnnotateModel::findInnerLoops()
+	{
+		std::vector< Stem >::const_iterator it;
+		for(it = stems.begin(); it != stems.end(); ++it)
+		{
+			BasePair stemEnd = (*it).basePairs().back();
+			std::vector< const Stem* > enclosed = getEnclosedStems(stemEnd);
+			
+			if(0 < enclosed.size())
+			{
+				const Stem* candidate = enclosed.front();
+				std::vector< const Stem* > subStems = getEnclosedStems(candidate->basePairs().back());
+								
+				if(subStems.size() == enclosed.size() - 1)
+				{
+					std::vector< const Residue* > residues;
+					const_iterator itStart, itEnd;
+					itStart = GraphModel::find(stemEnd.fResId);
+					itEnd = GraphModel::find(stemEnd.rResId);
+					residues = getStrandBetween(itStart, itEnd);
+					HairpinLoop hairpinLoop(residues);
+					hairpinLoops.push_back(hairpinLoop);
+				}				
+			}		
+		}
+	}*/
+	
+	void 
+	AnnotateModel::findChains()
+	{
+		const_iterator i;
+    	std::vector< const Residue *> current;
+    
+		for (i = begin (); i != end (); ++i)
+		{			
+			const Residue *res = &(*i);
+			if(0 < current.size())
+			{
+				if(current.back()->getResId().getChainId() == res->getResId().getChainId())
+				{
+					current.push_back(res);
+				}
+				else
+				{
+					chains.push_back(current);
+					current.clear();
+				}
+			}
+			else
+			{
+				current.push_back(res);
+			}
+		}
+		if(0 < current.size())
+		{
+			chains.push_back(current);
+		}
+	}
+  
   bool
   AnnotateModel::isHelixPairing (const Relation &r)
   {
@@ -130,8 +346,7 @@ namespace annotate
 	    && (r.is (PropertyType::pSaenger)
 		|| r.is (PropertyType::pOneHbond)));
   }
-    
-
+  
   void 
   AnnotateModel::findHelices ()
   {
@@ -463,7 +678,7 @@ namespace annotate
 //     StrandSet::iterator seqIt;
 //     int k = 0;
 
-//     for (seqIt = sequences.begin (); sequences.end () != seqIt; ++seqIt, ++k)
+//     for (seqIt = s.begin (); sequences.end () != seqIt; ++seqIt, ++k)
 //       {
 // 	Strand &resVec = *seqIt;
 // 	Strand::iterator resVecIt;
@@ -896,6 +1111,27 @@ namespace annotate
 //   }
 //   gOut(0).setf (ios::left, ios::adjustfield);
   }
+  
+	void 
+	AnnotateModel::dumpChains () const
+	{
+		std::vector< std::vector< const Residue * > >::const_iterator it;
+		for(it = chains.begin(); it != chains.end(); ++ it)
+		{
+			gOut (0) << "Chain " << it->front()->getResId().getChainId() << " : ";
+			std::vector< const Residue * >::const_iterator itRes;
+			for(itRes = it->begin(); itRes != it->end(); )
+			{
+				gOut (0) << Pdbstream::stringifyResidueType ((*itRes)->getType ());
+				++ itRes;
+				if(itRes != it->end())
+				{
+					gOut (0) << "-";
+				}
+			}
+			gOut (0) << endl;
+		}		
+	}
 
   
   void
@@ -959,32 +1195,60 @@ namespace annotate
 	    << "Number of non adjacent stackings = " << nonAdjacentStacks.size () << endl;
   }
   
+	void
+	AnnotateModel::dumpPair (const BasePair& aBasePair) const
+	{
+		const Relation &rel = *internalGetEdge (aBasePair.first, aBasePair.second);
+		const set< const PropertyType* > &labels = rel.getLabels ();
+		const vector< pair< const PropertyType*, const PropertyType* > > &faces = rel.getPairedFaces ();
+		vector< pair< const PropertyType*, const PropertyType* > >::const_iterator pfit;
 
-  void
-  AnnotateModel::dumpPairs () const
-  {
-    vector< BasePair >::const_iterator bpit;
+		gOut(0) << aBasePair.fResId << '-' << aBasePair.rResId << " : ";
+		gOut(0) << Pdbstream::stringifyResidueType (rel.getRef ()->getType())
+			<< "-"
+			<< Pdbstream::stringifyResidueType (rel.getRes ()->getType ())
+			<< " ";
+		for (pfit = faces.begin (); faces.end () != pfit; ++pfit)
+		{
+			gOut (0) << *pfit->first << "/" << *pfit->second << ' ';
+		}
+		copy (labels.begin (), labels.end (), ostream_iterator< const PropertyType* > (gOut (0), " "));
+		gOut (0) << endl;
+	}
+  
 
-    for (bpit = basepairs.begin (); basepairs.end () != bpit; ++bpit)
-      {
-	const Relation &rel = *internalGetEdge (bpit->first, bpit->second);
-	const set< const PropertyType* > &labels = rel.getLabels ();
-	const vector< pair< const PropertyType*, const PropertyType* > > &faces = rel.getPairedFaces ();
-	vector< pair< const PropertyType*, const PropertyType* > >::const_iterator pfit;
+	void
+	AnnotateModel::dumpPairs () const
+	{
+    	vector< BasePair >::const_iterator bpit;
 
-	gOut(0) << bpit->fResId << '-' << bpit->rResId << " : ";
-	gOut(0) << Pdbstream::stringifyResidueType (rel.getRef ()->getType())
-		<< "-"
-		<< Pdbstream::stringifyResidueType (rel.getRes ()->getType ())
-		<< " ";
-	for (pfit = faces.begin (); faces.end () != pfit; ++pfit)
-	  {
-	    gOut (0) << *pfit->first << "/" << *pfit->second << ' ';
-	  }
-	copy (labels.begin (), labels.end (), ostream_iterator< const PropertyType* > (gOut (0), " "));
-	gOut (0) << endl;
-      }
-  }
+		for (bpit = basepairs.begin (); basepairs.end () != bpit; ++bpit)
+		{
+			dumpPair(*bpit);
+		}
+	}
+	
+	void
+	AnnotateModel::dumpHairpinLoop(const HairpinLoop& aLoop) const
+	{
+		gOut (0) << aLoop.getResidues().front()->getResId();
+		gOut (0) << "-";
+		gOut (0) << aLoop.getResidues().back()->getResId();
+		gOut (0) << endl;
+	}
+	
+	void
+	AnnotateModel::dumpHairpinLoops() const
+	{
+		int i = 0;
+		vector< HairpinLoop >::const_iterator hpIt;
+		for(hpIt = hairpinLoops.begin(); hpIt != hairpinLoops.end(); ++hpIt)
+		{
+			gOut (0) << "Loop " << i << " : ";
+			dumpHairpinLoop(*hpIt);
+			++ i;
+		}
+	}
 
   
   void
@@ -1056,6 +1320,17 @@ namespace annotate
 //     gOut (0) << "Sequences -------------------------------------------------------" << endl;
 // //     dumpSequences ();
 //     gOut (0) << endl;
+	gOut (0) << "Chains ----------------------------------------------------------" << endl;
+	dumpChains();
+	
+	gOut (0) << "Stems -----------------------------------------------------------" << endl;
+	dumpStems ();
+	
+	gOut (0) << "Hairpin Loops ---------------------------------------------------" << endl;
+	dumpHairpinLoops ();
+	
+	
+	
     return os;
   }
 
