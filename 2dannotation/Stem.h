@@ -1,15 +1,25 @@
 #ifndef _annotate_Stem_H_
 #define _annotate_Stem_H_
 
-#include <vector>
-
+#include "SecondaryStructure.h"
 #include "BasePair.h"
+
+#include <vector>
 
 namespace annotate
 {
-	class Stem
+	class Stem : public SecondaryStructure
 	{		
 	public:
+		enum enConnection
+		{
+			eFIRST_STRAND_FRONT_PAIR,
+			eFIRST_STRAND_BACK_PAIR,
+			eSECOND_STRAND_FRONT_PAIR,
+			eSECOND_STRAND_BACK_PAIR,
+			eUNDEFINED_CONNECTION // Should not be present for a valid connection
+		};
+		
   		enum enOrientation 
   		{ 
   			ePARALLEL, 
@@ -56,6 +66,15 @@ namespace annotate
     	bool continues(const BasePair& aBasePair) const;
     	
     	/**
+    	 * @brief Checks if given residue is involved in 
+    	 * this stem's structure.
+    	 * @return true if the residue is in one of the 
+    	 * pair constituting the stem, false otherwise.
+    	 */
+    	bool contains(const mccore::Residue& aResidue) const;
+    	bool contains(const ResId& aResId) const;
+    	
+    	/**
     	 * @brief Checks if this stem forms a pseudoknot
     	 * with the given stem.
     	 * @details 
@@ -63,6 +82,17 @@ namespace annotate
     	 * false otherwise.
     	 */
     	bool pseudoKnots( const Stem& aStem ) const;
+    	
+    	std::vector<const Stem*> pseudoKnots( 
+    		std::vector<const Stem*>& aStems ) const;
+    	
+    	std::vector<const Stem*> notPseudoKnotted(
+    		std::vector<const Stem*>& aStems ) const;
+    		
+    	ResId getResidue(const enConnection& ePoint) const 
+    		throw (mccore::NoSuchElementException);
+    		
+    	enConnection getConnection(const ResId& aId) const;
 	private:
 		/**
     	 * @brief Order base pair on increasing residue id.
@@ -76,6 +106,43 @@ namespace annotate
 		enOrientation meOrientation;
 		std::vector< BasePair > mBasePairs;
     	 
+	};
+	
+	class StemConnection 
+	{
+	public:		
+		StemConnection() 
+		{
+			mpStem = NULL; 
+			meConnection = Stem::eUNDEFINED_CONNECTION;
+		}
+		
+		StemConnection(const Stem& aStem, const Stem::enConnection& aeConnect)
+		{
+			mpStem = &aStem;
+			meConnection = aeConnect;
+		}
+		
+		bool isValid() const 
+		{ 
+			return (NULL != mpStem && meConnection != Stem::eUNDEFINED_CONNECTION);
+		}
+		
+		ResId getResidue() const { return mpStem->getResidue(meConnection); }
+		
+		const Stem& getStem() const {return *mpStem;}
+		const Stem::enConnection getConnection() const { return meConnection; }
+		
+		bool operator== (const StemConnection &other) const 
+		{
+			bool bEqual = (mpStem == other.mpStem) 
+				&& (meConnection == other.meConnection);
+			return bEqual;
+		}
+		
+	private:
+		const Stem* mpStem;
+		Stem::enConnection meConnection;		
 	};
 }
 

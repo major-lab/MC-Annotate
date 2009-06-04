@@ -20,7 +20,6 @@
 #include "mccore/GraphModel.h"
 #include "mccore/Model.h"
 #include "mccore/ModelFactoryMethod.h"
-#include "mccore/PdbFileHeader.h"
 #include "mccore/PropertyType.h"
 #include "mccore/Relation.h"
 #include "mccore/ResId.h"
@@ -31,22 +30,18 @@
 #include "BaseLink.h"
 #include "BasePair.h"
 #include "BaseStack.h"
-#include "Helix.h"
 #include "Stem.h"
-#include "HairpinLoop.h"
+#include "Loop.h"
+#include "Linker.h"
 
 using namespace mccore;
 using namespace std;
-
-
 
 namespace mccore
 {
   class iBinstream;
   class iPdbstream;
 }
-
-
 
 namespace annotate
 {
@@ -55,43 +50,6 @@ namespace annotate
   typedef int strandId;
   
   enum stype { BULGE_OUT, BULGE, INTERNAL_LOOP, LOOP, HELIX, OTHER };
- 
-  class Strand : public vector< const Residue* >
-  {
-  private:
-    char consensusChainId;
-  
-  public:
-     
-    virtual ostream& output (ostream &os) const
-    {
-      Strand::const_iterator resIt;
-        
-      os << size () << " residues : ";
-      for (resIt = begin (); end () != resIt; ++resIt)
-        {
-          os << (**resIt).getType();
-          if (end () != resIt + 1)
-	    {
-	      os << "-";
-	    }
-        }
-      return os;
-    }
-      
-    virtual ~Strand () { }
-    
-  };
-
-  class StrandSet : public vector< Strand >
-  {
-    /**
-     * Map from integer to original ResId.  The ResId of the residues are
-     * replaced with sequential ids.
-     */
-    map< unsigned int, const ResId * > int2ResIdMap;
-      
-  };
 
   /**
    * @short ModelFactoryMethod implementation for AnnotateModel class.
@@ -196,38 +154,16 @@ namespace annotate
      */
     string name;
 
-    /**
-     * The model PdbFileHeader
-     */
-    PdbFileHeader fileHeader;
-
-//     GraphModel &gfm;
-    StrandSet sequences;
     std::vector< std::vector< const Residue * > > chains;
-
-    int nb_pairings;
-    int min_helix_size;
-
-    struct OStrand : public pair< label, label > {
-      stype type;
-      int ref;
-    };
 
     vector< BasePair > basepairs;
     vector< BaseStack > stacks;
     vector< BaseLink > links;
-    vector< Helix > helices;
     std::vector< Stem > stems;
-    std::vector< HairpinLoop > hairpinLoops;
-//     vector< OStrand > strands;
-    
-//     vector< int > sequence_length;
-    vector< unsigned int > marks;
+    std::vector< Loop > loops;
+    std::vector< Linker > linkers;
 
-    map< label, int > helix_mask;
-    map< label, int > strand_mask;
-    map< label, int > sequence_mask;
-    map< label, int > tertiary_mask;
+    vector< unsigned int > marks;
 
     ResIdSet residueSelection;
 
@@ -286,8 +222,6 @@ namespace annotate
   
   	std::set< BasePair > getWWBasePairs();
     
-    bool isHelixPairing (const Relation &r);
-
     bool isPairing (const Relation *r)
     {
       return r->is (PropertyType::pPairing);
@@ -299,43 +233,62 @@ namespace annotate
     }
     
     void dumpPair (const BasePair& aBasePair) const;
-    void dumpHairpinLoop (const HairpinLoop& aLoop) const;
+    void dumpLinker(const Linker& aLinker) const;
+    void dumpLoop (const Loop& aLoop) const;
     bool enclose(const BasePair& aBasePair, const Stem& aStem);
     std::vector<const Stem*> getEnclosedStems(const BasePair& aBasePair);
-    std::vector<const Residue*> getStrandBetween(const_iterator itStart, const_iterator itEnd);
-           
+    std::map< const Residue*, const Stem* > getResidueStemAssociation(
+    	unsigned int iChain) const;
+    int getDirection(
+    	const Stem& aStem,		// Starting stem
+		const ResId& aResId);	// Residue from which we're starting
+	int getDirection(const StemConnection& aConnections) const;
+		
+	Loop findLoop(const Stem& aStem);
+	Linker findLinker(const StemConnection& aConnection) const;
+	void findLinker(
+		const Stem* apStem, 
+		const Stem::enConnection& aeConnect,
+  		std::set<Linker>& outLinkerSet);
+	
+	struct stResidueInfo
+	{
+		ResId resId;
+		const mccore::Residue* pResidue;
+		const Stem* pStem;
+	};
+	std::vector<stResidueInfo> mResidueInfos;
+	void computeResidueInfos();
+	std::vector<stResidueInfo>::const_iterator findResidueInfo(
+		const ResId& aResId) const;
+	mccore::ResId nextId(
+		const Stem& aStem, 
+		const StemConnection& aConnection) const;
+	std::map<mccore::ResId, const Linker*> getResidueLinkerMap() const;
+    Linker nextLinker(
+		const Linker& aLinker,
+		const std::map<mccore::ResId, const Linker*>& aResidueLinkerMap);
+	void removeLinker(
+		std::map<mccore::ResId, const Linker*>& aResidueLinkerMap,
+		const Linker& aLinker);
   public:
  
  	void findStems ();
  	void dumpStems () const;
  	
- 	void findHairpinLoops();
- 	void dumpHairpinLoops() const;
+ 	void findLinkers ();
+ 	void dumpLinkers () const;
  	
-// 	void findInnerLoops();
-// 	void dumpInnerLoops() const;
+	void findLoops();
+ 	void dumpLoops() const;
  	
  	void findChains();
  	void dumpChains () const;
 
     void fillSeqBPStacks ();
-    void findHelices ();
 
-    void buildStrands();
-    
-    void findHelices (const set< pair< label, label > > &helixPairsCandidates);
-    void dumpHelices () const;
-    
-    void findStrands ();
-    void classifyStrands ();
-    void dumpStrands ();
-    void findKissingHairpins ();
-    void findPseudoknots ();
-
-    void dumpSequences (bool detailed = true) ;
     void dumpPairs () const;
     void dumpConformations () const;
-    void dumpTriples () ;
     void dumpStacks () const;
 
     // I/O  -----------------------------------------------------------------
@@ -354,13 +307,6 @@ namespace annotate
      */
     virtual iPdbstream& input (iPdbstream &is);
   
-//     /**
-//      * Writes the model to a binary output stream.
-//      * @param obs the binary data stream.
-//      * @return the consumed binary stream.
-//      */
-//     virtual oBinstream& output (oBinstream &obs) const;
-
     /**
      * Reads the model from a binary input stream.
      * @param is the binary data stream.
@@ -369,34 +315,13 @@ namespace annotate
     virtual iBinstream& input (iBinstream &iss);
 
   };
-
-//   /**
-//    * Reads the AnnotateModel from a binary input stream.
-//    * @param is the binary input stream.
-//    * @param model the AnnotateModel.
-//    * @return the consumed binary stream.
-//    */
-//   iBinstream& operator>> (iBinstream &is, AnnotateModel &model);
-
-//   /**
-//    * Writes the AnnotateModel to a binary output stream.
-//    * @param os the binary input stream.
-//    * @param model the AnnotateModel.
-//    * @return the consumed binary stream.
-//    */
-//   oBinstream& operator<< (oBinstream &os, const AnnotateModel &model);
-
 }
 
 
 
 namespace std
 {
-  
-  ostream &
-  operator<< (ostream &out, const annotate::Strand &t);
-
-  /**
+   /**
    * Prints the AnnotateModel to the stream.
    * @param os the output stream.
    * @param am the AnnotateModel.

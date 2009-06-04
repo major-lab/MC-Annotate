@@ -23,6 +23,44 @@ namespace annotate
 		meOrientation = eUNDEFINED;
 		mBasePairs.clear();
 	}
+	
+	bool Stem::contains(const mccore::Residue& aResidue) const
+	{
+		return contains(aResidue.getResId());
+	}
+	
+	bool Stem::contains(const ResId& aResId) const
+	{
+		bool bContains = false;
+		if(0 < size())
+		{
+			if(aResId == mBasePairs.front().fResId 
+				|| aResId == mBasePairs.front().rResId 
+				|| aResId == mBasePairs.back().fResId 
+				|| aResId == mBasePairs.back().rResId)
+			{
+				bContains = true;
+			}
+			if(mBasePairs.front().fResId < aResId 
+				&& aResId < mBasePairs.back().fResId)
+			{
+				bContains = true;
+			}
+			else if(eANTIPARALLEL == meOrientation 
+				&& aResId < mBasePairs.front().rResId 
+				&& mBasePairs.back().rResId < aResId)
+			{
+				bContains = true;
+			}
+			else if(ePARALLEL == meOrientation 
+				&& mBasePairs.front().rResId < aResId 
+				&& aResId < mBasePairs.back().rResId)
+			{
+				bContains = true;
+			}
+		}
+		return bContains;
+	}
 		
 	bool Stem::continues(const BasePair& aBasePair) const
 	{
@@ -67,6 +105,38 @@ namespace annotate
 		return bPseudoKnots;
 	}
 	
+	std::vector<const Stem*> 
+	Stem::pseudoKnots( std::vector<const Stem*>& aStems ) const
+	{
+		std::vector<const Stem*> oStems;
+		std::vector<const Stem*>::const_iterator it = aStems.begin();
+		for(;it != aStems.end(); ++it)
+		{
+			const Stem* pStem = *it;
+			if(pseudoKnots(*pStem))
+			{
+				oStems.push_back(pStem);
+			}
+		}
+		return oStems;
+	}
+	
+	std::vector<const Stem*> 
+	Stem::notPseudoKnotted( std::vector<const Stem*>& aStems ) const
+	{
+		std::vector<const Stem*> oStems;
+		std::vector<const Stem*>::const_iterator it = aStems.begin();
+		for(;it != aStems.end(); ++it)
+		{
+			const Stem* pStem = *it;
+			if(!pseudoKnots(*pStem))
+			{
+				oStems.push_back(pStem);
+			}
+		}
+		return oStems;
+	}
+	
 	BasePair Stem::orderPair(const BasePair& aBasePair) const
 	{
 		// Insure that what we're trying to append is in order
@@ -95,6 +165,57 @@ namespace annotate
 			eOrientation = eANTIPARALLEL;
 		}
 		return eOrientation;
+	}
+	
+	ResId Stem::getResidue(const enConnection& ePoint) const 
+		throw(mccore::NoSuchElementException)
+	{
+		ResId residueId;
+		switch(ePoint)
+		{
+			case eFIRST_STRAND_FRONT_PAIR:
+				residueId = mBasePairs.front().fResId;
+				break;
+			case eSECOND_STRAND_FRONT_PAIR:
+				residueId = mBasePairs.front().rResId;
+				break;
+			case eFIRST_STRAND_BACK_PAIR:
+				residueId = mBasePairs.back().fResId;
+				break;	
+			case eSECOND_STRAND_BACK_PAIR:
+				residueId = mBasePairs.back().rResId;
+				break;
+			default:
+				std::string strMsg("ePoint must be defined");
+				throw mccore::NoSuchElementException(strMsg, __FILE__, __LINE__);
+		}
+		return residueId;
+	}
+	
+	Stem::enConnection Stem::getConnection(const ResId& aId) const
+	{
+		enConnection eConnect = eUNDEFINED_CONNECTION;
+		
+		if(0 < mBasePairs.size())
+		{
+			if(mBasePairs.front().fResId == aId)
+			{
+				eConnect = eFIRST_STRAND_FRONT_PAIR;
+			}
+			else if(mBasePairs.front().rResId == aId)
+			{
+				eConnect = eSECOND_STRAND_FRONT_PAIR;
+			}
+			else if(mBasePairs.back().fResId == aId)
+			{
+				eConnect = eFIRST_STRAND_BACK_PAIR;
+			}
+			else if(mBasePairs.back().rResId == aId)
+			{
+				eConnect = eSECOND_STRAND_BACK_PAIR;
+			}
+		}
+		return eConnect;
 	}
 };
 
