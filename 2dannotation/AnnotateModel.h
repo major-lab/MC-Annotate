@@ -46,6 +46,7 @@ namespace mccore
 namespace annotate
 {
   class AnnotateModel;
+  class Annotation;
   
   typedef int strandId;
   
@@ -160,14 +161,15 @@ namespace annotate
     vector< BaseStack > stacks;
     vector< BaseLink > links;
     std::vector< Stem > stems;
-    std::vector< Loop > loops;
-    std::vector< Linker > linkers;
 
     vector< unsigned int > marks;
 
     ResIdSet residueSelection;
 
     unsigned int environment;
+    
+    std::vector<Annotation *> annotations;
+    std::set<std::string> mProvidedAnnotations;
         
   public:
     
@@ -181,11 +183,10 @@ namespace annotate
      * @param fm the residue factory methods that will instanciate new
      * residues (default is @ref ExtendedResidueFM).
      */
-    AnnotateModel (const ResIdSet &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
-      : GraphModel (fm),
-	residueSelection (rs),
-	environment (env)
-    { }
+    AnnotateModel (
+    	const ResIdSet &rs, 
+    	unsigned int env, 
+    	const ResidueFactoryMethod *fm = 0);
     
     /**
      * Initializes the object with the right's content (deep copy).
@@ -196,20 +197,22 @@ namespace annotate
      * @param fm the residue factory methods that will instanciate new
      * residues (default is @ref ExtendedResidueFM).
      */
-    AnnotateModel (const AbstractModel &right, const ResIdSet &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
-      : GraphModel (right, fm),
-	residueSelection (rs),
-	environment (env)
-    { }
+    AnnotateModel (
+    	const AbstractModel &right, 
+    	const ResIdSet &rs, 
+    	unsigned int env, 
+    	const ResidueFactoryMethod *fm = 0);
 
     /**
      * Destroys the object.
      */
-    virtual ~AnnotateModel () { }
+    virtual ~AnnotateModel ();
     
     // OPERATORS ------------------------------------------------------------
     
     // ACCESS ---------------------------------------------------------------
+    const std::vector<Stem>& getStems() const { return stems; }
+    const Annotation* getAnnotation(const std::string& astrAnnotName) const;
     
     // METHODS --------------------------------------------------------------
 
@@ -217,6 +220,9 @@ namespace annotate
      * Builds the graph of relations, find strands and helices.
      */
     void annotate ();
+    
+    // TODO : Check dependencies
+    void addAnnotation(Annotation& aAnnotation);
     
   private :
   
@@ -233,55 +239,12 @@ namespace annotate
     }
     
     void dumpPair (const BasePair& aBasePair) const;
-    void dumpLinker(const Linker& aLinker) const;
-    void dumpLoop (const Loop& aLoop) const;
-    bool enclose(const BasePair& aBasePair, const Stem& aStem);
-    std::vector<const Stem*> getEnclosedStems(const BasePair& aBasePair);
-    std::map< const Residue*, const Stem* > getResidueStemAssociation(
-    	unsigned int iChain) const;
-    int getDirection(
-    	const Stem& aStem,		// Starting stem
-		const ResId& aResId);	// Residue from which we're starting
-	int getDirection(const StemConnection& aConnections) const;
-		
-	Loop findLoop(const Stem& aStem);
-	Linker findLinker(const StemConnection& aConnection) const;
-	void findLinker(
-		const Stem* apStem, 
-		const Stem::enConnection& aeConnect,
-  		std::set<Linker>& outLinkerSet);
-	
-	struct stResidueInfo
-	{
-		ResId resId;
-		const mccore::Residue* pResidue;
-		const Stem* pStem;
-	};
-	std::vector<stResidueInfo> mResidueInfos;
-	void computeResidueInfos();
-	std::vector<stResidueInfo>::const_iterator findResidueInfo(
-		const ResId& aResId) const;
-	mccore::ResId nextId(
-		const Stem& aStem, 
-		const StemConnection& aConnection) const;
-	std::map<mccore::ResId, const Linker*> getResidueLinkerMap() const;
-    Linker nextLinker(
-		const Linker& aLinker,
-		const std::map<mccore::ResId, const Linker*>& aResidueLinkerMap);
-	void removeLinker(
-		std::map<mccore::ResId, const Linker*>& aResidueLinkerMap,
-		const Linker& aLinker);
+   
   public:
  
  	void findStems ();
  	void dumpStems () const;
- 	
- 	void findLinkers ();
- 	void dumpLinkers () const;
- 	
-	void findLoops();
- 	void dumpLoops() const;
- 	
+  	
  	void findChains();
  	void dumpChains () const;
 

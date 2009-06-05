@@ -51,7 +51,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
 PROGSOURCES = MC-Annotate.cc
 
-SOURCES = AnnotateModel.cc BaseLink.cc BasePair.cc BaseStack.cc Linker.cc Loop.cc Stem.cc
+SOURCES = AnnotateModel.cc Annotation.cc AnnotationLinkers.cc AnnotationLoops.cc BaseLink.cc BasePair.cc BaseStack.cc Linker.cc Loop.cc Stem.cc
 
 ALLSOURCES = $(SOURCES) $(PROGSOURCES)
 

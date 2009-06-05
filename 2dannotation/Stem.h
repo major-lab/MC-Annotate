@@ -140,6 +140,7 @@ namespace annotate
 			return bEqual;
 		}
 		
+		int getDirection() const;		
 	private:
 		const Stem* mpStem;
 		Stem::enConnection meConnection;		

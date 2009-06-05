@@ -25,6 +25,35 @@
 #include "mccore/stlio.h"
 
 #include "AnnotateModel.h"
+#include "Annotation.h"
+
+//----------------------------------------------------------------------
+template < class T >
+set< T > SetIntersection( set< T > & set1, set< T > & set2 )
+{
+ set< T > setInter;
+ insert_iterator< set< T > > iter( setInter, setInter.begin() );
+
+ set_intersection( set1.begin(), set1.end(),
+          set2.begin(), set2.end(),
+          iter );
+
+ return setInter;
+};
+
+//----------------------------------------------------------------------
+template < class T >
+set< T > SetDifference( set< T > & set1, set< T > & set2 )
+{
+ set< T > setDiff;
+ insert_iterator< set< T > > iter( setDiff, setDiff.begin() );
+
+ set_difference( set1.begin(), set1.end(),
+        set2.begin(), set2.end(),
+        iter );
+
+ return setDiff;
+};
 
 namespace annotate
 {
@@ -49,6 +78,65 @@ namespace annotate
   {
     return obs;
   }
+  
+	AnnotateModel::AnnotateModel (
+  		const ResIdSet &rs, 
+  		unsigned int env, 
+  		const ResidueFactoryMethod *fm)
+  	: GraphModel (fm),
+		residueSelection (rs),
+		environment (env)
+    {}
+    
+    AnnotateModel::AnnotateModel (
+    	const AbstractModel &right, 
+    	const ResIdSet &rs, 
+    	unsigned int env, 
+    	const ResidueFactoryMethod *fm)
+    : GraphModel (right, fm),
+		residueSelection (rs),
+		environment (env)
+    { }
+    
+    AnnotateModel::~AnnotateModel ()
+    {
+    	annotations.clear();
+    }
+
+	void AnnotateModel::addAnnotation(Annotation& aAnnotation) 
+	{
+		// Check dependencies
+		std::set<std::string> requirements = aAnnotation.requires();
+		
+		std::set<std::string> match = SetIntersection<std::string>(
+			requirements, 
+			mProvidedAnnotations);
+			
+		if(match.size() == requirements.size())
+		{
+			annotations.push_back(&aAnnotation);
+			mProvidedAnnotations.insert(aAnnotation.provides());
+		}
+		else
+		{
+			// TODO : throw an exception
+		}
+	}
+	
+	const Annotation* AnnotateModel::getAnnotation(
+		const std::string& astrAnnotName) const
+	{
+		std::vector<Annotation *>::const_iterator it = annotations.begin();
+		const Annotation* pAnnotation = NULL;
+		for(; it != annotations.end() && NULL == pAnnotation; ++it)
+		{
+			if((*it)->provides() == astrAnnotName)
+			{
+				pAnnotation = *it;
+			}
+		}
+		return pAnnotation;
+	}
 
 
   void
@@ -72,14 +160,12 @@ namespace annotate
 	// Find the stems
 	findStems();
 	
-    // Compute information on residues to be used for the annotations
-    computeResidueInfos();
-	
-	// Find the linkers
-	findLinkers();
-	
-	// Find the loops
-	findLoops();
+	// Compute all the requested annotations
+	std::vector<Annotation*>::const_iterator it = annotations.begin();
+	for(;it != annotations.end(); ++it)
+	{
+		(*it)->update(*this);
+	}
   }
 
 
@@ -178,375 +264,6 @@ namespace annotate
 		if(1 < currentStem.size())
 		{
 			stems.push_back(currentStem);
-		}
-	}
-  
-  	int AnnotateModel::getDirection(const StemConnection& aConnection) const
-	{
-		int iDirection = 0;
-		if(aConnection.isValid())
-		{
-			switch(aConnection.getConnection())
-			{
-			case Stem::eFIRST_STRAND_FRONT_PAIR:
-				iDirection = -1;
-				break;
-			case Stem::eFIRST_STRAND_BACK_PAIR:
-				iDirection = 1;
-				break;
-			case Stem::eSECOND_STRAND_FRONT_PAIR:
-				if(Stem::eANTIPARALLEL == aConnection.getStem().getOrientation())
-				{
-					iDirection = 1;
-				}
-				else
-				{
-					iDirection = -1;
-				}
-				break;
-			case Stem::eSECOND_STRAND_BACK_PAIR:
-				if(Stem::eANTIPARALLEL == aConnection.getStem().getOrientation())
-				{
-					iDirection = -1;
-				}
-				else
-				{
-					iDirection = 1;
-				}
-				break;
-			case Stem::eUNDEFINED_CONNECTION:
-				// TODO : Exception
-				iDirection = 0;
-			}
-		}
-		return iDirection;
-	}
-  
-	Linker AnnotateModel::findLinker(const StemConnection& aConnection) const
-	{
-	  	Linker linker;
-	  	
-	  	// Find the possible strand from this end
-	  	int iDirection = getDirection(aConnection);
-	  	ResId resId = aConnection.getResidue();
-	
-	  	// Find the residue information
-	  	std::vector<stResidueInfo>::const_iterator it = findResidueInfo(resId);
-	  	
-	  	std::vector<mccore::ResId> linkerResidues;
-	  	
-	  	// Set the start of the linker
-	  	StemConnection linkerStart = aConnection;
-	 	StemConnection linkerEnd;
-	  	
-	  	// Walk the chain until we find a stem not pseudo-knotted
-	  	if(0 < iDirection)
-	  	{
-		  	std::advance(it, iDirection);
-		  	while(it != mResidueInfos.end())
-		  	{
-		  		const Stem* pStem = (*it).pStem;
-		  		if(NULL != pStem && !linkerStart.getStem().pseudoKnots(*pStem))
-		  		{
-		  			// Stem found
-		  			Stem::enConnection eConnect = pStem->getConnection((*it).resId);
-		  			linkerEnd = StemConnection(*pStem, eConnect);
-		  			it = mResidueInfos.end();
-		  		}
-		  		else
-		  		{
-		  			linkerResidues.push_back((*it).resId);
-		  			std::advance(it, iDirection);
-		  		}
-		  	}
-	  	}
-	  	linker = Linker(linkerResidues, linkerStart, linkerEnd);
-	  	linker.order();
-	  	
-	  	return linker;
-	}
-  
-  	void AnnotateModel::findLinker(
-  		const Stem* apStem, 
-  		const Stem::enConnection& aeConnect,
-  		std::set<Linker>& outLinkerSet)
-	{
-	  	StemConnection connect(*apStem, aeConnect);
-	  		
-		Linker linker = findLinker(connect);
-		
-		if(!linker.isEmpty()) 
-		{
-			outLinkerSet.insert(linker); 
-		}
-  	}
-  
-  	void AnnotateModel::findLinkers()
-  	{
-	  	std::set<Linker> linkerSet;
-	  	std::vector< Stem >::const_iterator it;
-		for(it = stems.begin(); it != stems.end(); ++it)
-		{
-			findLinker((&*it), Stem::eFIRST_STRAND_FRONT_PAIR, linkerSet);
-			findLinker((&*it), Stem::eFIRST_STRAND_BACK_PAIR, linkerSet);
-			findLinker((&*it), Stem::eSECOND_STRAND_FRONT_PAIR, linkerSet);
-			findLinker((&*it), Stem::eSECOND_STRAND_BACK_PAIR, linkerSet);		
-		}
-		
-		std::set<Linker>::const_iterator itLinker = linkerSet.begin();
-		for(;itLinker != linkerSet.end(); ++itLinker)
-		{
-			linkers.push_back(*itLinker);
-		}
-	}
-	
-	bool
-	AnnotateModel::enclose(const BasePair& aBasePair, const Stem& aStem)
-	{
-		bool bEnclose = false;
-		BasePair encEnd = aStem.basePairs().front();
-		if(aBasePair.fResId < encEnd.fResId && encEnd.rResId < aBasePair.rResId)
-		{
-			bEnclose = true;
-		}
-		return bEnclose;		
-	}
-	
-	std::vector<const Stem*> 
-	AnnotateModel::getEnclosedStems(const BasePair& aBasePair)
-	{
-		std::vector< const Stem* > enclosed;
-		std::vector< Stem >::const_iterator itEnc;
-		for(itEnc = stems.begin(); itEnc != stems.end(); ++itEnc)
-		{
-			if(enclose(aBasePair, *itEnc))
-			{
-				enclosed.push_back(&(*itEnc));
-			}
-		}
-		return enclosed;
-	}
-	
-	void AnnotateModel::computeResidueInfos()
-	{
-		int i = 0;
-		mResidueInfos.resize(GraphModel::size());
-		const_iterator it = GraphModel::begin();
-		for(;it != GraphModel::end(); ++ it)
-		{
-			mResidueInfos[i].resId = (*it).getResId();
-			mResidueInfos[i].pResidue = &(*it);
-			mResidueInfos[i].pStem = NULL;
-			std::vector<Stem>::const_iterator stemIt;
-			for(stemIt = stems.begin(); stemIt != stems.end(); ++stemIt)
-			{
-				if((*stemIt).contains((*it).getResId()))
-				{
-					if(NULL != mResidueInfos[i].pStem)
-					{
-						gOut(0) << "Residue associated with more than one stem" << endl;
-					}
-					mResidueInfos[i].pStem = &(*stemIt);
-				}
-			}
-			++ i;
-		}	
-	}
-	
-	std::vector<AnnotateModel::stResidueInfo>::const_iterator 
-	AnnotateModel::findResidueInfo(const ResId& aResId) const
-	{
-		std::vector<AnnotateModel::stResidueInfo>::const_iterator it;
-		for(it = mResidueInfos.begin(); it != mResidueInfos.end(); ++it)
-		{
-			if(aResId == (*it).resId)
-			{
-				break;
-			}
-		}
-		return it;
-	}
-
-	std::map< const Residue*, const Stem* >
-	AnnotateModel::getResidueStemAssociation(unsigned int iChain) const
-	{
-		std::map< const Residue*, const Stem*> association;
-		
-		if(iChain < chains.size() && 0 < chains[iChain].size()) // This should be an assert
-		{
-			std::vector<const Residue*>::const_iterator itRes;
-			itRes = chains[iChain].begin();
-			for(; itRes != chains[iChain].end(); ++itRes)
-			{
-				std::pair< const Residue*, const Stem*> pairStem;
-				const Stem* pStem = NULL;
-				pairStem.first = *itRes;
-				std::vector<Stem>::const_iterator itStem = stems.begin();
-				for(; itStem != stems.end() && NULL == pStem; ++itStem)
-				{
-					if(itStem->contains(*(*itRes)))
-					{
-						pStem = &(*itStem);
-					}
-				}
-				pairStem.second = pStem;
-			}
-		}
-		return association;
-	}
-	
-	ResId 
-	AnnotateModel::nextId(
-		const Stem& aStem, 
-		const StemConnection& aConnection) const
-	{
-		ResId id;
-		switch(aConnection.getConnection())
-		{
-		case Stem::eFIRST_STRAND_FRONT_PAIR:
-			id = aStem.basePairs().front().rResId;
-			break;
-		case Stem::eSECOND_STRAND_FRONT_PAIR:
-			id = aStem.basePairs().front().fResId;
-			break;
-		case Stem::eFIRST_STRAND_BACK_PAIR:
-			id = aStem.basePairs().back().rResId;
-			break;
-		case Stem::eSECOND_STRAND_BACK_PAIR:
-			id = aStem.basePairs().back().fResId;
-			break;
-		default:
-			// TODO : This should be an exception
-			break;
-		}
-		
-		return id;
-	}
-	
-	Linker AnnotateModel::nextLinker(
-		const Linker& aLinker,
-		const std::map<mccore::ResId, const Linker*>& aResidueLinkerMap)
-	{
-		Linker nextLinker;
-		const Stem* pNextStem = &aLinker.getEnd().getStem();
-		if(NULL != pNextStem)
-		{
-			ResId resId = nextId(
-				aLinker.getEnd().getStem(), 
-				aLinker.getEnd());
-			std::map<mccore::ResId, const Linker*>::const_iterator it;
-			it = aResidueLinkerMap.find(resId);
-			if(it != aResidueLinkerMap.end())
-			{
-				const Linker* pLinker = (*it).second;
-				nextLinker = *pLinker;
-				
-				if(nextLinker.getEnd().isValid())
-				{
-					ResId endId = nextLinker.getEnd().getResidue();
-					if(it->first == endId)
-					{
-						nextLinker.reverse();	
-					}					
-				}				
-			}
-		}
-		return nextLinker;
-	}
-	
-	std::map<mccore::ResId, const Linker*>
-	AnnotateModel::getResidueLinkerMap() const
-	{
-		std::map<mccore::ResId, const Linker*> residueLinkerMap;
-		std::vector<Linker>::const_iterator it;
-		for(it = linkers.begin();it != linkers.end(); ++it)
-		{
-			if((*it).getStart().isValid())
-			{
-				const StemConnection* pConnect = &(*it).getStart();
-				ResId resId = pConnect->getResidue();
-				std::pair<ResId, const Linker*> mapping(resId, &(*it));
-				residueLinkerMap.insert(mapping);	
-			}
-			
-			if((*it).getEnd().isValid())
-			{
-				const StemConnection* pConnection = &(*it).getEnd();
-				ResId resId = pConnection->getResidue();
-				std::pair<ResId, const Linker*> mapping(resId, &(*it));
-				residueLinkerMap.insert(mapping);
-			}
-		}
-		return residueLinkerMap;
-	}
-	
-	void
-	AnnotateModel::removeLinker(
-		std::map<mccore::ResId, const Linker*>& aResidueLinkerMap,
-		const Linker& aLinker)
-	{
-		if(aLinker.getEnd().isValid())
-		{
-			ResId resId = aLinker.getEnd().getResidue();
-			aResidueLinkerMap.erase(resId);
-		}
-		
-		if(aLinker.getStart().isValid())
-		{
-			ResId resId = aLinker.getStart().getResidue();
-			aResidueLinkerMap.erase(resId);
-		}
-	}
-	
-	void
-	AnnotateModel::findLoops()
-	{
-		std::map<ResId, const Linker*> residueLinkerMap;
-		residueLinkerMap = getResidueLinkerMap();
-		while(!residueLinkerMap.empty())
-		{
-			const Linker* pFirstLinker = NULL;
-			std::vector<Linker> potentialLoop;
-			
-			// Pick the first linker
-			std::pair<ResId, const Linker*> mapping = *(residueLinkerMap.begin());
-			
-			// Navigate until next is stem is NULL or we loop
-			pFirstLinker = mapping.second;
-			potentialLoop.push_back(*pFirstLinker);
-			
-			// Remove the linker from the map
-			removeLinker(residueLinkerMap, *pFirstLinker);
-			
-			Linker currentLinker = nextLinker(
-				*pFirstLinker, 
-				residueLinkerMap);
-			
-			while(!currentLinker.isEmpty() && currentLinker != *pFirstLinker)
-			{
-				potentialLoop.push_back(currentLinker);
-				
-				// Remove the linker from the map
-				removeLinker(residueLinkerMap, currentLinker);
-				
-				// Get the next strands
-				currentLinker = nextLinker(
-					currentLinker, 
-					residueLinkerMap);				
-			}
-			
-			if(0 < potentialLoop.size())
-			{
-				if(potentialLoop.front().getStart().isValid() && potentialLoop.back().getEnd().isValid())
-				{
-					const Stem* startStem = &potentialLoop.front().getStart().getStem();
-					const Stem* endStem = &potentialLoop.back().getEnd().getStem();
-					if(startStem == endStem)
-					{
-						loops.push_back(Loop(potentialLoop));
-					}
-				}
-			}
 		}
 	}
 	
@@ -716,56 +433,6 @@ namespace annotate
     	}
 	}
 	
-	void
-	AnnotateModel::dumpLoop(const Loop& aLoop) const
-	{
-		std::vector< Linker >::const_iterator it;
-		for(it = aLoop.getLinkers().begin(); 
-			it != aLoop.getLinkers().end(); 
-			++ it)
-		{
-			gOut (0) << "{";
-			dumpLinker(*it);
-			gOut (0) << "}, ";
-		}
-	}
-	
-	void
-	AnnotateModel::dumpLoops() const
-	{
-		int i = 0;
-		std::vector< Loop >::const_iterator it;
-		for(it = loops.begin(); it != loops.end(); ++it)
-		{
-			gOut (0) << "Loop " << i << " : ";
-			dumpLoop(*it);
-			gOut (0) << std::endl;
-			++ i;
-		}
-	}
-	
-	void
-	AnnotateModel::dumpLinker(const Linker& aLinker) const
-	{
-		gOut (0) << aLinker.getResidues().front();
-		gOut (0) << "-"; 
-		gOut (0) << aLinker.getResidues().back();
-	}
-	
-	void 
-	AnnotateModel::dumpLinkers() const
-	{
-		int i = 0;
-		std::vector<Linker>::const_iterator it;
-		for(it = linkers.begin(); it != linkers.end(); ++it)
-		{
-			gOut (0) << "Linker " << i << " : ";
-			dumpLinker(*it);
-			gOut (0) << std::endl;
-			++ i;
-		}
-	}
-
   ostream&
   AnnotateModel::output (ostream &os) const
   {
@@ -778,10 +445,18 @@ namespace annotate
 	dumpChains();
 	gOut (0) << "Stems -----------------------------------------------------------" << endl;
 	dumpStems ();
-	gOut (0) << "Strands ---------------------------------------------------------" << endl;
-	dumpLinkers();
-	gOut (0) << "Loops -----------------------------------------------------------" << endl;
-	dumpLoops ();
+	
+	// Compute all the requested annotations
+	std::vector<Annotation*>::const_iterator it = annotations.begin();
+	for(;it != annotations.end(); ++it)
+	{
+		std::string strAnnotationName = (*it)->provides();
+		strAnnotationName.append(" ");
+		strAnnotationName.append(65 - strAnnotationName.size(), '-');
+		gOut (0) << strAnnotationName << endl;
+		std::string strOutput = (*it)->output();
+		gOut (0) << strOutput;
+	}
 		
     return os;
   }

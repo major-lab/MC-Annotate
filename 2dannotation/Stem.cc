@@ -217,5 +217,46 @@ namespace annotate
 		}
 		return eConnect;
 	}
+	
+	int StemConnection::getDirection() const
+		{
+			int iDirection = 0;
+			if(isValid())
+			{
+				switch(meConnection)
+				{
+				case Stem::eFIRST_STRAND_FRONT_PAIR:
+					iDirection = -1;
+					break;
+				case Stem::eFIRST_STRAND_BACK_PAIR:
+					iDirection = 1;
+					break;
+				case Stem::eSECOND_STRAND_FRONT_PAIR:
+					if(Stem::eANTIPARALLEL == mpStem->getOrientation())
+					{
+						iDirection = 1;
+					}
+					else
+					{
+						iDirection = -1;
+					}
+					break;
+				case Stem::eSECOND_STRAND_BACK_PAIR:
+					if(Stem::eANTIPARALLEL == mpStem->getOrientation())
+					{
+						iDirection = -1;
+					}
+					else
+					{
+						iDirection = 1;
+					}
+					break;
+				default:
+					// TODO : Exception
+					iDirection = 0;
+				}
+			}
+			return iDirection;
+		}
 };
 
