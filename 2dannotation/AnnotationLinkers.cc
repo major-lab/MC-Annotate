@@ -13,6 +13,12 @@ namespace annotate
 		clear();
 	}
 	
+	const std::string AnnotationLinkers::provides() const
+	{
+		std::string strAnnotationName = "Linkers";
+		return strAnnotationName;
+	}
+	
 	void AnnotationLinkers::clear()
 	{
 		mResidueInfos.clear();
@@ -109,7 +115,6 @@ namespace annotate
 		for(;it != aModel.end(); ++ it)
 		{
 			mResidueInfos[i].resId = (*it).getResId();
-			mResidueInfos[i].pResidue = &(*it);
 			mResidueInfos[i].pStem = NULL;
 			std::vector<Stem>::const_iterator stemIt;
 			for(stemIt = aModel.getStems().begin(); 
@@ -158,12 +163,6 @@ namespace annotate
 			++ i;
 		}
 		return oss.str();
-	}
-	
-	const std::string AnnotationLinkers::provides() const
-	{
-		std::string strAnnotationName = "Linkers";
-		return strAnnotationName;
 	}
 		
 	const std::vector< Linker >& AnnotationLinkers::getLinkers() const

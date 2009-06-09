@@ -24,6 +24,8 @@ namespace annotate
 		std::vector< Loop > mLoops;
 		virtual void clear();
 		
+		void findOpenLoops(std::vector< Loop >& aOpenLoops);
+		
 		std::map<mccore::ResId, const Linker*> getResidueLinkerMap(
 			const AnnotateModel& aModel) const;
     	Linker nextLinker(
@@ -32,12 +34,17 @@ namespace annotate
 		void removeLinker(
 			std::map<mccore::ResId, const Linker*>& aResidueLinkerMap,
 			const Linker& aLinker) const;
-		mccore::ResId nextId(
-			const Stem& aStem, 
-			const StemConnection& aConnection) const;
+		std::vector<Loop>::iterator getLoopStartingBy(
+			const ResId& aResId, 
+			std::vector<Loop>& aLoops) const;
+		std::vector<Loop>::iterator getLoopEndingBy(
+			const ResId& aResId, 
+			std::vector<Loop>& aLoops) const;
+			
 			
 		// Output methods
 		void dumpLoop(std::ostringstream& oss, const Loop& aLoop) const;
+		std::string describeLoop(const Loop& aLoop) const;
 	};
 }
 

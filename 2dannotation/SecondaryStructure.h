@@ -9,13 +9,14 @@ namespace annotate
 				
 		// LIFECYCLE ------------------------------------------------------------
 		SecondaryStructure () {  }
-	    ~SecondaryStructure () { }
+	    virtual ~SecondaryStructure () { }
 
 		// OPERATORS ------------------------------------------------------------
 
 		// ACCESS ---------------------------------------------------------------
 
 		// METHODS --------------------------------------------------------------
+		virtual bool isAdjacent(const SecondaryStructure& aStruct) const = 0;
 	private:    	 
 	};
 }

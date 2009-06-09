@@ -35,6 +35,7 @@
 #include "AnnotateModel.h"
 #include "AnnotationLinkers.h"
 #include "AnnotationLoops.h"
+#include "AnnotationTertiaryPairs.h"
 
 using namespace mccore;
 using namespace std;
@@ -240,9 +241,11 @@ main (int argc, char *argv[])
 		  AnnotateModel &am = (AnnotateModel&) *molIt;
 		  AnnotationLinkers annLinkers;
 		  AnnotationLoops annLoops;
+		  AnnotationTertiaryPairs annTertiaryPairs;
 		  
 		  am.addAnnotation(annLinkers);
 		  am.addAnnotation(annLoops);
+		  am.addAnnotation(annTertiaryPairs);
 		  am.annotate ();
 		  gOut(0) << am;
 		  if (oneModel)

@@ -23,7 +23,7 @@ namespace annotate
 		struct stResidueInfo
 		{
 			ResId resId;
-			const mccore::Residue* pResidue;
+			// const mccore::Residue* pResidue;
 			const Stem* pStem;
 		};
 		std::vector<stResidueInfo> mResidueInfos;

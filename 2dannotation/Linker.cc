@@ -92,6 +92,38 @@ namespace annotate
     	
       return bIsSmaller;
     }
+    
+    bool Linker::isAdjacent(const SecondaryStructure& aStruct) const
+	{
+		bool bAdjacent = false;
+		
+		const Linker* pLinker = dynamic_cast<const Linker*>(&aStruct);
+		if(NULL != pLinker && operator == (*pLinker))
+		{
+			bAdjacent = true;			
+		}
+		else
+		{
+			const Stem* pStem = dynamic_cast<const Stem*>(&aStruct);
+			if(NULL != pStem)
+			{
+				// This is a stem
+				if((mStart.isValid() && mStart.getStem() == *pStem)
+					|| (mEnd.isValid() && mEnd.getStem() == *pStem))
+				{
+					bAdjacent = true;
+				}
+			}
+		}
+		return bAdjacent;
+	}
+    
+    bool Linker::contains(const mccore::ResId& aResId) const
+	{
+		std::vector<mccore::ResId>::const_iterator it;
+		it = std::find(mResidues.begin(), mResidues.end(), aResId);
+		return it != mResidues.end();
+	}
 	
 	void Linker::order()
 	{

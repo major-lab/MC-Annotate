@@ -24,6 +24,20 @@ namespace annotate
 		mBasePairs.clear();
 	}
 	
+	bool Stem::operator ==(const Stem& other) const
+	{
+		bool bEqual = false;
+		if(	mBasePairs.size() == other.mBasePairs.size() 
+			&& meOrientation == other.meOrientation)
+		{
+			bEqual = std::equal(
+				mBasePairs.begin(), 
+				mBasePairs.end(), 
+				other.mBasePairs.begin());
+		}
+		return bEqual;
+	}
+	
 	bool Stem::contains(const mccore::Residue& aResidue) const
 	{
 		return contains(aResidue.getResId());
@@ -79,6 +93,25 @@ namespace annotate
 			}
 		}
 		return bContinues;
+	}
+	
+	bool Stem::isAdjacent(const SecondaryStructure& aStruct) const
+	{
+		bool bAdjacent = false;
+		
+		const Stem* pStem = dynamic_cast<const Stem*>(&aStruct);
+		if(NULL != pStem)
+		{
+			if(operator == (*pStem))
+			{
+				bAdjacent = true;
+			}			
+		}else
+		{
+			// Other structure is not a stem, ask it
+			bAdjacent = aStruct.isAdjacent(*this);
+		}
+		return bAdjacent;
 	}
 	
 	bool Stem::pseudoKnots( const Stem& aStem ) const
@@ -219,44 +252,76 @@ namespace annotate
 	}
 	
 	int StemConnection::getDirection() const
+	{
+		int iDirection = 0;
+		if(isValid())
 		{
-			int iDirection = 0;
-			if(isValid())
+			switch(meConnection)
 			{
-				switch(meConnection)
+			case Stem::eFIRST_STRAND_FRONT_PAIR:
+				iDirection = -1;
+				break;
+			case Stem::eFIRST_STRAND_BACK_PAIR:
+				iDirection = 1;
+				break;
+			case Stem::eSECOND_STRAND_FRONT_PAIR:
+				if(Stem::eANTIPARALLEL == mpStem->getOrientation())
 				{
-				case Stem::eFIRST_STRAND_FRONT_PAIR:
-					iDirection = -1;
-					break;
-				case Stem::eFIRST_STRAND_BACK_PAIR:
 					iDirection = 1;
-					break;
-				case Stem::eSECOND_STRAND_FRONT_PAIR:
-					if(Stem::eANTIPARALLEL == mpStem->getOrientation())
-					{
-						iDirection = 1;
-					}
-					else
-					{
-						iDirection = -1;
-					}
-					break;
-				case Stem::eSECOND_STRAND_BACK_PAIR:
-					if(Stem::eANTIPARALLEL == mpStem->getOrientation())
-					{
-						iDirection = -1;
-					}
-					else
-					{
-						iDirection = 1;
-					}
-					break;
-				default:
-					// TODO : Exception
-					iDirection = 0;
 				}
+				else
+				{
+					iDirection = -1;
+				}
+				break;
+			case Stem::eSECOND_STRAND_BACK_PAIR:
+				if(Stem::eANTIPARALLEL == mpStem->getOrientation())
+				{
+					iDirection = -1;
+				}
+				else
+				{
+					iDirection = 1;
+				}
+				break;
+			default:
+				// TODO : Exception
+				iDirection = 0;
 			}
-			return iDirection;
 		}
+		return iDirection;
+	}
+	
+	mccore::ResId StemConnection::nextId() const
+	{
+		ResId id;
+		if(NULL != mpStem && meConnection != Stem::eUNDEFINED_CONNECTION)
+		{
+			switch(meConnection)
+			{
+			case Stem::eFIRST_STRAND_FRONT_PAIR:
+				id = mpStem->basePairs().front().rResId;
+				break;
+			case Stem::eSECOND_STRAND_FRONT_PAIR:
+				id = mpStem->basePairs().front().fResId;
+				break;
+			case Stem::eFIRST_STRAND_BACK_PAIR:
+				id = mpStem->basePairs().back().rResId;
+				break;
+			case Stem::eSECOND_STRAND_BACK_PAIR:
+				id = mpStem->basePairs().back().fResId;
+				break;
+			default:
+				// TODO : This should be an exception
+				break;
+			}
+		}
+		else
+		{
+			// TODO : Throw an exception
+		}
+		
+		return id;
+	}
 };
 

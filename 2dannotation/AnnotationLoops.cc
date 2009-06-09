@@ -33,6 +33,8 @@ namespace annotate
 	
 	void AnnotationLoops::update(const AnnotateModel& aModel)
 	{
+		std::vector< Loop > openLoops;
+		
 		std::map<ResId, const Linker*> residueLinkerMap;
 		residueLinkerMap = getResidueLinkerMap(aModel);
 		while(!residueLinkerMap.empty())
@@ -69,17 +71,121 @@ namespace annotate
 			
 			if(0 < potentialLoop.size())
 			{
-				if(potentialLoop.front().getStart().isValid() && potentialLoop.back().getEnd().isValid())
+				const StemConnection* pStart = &potentialLoop.front().getStart();
+				const StemConnection* pEnd = &potentialLoop.back().getEnd();
+				if(	pStart->isValid() 
+					&& pEnd->isValid() 
+					&& (&pStart->getStem() == &pEnd->getStem()))
 				{
-					const Stem* startStem = &potentialLoop.front().getStart().getStem();
-					const Stem* endStem = &potentialLoop.back().getEnd().getStem();
-					if(startStem == endStem)
-					{
-						mLoops.push_back(Loop(potentialLoop));
-					}
+					mLoops.push_back(Loop(potentialLoop));
+				}
+				else
+				{
+					openLoops.push_back(Loop(potentialLoop));
 				}
 			}
 		}
+		// Find the open loops from the remaining liners
+		findOpenLoops(openLoops);
+	}
+	
+	void AnnotationLoops::findOpenLoops(std::vector< Loop >& aOpenLoops)
+	{
+		while(!aOpenLoops.empty())
+		{
+			std::vector<Loop>::iterator it = aOpenLoops.begin();
+			Loop openLoop = *it;
+			aOpenLoops.erase(it);
+			const Linker* pFrontLinker = &openLoop.getLinkers().front();
+			const Linker* pBackLinker = &openLoop.getLinkers().back();
+			
+			if(pFrontLinker->getStart().isValid())
+			{
+				// Starts by a stem, check if another open loop precedes it
+				const ResId resId = pFrontLinker->getStart().nextId();
+				std::vector<Loop>::iterator potentialIt = 
+					getLoopStartingBy(resId, aOpenLoops);
+				
+				if(potentialIt != aOpenLoops.end())
+				{
+					(*potentialIt).reverse();
+					(*potentialIt).append(openLoop);
+				}else
+				{
+					potentialIt = getLoopEndingBy(resId, aOpenLoops);
+					if(potentialIt != aOpenLoops.end())
+					{
+						(*potentialIt).append(openLoop);						
+					}
+					else
+					{
+						mLoops.push_back(openLoop);
+					}
+				}				
+			}else if(pBackLinker->getEnd().isValid())
+			{
+				// Ends by a stem, check if another open loop continues it
+				const ResId resId = pBackLinker->getEnd().nextId();
+				std::vector<Loop>::iterator potentialIt = 
+					getLoopStartingBy(resId, aOpenLoops);
+				
+				if(potentialIt != aOpenLoops.end())
+				{
+					(*potentialIt).append(openLoop);
+				}else
+				{
+					potentialIt = getLoopEndingBy(resId, aOpenLoops);
+					if(potentialIt != aOpenLoops.end())
+					{
+						(*potentialIt).reverse();
+						(*potentialIt).append(openLoop);						
+					}
+					else
+					{
+						mLoops.push_back(openLoop);
+					}
+				}
+			}
+			else
+			{
+				// The open loop is complete, add it to the loops
+				mLoops.push_back(openLoop);
+			}
+		}		
+	}
+	
+	std::vector<Loop>::iterator 
+	AnnotationLoops::getLoopStartingBy(
+		const ResId& aResId, 
+		std::vector<Loop>& aLoops) const
+	{
+		std::vector<Loop>::iterator it = aLoops.begin();
+		for(; it != aLoops.end(); ++ it)
+		{
+			if((*it).getLinkers().front().getStart().isValid() 
+				&& aResId == (*it).getLinkers().front().getStart().getResidue())
+			{
+				break;				
+			}
+		}
+		return it;		
+	}
+	
+	std::vector<Loop>::iterator 
+	AnnotationLoops::getLoopEndingBy(
+		const ResId& aResId, 
+		std::vector<Loop>& aLoops) const
+	{
+		std::vector<Loop>::iterator it = aLoops.begin();
+		for(; it != aLoops.end(); ++ it)
+		{
+			if((*it).getLinkers().back().getEnd().isValid()
+				&& aResId == (*it).getLinkers().back().getEnd().getResidue())
+			{
+				break;				
+			}
+		}
+		return it;		
 	}
 	
 	std::map<mccore::ResId, const Linker*>
@@ -133,34 +239,6 @@ namespace annotate
 		}
 	}
 	
-	// TODO : This should be in the stem
-	mccore::ResId AnnotationLoops::nextId(
-		const Stem& aStem, 
-		const StemConnection& aConnection) const
-	{
-		ResId id;
-		switch(aConnection.getConnection())
-		{
-		case Stem::eFIRST_STRAND_FRONT_PAIR:
-			id = aStem.basePairs().front().rResId;
-			break;
-		case Stem::eSECOND_STRAND_FRONT_PAIR:
-			id = aStem.basePairs().front().fResId;
-			break;
-		case Stem::eFIRST_STRAND_BACK_PAIR:
-			id = aStem.basePairs().back().rResId;
-			break;
-		case Stem::eSECOND_STRAND_BACK_PAIR:
-			id = aStem.basePairs().back().fResId;
-			break;
-		default:
-			// TODO : This should be an exception
-			break;
-		}
-		
-		return id;
-	}
-	
 	Linker AnnotationLoops::nextLinker(
 		const Linker& aLinker,
 		const std::map<mccore::ResId, const Linker*>& aResidueLinkerMap) const
@@ -169,9 +247,7 @@ namespace annotate
 		const Stem* pNextStem = &aLinker.getEnd().getStem();
 		if(NULL != pNextStem)
 		{
-			ResId resId = nextId(
-				aLinker.getEnd().getStem(), 
-				aLinker.getEnd());
+			ResId resId = aLinker.getEnd().nextId();
 			std::map<mccore::ResId, const Linker*>::const_iterator it;
 			it = aResidueLinkerMap.find(resId);
 			if(it != aResidueLinkerMap.end())
@@ -207,6 +283,37 @@ namespace annotate
 			oss << it->getResidues().back();
 			oss << "}, ";
 		}
+		oss << describeLoop(aLoop);
+	}
+	
+	std::string AnnotationLoops::describeLoop(const Loop& aLoop) const
+	{
+		std::string strDescription;
+		// quality the loop
+		const StemConnection* pStart = &aLoop.getLinkers().front().getStart();
+		const StemConnection* pEnd = &aLoop.getLinkers().back().getEnd();
+		if(	pStart->isValid() 
+			&& pEnd->isValid() 
+			&& (&pStart->getStem() == &pEnd->getStem()))
+		{
+			int iSize = aLoop.getLinkers().size();
+			switch(iSize)
+			{
+			case 1:
+				strDescription = "hairpin";
+				break;
+			case 2: 
+				strDescription = "internal";
+				break;
+			default:
+				strDescription = "multibranch";
+			}
+		}
+		else
+		{
+			strDescription = "open";
+		}
+		return strDescription;
 	}
 	
 	

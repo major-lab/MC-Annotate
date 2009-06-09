@@ -16,17 +16,20 @@ namespace annotate
 			const std::vector<mccore::ResId>& aResidues, 
 			const StemConnection& aStart,
 			const StemConnection& aEnd);
-		~Linker();
+		virtual ~Linker();
 		
 		const std::vector<mccore::ResId >& getResidues() const;
 			
 		void clear();
 		
 		bool isEmpty() const;
+		bool isAdjacent(const SecondaryStructure& aStruct) const;
 		
 		bool operator== (const Linker& other) const;
 		bool operator!= (const Linker& other) const;
 		bool operator< (const Linker& other) const;
+		
+		bool contains(const mccore::ResId& aResId) const;
 		
 		void order();
 		void reverse();

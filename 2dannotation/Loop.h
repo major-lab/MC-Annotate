@@ -1,21 +1,29 @@
 #ifndef _annotate_Loop_H_
 #define _annotate_Loop_H_
 
+#include "SecondaryStructure.h"
 #include "Linker.h"
 #include <vector>
 
 namespace annotate
 {	
-	class Loop
+	class Loop : public SecondaryStructure
 	{
 	public:		
 		Loop();
 		Loop(const std::vector<Linker>& aLinkers);
-		~Loop();
+		virtual ~Loop();
 		
 		const std::vector<Linker>& getLinkers() const;
+		void reverse();
+		void append(const Loop& aLoop);
 				
 		void clear();
+		
+		bool contains(const ResId& aResId) const;
+		
+		bool operator ==(const Loop& other) const;
+		bool isAdjacent(const SecondaryStructure& aStruct) const;
 		
 	protected:
 		std::vector<Linker> mLinkers;

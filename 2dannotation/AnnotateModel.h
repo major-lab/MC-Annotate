@@ -211,8 +211,15 @@ namespace annotate
     // OPERATORS ------------------------------------------------------------
     
     // ACCESS ---------------------------------------------------------------
+    const std::vector<BasePair>& getBasePairs() const { return basepairs; }
     const std::vector<Stem>& getStems() const { return stems; }
     const Annotation* getAnnotation(const std::string& astrAnnotName) const;
+    
+    template<class T>
+    const T* getAnnotation(const std::string& astrAnnotName) const
+    {
+    	return dynamic_cast<const T*>(getAnnotation(astrAnnotName));
+    }
     
     // METHODS --------------------------------------------------------------
 

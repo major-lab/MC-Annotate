@@ -32,10 +32,14 @@ namespace annotate
 	    ~Stem () { }
 
 		// OPERATORS ------------------------------------------------------------
+		/**
+    	 * @brief Checks if the other stem is equal to this one
+    	 * @return true if both Stems have the same base pairs
+    	 */
+    	 bool operator ==(const Stem& other) const;
 
 		// ACCESS ---------------------------------------------------------------
 		enOrientation getOrientation () const { return meOrientation; }
-		// void setId (unsigned int val) { id = val; }
 		
 		const std::vector< BasePair >& basePairs() const { return mBasePairs; }
 
@@ -64,6 +68,12 @@ namespace annotate
     	 * @return true if the pair continues the stem.
     	 */
     	bool continues(const BasePair& aBasePair) const;
+    	
+    	/**
+    	 * @brief Check if current Stem is adjacent to given structure.
+    	 * @return true if both structures are known to be adjacent.
+    	 */
+    	bool isAdjacent(const SecondaryStructure& aStruct) const;
     	
     	/**
     	 * @brief Checks if given residue is involved in 
@@ -140,7 +150,8 @@ namespace annotate
 			return bEqual;
 		}
 		
-		int getDirection() const;		
+		int getDirection() const;
+		mccore::ResId nextId() const;
 	private:
 		const Stem* mpStem;
 		Stem::enConnection meConnection;		
