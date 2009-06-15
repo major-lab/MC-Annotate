@@ -23,6 +23,10 @@ namespace annotate
 		virtual void clear();
 		
 		std::set< BasePair > getWWBasePairs(const AnnotateModel& aModel) const;
+		bool checkNucleotides(const mccore::Relation &aRelation) const;
+		bool checkFaces(const mccore::Relation &aRelation) const;
+		bool checkOrientation(const mccore::Relation &aRelation) const;
+		
 		void getPotentialStems(
 			const AnnotateModel& aModel, 
 			std::vector<Stem>& aStems) const;

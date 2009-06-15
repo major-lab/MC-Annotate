@@ -72,38 +72,80 @@ namespace annotate
 		mStems.clear();
 	}
 	
-	std::set< BasePair > AnnotationStems::getWWBasePairs(const AnnotateModel& aModel) const
+	std::set< BasePair > AnnotationStems::getWWBasePairs(
+		const AnnotateModel& aModel) const
 	{
 	  	set< BasePair> oWWBasePairs;
-	  	vector< BasePair >::const_iterator bpit;
+	  	vector< BasePair >::const_iterator bpit = aModel.getBasePairs().begin();
 
-		for(bpit = aModel.getBasePairs().begin (); 
-			aModel.getBasePairs().end () != bpit; 
-			++bpit)
+		for(;aModel.getBasePairs().end () != bpit; ++bpit)
 		{
-			const Relation &rel = *aModel.internalGetEdge (bpit->first, bpit->second);
-			const vector< pair< const PropertyType*, const PropertyType* > > &faces = rel.getPairedFaces ();
-			vector< pair< const PropertyType*, const PropertyType* > >::const_iterator pfit;
-
-			for (pfit = faces.begin (); faces.end () != pfit; ++pfit)
-		  	{
-		  		const PropertyType* pProp1 = pfit->first;
-	  			const PropertyType* pProp2 = pfit->second;
-	  			std::string face1 = pProp1->toString();
-		  		std::string face2 = pProp2->toString();
-		  		if(	(0 < face1.size() && face1[0] == 'W') 
-					&& (0 < face2.size() && face2[0] == 'W'))
-		  		{
-		  			BasePair oWWPair = *bpit;
-	  				if(oWWPair.rResId < oWWPair.fResId)
-	  				{
-	  					oWWPair.reverse();	  				
-		  			}
-		  			oWWBasePairs.insert(oWWPair);
-	  			}
-			}
+			const mccore::Relation &rel = *aModel.internalGetEdge (bpit->first, bpit->second);
+			
+			// Filter on nucleotides
+			if( checkNucleotides(rel) 
+				&& checkFaces(rel) 
+				&& checkOrientation(rel))
+			{
+				// Add the pair if it passed all tests
+				BasePair oWWPair = *bpit;
+				if(oWWPair.rResId < oWWPair.fResId)
+				{
+					oWWPair.reverse();	  				
+				}
+				oWWBasePairs.insert(oWWPair);
+			}			
 	  	}
   		return oWWBasePairs;
+	}
+	
+	bool AnnotationStems::checkNucleotides(
+		const mccore::Relation &aRelation) const
+	{
+		bool bNucleotides = false;
+		const mccore::ResidueType* pRefType = aRelation.getRef()->getType();
+		const mccore::ResidueType* pResType = aRelation.getRes()->getType();
+		if((pRefType->isG() && (pResType->isC() || pResType->isU()))
+			|| (pRefType->isA() && pResType->isU())
+			|| (pRefType->isC() && pResType->isG())
+			|| (pRefType->isU() && !pResType->isU()))
+		{
+			bNucleotides = true;				
+		}
+		return bNucleotides;
+	}
+	
+	bool AnnotationStems::checkFaces(const mccore::Relation &aRelation) const
+	{
+		bool bFaces = false;
+		const std::vector< pair< const PropertyType*, const PropertyType* > > &faces = aRelation.getPairedFaces ();
+		std::vector< pair< const PropertyType*, const PropertyType* > >::const_iterator pfit;
+		for (pfit = faces.begin (); faces.end () != pfit && !bFaces; ++pfit)
+	  	{
+	  		const PropertyType* pProp1 = pfit->first;
+  			const PropertyType* pProp2 = pfit->second;
+	  		if(pProp1->isW() && pProp2->isW())
+	  		{
+	  			bFaces = true;		  			
+  			}
+		}
+		return bFaces;
+	}
+	
+	bool AnnotationStems::checkOrientation(const mccore::Relation &aRelation) const
+	{
+		// Filter on orientation
+		bool bCis = false;
+		const std::set< const PropertyType* > &labels = aRelation.getLabels ();
+		std::set< const PropertyType* >::const_iterator it;
+		for(it = labels.begin(); it != labels.end() && !bCis; ++it)
+		{	  		
+			if((*it)->toString() == "cis")
+			{
+				bCis = true;
+			}
+		}
+		return bCis;
 	}
 	
 	void AnnotationStems::getPotentialStems(
