@@ -85,6 +85,13 @@ namespace annotate
     	bool contains(const ResId& aResId) const;
     	
     	/**
+    	 * @brief Checks if given stem shares residue with 
+    	 * this one.
+    	 * @return true if some residues are shared.
+    	 */
+    	bool overlaps(const Stem& aStem) const;
+    	
+    	/**
     	 * @brief Checks if this stem forms a pseudoknot
     	 * with the given stem.
     	 * @details 

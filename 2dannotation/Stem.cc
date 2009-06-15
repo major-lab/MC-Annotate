@@ -75,6 +75,32 @@ namespace annotate
 		}
 		return bContains;
 	}
+	
+	bool Stem::overlaps(const Stem& aStem) const
+	{
+		bool bOverlaps = false;
+		if(0 < mBasePairs.size() && 0 < aStem.mBasePairs.size())
+		{
+			BasePair front = aStem.mBasePairs.front();
+			BasePair back = aStem.mBasePairs.back();
+			
+			// Checks if we contains any of the bounds of the other
+			bOverlaps = contains(front.fResId);
+			bOverlaps |= contains(front.rResId);
+			bOverlaps |= contains(back.fResId);
+			bOverlaps |= contains(back.rResId);
+			
+			if(!bOverlaps)
+			{
+				// Check if the other contains this bounds
+				bOverlaps = aStem.contains(mBasePairs.front().fResId);
+				bOverlaps |= aStem.contains(mBasePairs.front().rResId);
+				bOverlaps |= aStem.contains(mBasePairs.back().fResId);
+				bOverlaps |= aStem.contains(mBasePairs.back().rResId);
+			}
+		}
+		return bOverlaps;
+	}
 		
 	bool Stem::continues(const BasePair& aBasePair) const
 	{

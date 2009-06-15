@@ -1,11 +1,13 @@
 #include "AnnotationLinkers.h"
 #include "AnnotateModel.h"
+#include "AnnotationStems.h"
 #include <sstream>
 
 namespace annotate
 {
 	AnnotationLinkers::AnnotationLinkers()
 	{
+		addRequirement(AnnotationStems().provides());
 	}
 	
 	AnnotationLinkers::~AnnotationLinkers()
@@ -31,20 +33,27 @@ namespace annotate
 		
 		computeResidueInfos(aModel);
 		
-		std::set<Linker> linkerSet;
-	  	std::vector< Stem >::const_iterator it;
-		for(it = aModel.getStems().begin(); it != aModel.getStems().end(); ++it)
-		{
-			findLinker((&*it), Stem::eFIRST_STRAND_FRONT_PAIR, linkerSet);
-			findLinker((&*it), Stem::eFIRST_STRAND_BACK_PAIR, linkerSet);
-			findLinker((&*it), Stem::eSECOND_STRAND_FRONT_PAIR, linkerSet);
-			findLinker((&*it), Stem::eSECOND_STRAND_BACK_PAIR, linkerSet);		
-		}
+		const AnnotationStems* pAnnotStems = aModel.getAnnotation<AnnotationStems>(AnnotationStems().provides());
 		
-		std::set<Linker>::const_iterator itLinker = linkerSet.begin();
-		for(;itLinker != linkerSet.end(); ++itLinker)
-		{
-			mLinkers.push_back(*itLinker);
+		if(NULL != pAnnotStems)
+		{		
+			std::set<Linker> linkerSet;
+		  	std::vector< Stem >::const_iterator it;
+			for(it = pAnnotStems->getStems().begin(); 
+				it != pAnnotStems->getStems().end(); 
+				++it)
+			{
+				findLinker((&*it), Stem::eFIRST_STRAND_FRONT_PAIR, linkerSet);
+				findLinker((&*it), Stem::eFIRST_STRAND_BACK_PAIR, linkerSet);
+				findLinker((&*it), Stem::eSECOND_STRAND_FRONT_PAIR, linkerSet);
+				findLinker((&*it), Stem::eSECOND_STRAND_BACK_PAIR, linkerSet);		
+			}
+			
+			std::set<Linker>::const_iterator itLinker = linkerSet.begin();
+			for(;itLinker != linkerSet.end(); ++itLinker)
+			{
+				mLinkers.push_back(*itLinker);
+			}
 		}
 	}
 	
@@ -110,27 +119,32 @@ namespace annotate
   	void AnnotationLinkers::computeResidueInfos(const AnnotateModel& aModel)
 	{
 		int i = 0;
-		mResidueInfos.resize(aModel.size());
-		GraphModel::const_iterator it = aModel.begin();
-		for(;it != aModel.end(); ++ it)
+		const AnnotationStems* pAnnotStems = aModel.getAnnotation<AnnotationStems>(AnnotationStems().provides());
+		
+		if(NULL != pAnnotStems)
 		{
-			mResidueInfos[i].resId = (*it).getResId();
-			mResidueInfos[i].pStem = NULL;
-			std::vector<Stem>::const_iterator stemIt;
-			for(stemIt = aModel.getStems().begin(); 
-				stemIt != aModel.getStems().end(); 
-				++stemIt)
+			mResidueInfos.resize(aModel.size());
+			GraphModel::const_iterator it = aModel.begin();
+			for(;it != aModel.end(); ++ it)
 			{
-				if((*stemIt).contains((*it).getResId()))
+				mResidueInfos[i].resId = (*it).getResId();
+				mResidueInfos[i].pStem = NULL;
+				std::vector<Stem>::const_iterator stemIt;
+				for(stemIt = pAnnotStems->getStems().begin(); 
+					stemIt != pAnnotStems->getStems().end(); 
+					++stemIt)
 				{
-					if(NULL != mResidueInfos[i].pStem)
+					if((*stemIt).contains((*it).getResId()))
 					{
-						gOut(0) << "Residue associated with more than one stem" << endl;
+						if(NULL != mResidueInfos[i].pStem)
+						{
+							gOut(0) << "Residue associated with more than one stem" << endl;
+						}
+						mResidueInfos[i].pStem = &(*stemIt);
 					}
-					mResidueInfos[i].pStem = &(*stemIt);
 				}
+				++ i;
 			}
-			++ i;
 		}	
 	}
 	
@@ -156,9 +170,15 @@ namespace annotate
 		for(it = mLinkers.begin(); it != mLinkers.end(); ++it)
 		{
 			oss << "Linker " << i << " : ";
-			oss << it->getResidues().front();
-			oss << "-"; 
-			oss << it->getResidues().back();
+			if(0 < it->getResidues().size())
+			{
+				oss << it->getResidues().front();
+				oss << "-"; 
+				oss << it->getResidues().back();
+			}else
+			{
+				oss << "no residues";
+			}
 			oss << std::endl;
 			++ i;
 		}

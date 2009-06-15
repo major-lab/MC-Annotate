@@ -1,5 +1,6 @@
 #include "AnnotationTertiaryPairs.h"
 #include "AnnotateModel.h"
+#include "AnnotationStems.h"
 #include "AnnotationLoops.h"
 #include <sstream>
 
@@ -7,7 +8,8 @@ namespace annotate
 {
 	AnnotationTertiaryPairs::AnnotationTertiaryPairs()
 	{
-		// Requires stems
+		// Requires 
+		addRequirement(AnnotationStems().provides());
 		addRequirement(AnnotationLoops().provides());
 	}
 	
@@ -94,25 +96,30 @@ namespace annotate
 	void AnnotationTertiaryPairs::addStemsAssociations(
 		const AnnotateModel& aModel, 
 		struct_association_map& associationMap	)
-	{		
-		GraphModel::const_iterator it = aModel.begin();
-		for(;it != aModel.end(); ++ it)
+	{
+		const AnnotationStems* pAnnotStems = aModel.getAnnotation<AnnotationStems>(AnnotationStems().provides());
+		
+		if(NULL != pAnnotStems)
 		{
-			const ResId resId = (*it).getResId();
-			
-			// Add all the stem associations
-			std::vector<Stem>::const_iterator stemIt;
-			for(stemIt = aModel.getStems().begin(); 
-				stemIt != aModel.getStems().end(); 
-				++stemIt)
+			GraphModel::const_iterator it = aModel.begin();
+			for(;it != aModel.end(); ++ it)
 			{
-				if(stemIt->contains(resId))
+				const ResId resId = (*it).getResId();
+				
+				// Add all the stem associations
+				std::vector<Stem>::const_iterator stemIt;
+				for(stemIt = pAnnotStems->getStems().begin(); 
+					stemIt != pAnnotStems->getStems().end(); 
+					++stemIt)
 				{
-					struct_association	mapping(resId, &(*stemIt));
-					associationMap.insert(mapping);
-				}
-			}			
-		}	
+					if(stemIt->contains(resId))
+					{
+						struct_association	mapping(resId, &(*stemIt));
+						associationMap.insert(mapping);
+					}
+				}			
+			}
+		}
 	}
 	
 	void AnnotationTertiaryPairs::addLoopsAssociations(

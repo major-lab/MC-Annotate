@@ -278,9 +278,16 @@ namespace annotate
 			++ it)
 		{
 			oss << "{";
-			oss << it->getResidues().front();
-			oss << "-";
-			oss << it->getResidues().back();
+			if(0 < it->getResidues().size())
+			{
+				oss << it->getResidues().front();
+				oss << "-";
+				oss << it->getResidues().back();
+			}
+			else
+			{
+				oss << "no residues";
+			}
 			oss << "}, ";
 		}
 		oss << describeLoop(aLoop);

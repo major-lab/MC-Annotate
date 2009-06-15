@@ -20,6 +20,8 @@
 #include "mccore/GraphModel.h"
 #include "mccore/Model.h"
 #include "mccore/ModelFactoryMethod.h"
+// Temporary until cycle annotation is fully moved into AnnotationCycles.
+#include "mccore/Molecule.h"
 #include "mccore/PropertyType.h"
 #include "mccore/Relation.h"
 #include "mccore/ResId.h"
@@ -36,6 +38,34 @@
 
 using namespace mccore;
 using namespace std;
+
+//----------------------------------------------------------------------
+template < class T >
+set< T > SetIntersection( set< T > & set1, set< T > & set2 )
+{
+ set< T > setInter;
+ insert_iterator< set< T > > iter( setInter, setInter.begin() );
+
+ set_intersection( set1.begin(), set1.end(),
+          set2.begin(), set2.end(),
+          iter );
+
+ return setInter;
+};
+
+//----------------------------------------------------------------------
+template < class T >
+set< T > SetDifference( set< T > & set1, set< T > & set2 )
+{
+ set< T > setDiff;
+ insert_iterator< set< T > > iter( setDiff, setDiff.begin() );
+
+ set_difference( set1.begin(), set1.end(),
+        set2.begin(), set2.end(),
+        iter );
+
+ return setDiff;
+};
 
 namespace mccore
 {
@@ -160,9 +190,10 @@ namespace annotate
     vector< BasePair > basepairs;
     vector< BaseStack > stacks;
     vector< BaseLink > links;
-    std::vector< Stem > stems;
 
     vector< unsigned int > marks;
+    // TODO : Cycle annotation is affecting self, const correctness work needs to be done.
+    mccore::Molecule mCyclesMolecule;
 
     ResIdSet residueSelection;
 
@@ -212,13 +243,17 @@ namespace annotate
     
     // ACCESS ---------------------------------------------------------------
     const std::vector<BasePair>& getBasePairs() const { return basepairs; }
-    const std::vector<Stem>& getStems() const { return stems; }
-    const Annotation* getAnnotation(const std::string& astrAnnotName) const;
+	const Annotation* getAnnotation(const std::string& astrAnnotName) const;
     
     template<class T>
     const T* getAnnotation(const std::string& astrAnnotName) const
     {
     	return dynamic_cast<const T*>(getAnnotation(astrAnnotName));
+    }
+    
+    const mccore::Molecule& getCyclesMolecule() const
+    {
+    	return mCyclesMolecule;
     }
     
     // METHODS --------------------------------------------------------------
@@ -228,13 +263,10 @@ namespace annotate
      */
     void annotate ();
     
-    // TODO : Check dependencies
     void addAnnotation(Annotation& aAnnotation);
     
   private :
   
-  	std::set< BasePair > getWWBasePairs();
-    
     bool isPairing (const Relation *r)
     {
       return r->is (PropertyType::pPairing);
@@ -249,9 +281,6 @@ namespace annotate
    
   public:
  
- 	void findStems ();
- 	void dumpStems () const;
-  	
  	void findChains();
  	void dumpChains () const;
 

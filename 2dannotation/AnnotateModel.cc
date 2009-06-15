@@ -27,34 +27,6 @@
 #include "AnnotateModel.h"
 #include "Annotation.h"
 
-//----------------------------------------------------------------------
-template < class T >
-set< T > SetIntersection( set< T > & set1, set< T > & set2 )
-{
- set< T > setInter;
- insert_iterator< set< T > > iter( setInter, setInter.begin() );
-
- set_intersection( set1.begin(), set1.end(),
-          set2.begin(), set2.end(),
-          iter );
-
- return setInter;
-};
-
-//----------------------------------------------------------------------
-template < class T >
-set< T > SetDifference( set< T > & set1, set< T > & set2 )
-{
- set< T > setDiff;
- insert_iterator< set< T > > iter( setDiff, setDiff.begin() );
-
- set_difference( set1.begin(), set1.end(),
-        set2.begin(), set2.end(),
-        iter );
-
- return setDiff;
-};
-
 namespace annotate
 {
   static const unsigned int PAIRING_MARK = 1;
@@ -153,12 +125,13 @@ namespace annotate
     std::sort (basepairs.begin (), basepairs.end ());
     std::sort (stacks.begin (), stacks.end ());
     std::sort (links.begin (), links.end ());
+    
+    // TODO : This should be moved into AnnotationCycle, but some const 
+    // correctness work needs to be done in mccore.
+    unionMinimumCycleBases(mCyclesMolecule);
 
 	// Find the chains in the pdb file
 	findChains();
-
-	// Find the stems
-	findStems();
 	
 	// Compute all the requested annotations
 	std::vector<Annotation*>::const_iterator it = annotations.begin();
@@ -204,69 +177,7 @@ namespace annotate
 	  }
       }
   }
-  
-  std::set< BasePair > AnnotateModel::getWWBasePairs()
-  {
-  	set< BasePair> oWWBasePairs;
-  	vector< BasePair >::const_iterator bpit;
-
-	for (bpit = basepairs.begin (); basepairs.end () != bpit; ++bpit)
-	{
-		const Relation &rel = *internalGetEdge (bpit->first, bpit->second);
-		const vector< pair< const PropertyType*, const PropertyType* > > &faces = rel.getPairedFaces ();
-		vector< pair< const PropertyType*, const PropertyType* > >::const_iterator pfit;
-
-		for (pfit = faces.begin (); faces.end () != pfit; ++pfit)
-	  	{
-	  		const PropertyType* pProp1 = pfit->first;
-	  		const PropertyType* pProp2 = pfit->second;
-	  		std::string face1 = pProp1->toString();
-	  		std::string face2 = pProp2->toString();
-	  		if(	(0 < face1.size() && face1[0] == 'W') 
-	  			&& (0 < face2.size() && face2[0] == 'W'))
-	  		{
-	  			BasePair oWWPair = *bpit;
-	  			if(oWWPair.rResId < oWWPair.fResId)
-	  			{
-	  				oWWPair.reverse();	  				
-	  			}
-	  			oWWBasePairs.insert(oWWPair);
-	  		}
-		}
-  	}
-  	return oWWBasePairs;
-  }
-  
-	void 
-	AnnotateModel::findStems ()
-	{
-		std::set< BasePair > potentials;
-		potentials = getWWBasePairs();
-	
-		Stem currentStem;
-		std::set< BasePair >::const_iterator it = potentials.begin();
-		for( ; it != potentials.end(); ++ it)
-		{
-			if(currentStem.continues(*it))
-			{
-				currentStem.push_back(*it);
-			}
-			else
-			{
-				if(1 < currentStem.size())
-				{
-					stems.push_back(currentStem);
-				}
-				currentStem.clear();
-			}
-		}
-	
-		if(1 < currentStem.size())
-		{
-			stems.push_back(currentStem);
-		}
-	}
-	
+ 	
 	void 
 	AnnotateModel::findChains()
 	{
@@ -414,25 +325,6 @@ namespace annotate
 		}
 	}
 	
-	void 
-	AnnotateModel::dumpStems () const 
-	{
-  		int i=0;
-    	vector< Stem >::const_iterator it;	
-    
-    	for (it = stems.begin (); stems.end () != it; ++it)
-	    {
-	    	ResId r1, r2, r3, r4;
-	    	r1 = (*it).basePairs().front().fResId;
-	    	r2 = (*it).basePairs().back().fResId;
-	    	r3= (*it).basePairs().front().rResId;
-	    	r4 = (*it).basePairs().back().rResId;
-	    	gOut(0) << "Stem " << i << " : " << r1 << "-" << r2;
-	    	gOut(0) << ", " << r3 << "-" << r4 << std::endl; 
-	    	i ++;
-    	}
-	}
-	
   ostream&
   AnnotateModel::output (ostream &os) const
   {
@@ -443,8 +335,6 @@ namespace annotate
     dumpPairs ();
 	gOut (0) << "Chains ----------------------------------------------------------" << endl;
 	dumpChains();
-	gOut (0) << "Stems -----------------------------------------------------------" << endl;
-	dumpStems ();
 	
 	// Compute all the requested annotations
 	std::vector<Annotation*>::const_iterator it = annotations.begin();

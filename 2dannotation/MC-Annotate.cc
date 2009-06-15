@@ -15,6 +15,7 @@
 #include <cerrno>
 #include <cstdlib>
 #include <string>
+#include <sstream>
 #include <unistd.h>
 
 #include "mccore/Binstream.h"
@@ -33,8 +34,11 @@
 #include "mccore/Version.h"
 
 #include "AnnotateModel.h"
+#include "AnnotationCycles.h"
 #include "AnnotationLinkers.h"
 #include "AnnotationLoops.h"
+#include "AnnotationStems.h"
+#include "AnnotationTertiaryCycles.h"
 #include "AnnotationTertiaryPairs.h"
 
 using namespace mccore;
@@ -45,8 +49,9 @@ bool binary = false;
 unsigned int environment = 0;
 bool oneModel = false;
 unsigned int modelNumber = 0;  // 1 based vector identifier, 0 means all
+std::string gstrOutputDirectory = "";
 ResIdSet residueSelection;
-const char* shortopts = "Vbe:f:hlr:v";
+const char* shortopts = "Vbd:e:f:hlr:v";
 
 
 
@@ -64,7 +69,7 @@ void
 usage ()
 {
   gOut (0) << "usage: " << PACKAGE
-	   << " [-bhlvV] [-e num] [-f <model number>] [-r <residue ids>] <structure file> ..."
+	   << " [-bhlvV] [-e num] [-d <output directory>] [-f <model number>] [-r <residue ids>] <structure file> ..."
 	   << endl;
 }
 
@@ -75,6 +80,7 @@ help ()
   gOut (0)
     << "This program annotate structures (and more)." << endl
     << "  -b                read binary files instead of pdb files" << endl
+    << "  -d <directory>    output directory" << endl
     << "  -e num            number of surrounding layers of connected residues to annotate" << endl
     << "  -f model number   model to print" << endl
     << "  -h                print this help" << endl
@@ -116,6 +122,16 @@ read_options (int argc, char* argv[])
 	    environment = tmp;
 	    break;
 	  }
+	case 'd':
+	{
+		gstrOutputDirectory = optarg;
+		if (ERANGE == errno	|| EINVAL == errno)
+		{
+			gErr (0) << PACKAGE << ": invalid environment value." << endl;
+			exit (EXIT_FAILURE);
+		}
+		break;		
+	}
 	case 'f':
 	  {
 	    long int tmp;
@@ -216,47 +232,103 @@ loadFile (const string &filename)
   return molecule;
 }
 
+std::string getFilePrefix(const std::string& aFileName)
+{
+	std::string::size_type index;
+	std::string filename = aFileName;
+	if (std::string::npos != (index = filename.rfind ("/")))
+    {
+		filename.erase (0, index + 1);
+    }
+	if (string::npos != (index = filename.find (".")))
+    { 
+		filename.erase (index, filename.size ());
+    }
+	return filename;
+}
+
+void dumpCyclesFiles(
+	const std::string& aFilePrefix, 
+	const AnnotationTertiaryCycles& aAnnotationCycles)
+{
+	int i = 1;
+	for(std::vector<annotate::Cycle>::const_iterator it = aAnnotationCycles.getCycles().begin();
+		it != aAnnotationCycles.getCycles().end();
+		++ it)
+	{
+		std::ostringstream oss;
+		if(!gstrOutputDirectory.empty())
+		{
+			oss << gstrOutputDirectory << "/";
+		}
+		oss << aFilePrefix << "_c" << i << ".pdb.gz";
+		ozfPdbstream ops;
+		ops.open ((oss.str ()).c_str ());
+		if (! ops)
+		{
+			gErr (0) << "Cannot open file " << oss.str() << endl;
+			continue;
+		}
+		ops << *it;
+		ops.close ();
+		++ i;
+	}	
+}
+
 
 int
 main (int argc, char *argv[])
 {
-  read_options (argc, argv);
+	read_options (argc, argv);
 
-  while (optind < argc)
+	while (optind < argc)
     {
-      Molecule *molecule;
-      Molecule::iterator molIt;
+		Molecule *molecule;
+		Molecule::iterator molIt;
+		std::string filename = (std::string) argv[optind];
       
-      molecule = loadFile ((string) argv[optind]);
-      if (0 != molecule)
-	{
-	  for (molIt = molecule->begin (); molecule->end () != molIt; ++molIt)
-	    {
-	      if (0 != modelNumber)
+		molecule = loadFile (filename);
+		if (0 != molecule)
 		{
-		  --modelNumber;
-		}
-	      else
-		{
-		  AnnotateModel &am = (AnnotateModel&) *molIt;
-		  AnnotationLinkers annLinkers;
-		  AnnotationLoops annLoops;
-		  AnnotationTertiaryPairs annTertiaryPairs;
+			for (molIt = molecule->begin (); molecule->end () != molIt; ++molIt)
+			{
+				if (0 != modelNumber)
+				{
+					--modelNumber;
+				}
+				else
+				{
+					AnnotateModel &am = (AnnotateModel&) *molIt;
+					AnnotationStems annStems;
+					AnnotationLinkers annLinkers;
+					AnnotationLoops annLoops;
+					AnnotationTertiaryPairs annTertiaryPairs;
+					AnnotationCycles annCycles;
+					AnnotationTertiaryCycles annTertiaryCycles;
 		  
-		  am.addAnnotation(annLinkers);
-		  am.addAnnotation(annLoops);
-		  am.addAnnotation(annTertiaryPairs);
-		  am.annotate ();
-		  gOut(0) << am;
-		  if (oneModel)
-		    {
-		      break;
-		    }
+					am.addAnnotation(annStems);
+					am.addAnnotation(annLinkers);
+					am.addAnnotation(annLoops);
+					am.addAnnotation(annTertiaryPairs);
+					am.addAnnotation(annCycles);
+					am.addAnnotation(annTertiaryCycles);
+					am.annotate ();
+					
+					gOut (0) << "Annotating Model ------------------------------------------------" << endl;
+					gOut (0) << filename << std::endl;
+					gOut(0) << am;
+					
+					dumpCyclesFiles(getFilePrefix(filename), annTertiaryCycles);					
+					
+					if (oneModel)
+					{
+						break;
+					}
+				}
+			}
+			delete molecule;
 		}
-	    }
-	  delete molecule;
+		++optind;
 	}
-      ++optind;
-    }
-  return EXIT_SUCCESS;	
+	return EXIT_SUCCESS;	
 }
