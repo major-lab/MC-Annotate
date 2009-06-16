@@ -26,6 +26,7 @@
 
 #include "AnnotateModel.h"
 #include "Annotation.h"
+#include "AlgorithmExtra.h"
 
 namespace annotate
 {

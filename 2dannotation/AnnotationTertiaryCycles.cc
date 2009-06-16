@@ -2,10 +2,11 @@
 #include "AnnotationCycles.h"
 #include "AnnotationTertiaryPairs.h"
 #include "AnnotateModel.h"
+#include "AlgorithmExtra.h"
 #include <sstream>
 
 namespace annotate
-{
+{	
 	AnnotationTertiaryCycles::AnnotationTertiaryCycles()
 	{
 		addRequirement(AnnotationCycles().provides());
@@ -39,6 +40,7 @@ namespace annotate
 		
 		if(NULL != pAnnCycles && NULL != pAnnTertiaryPairs)
 		{
+			resid_pair_set cyclePairs;
 			mCycles = pAnnCycles->getCycles();
 			bool bTertiary = false;
 			std::vector<Cycle>::iterator it = mCycles.begin();
@@ -46,9 +48,12 @@ namespace annotate
 			while(it != mCycles.end())
 			{
 				// Check if the cycle is tertiary
+				getPairs(*it, cyclePairs);
 				bTertiary = isTertiary(
-					getPairs(*it), 
-					getPairs(*pAnnTertiaryPairs));
+					cyclePairs, 
+					pAnnTertiaryPairs->getPairs());
+				cyclePairs.clear();
+				
 				if(bTertiary)
 				{
 					++it;
@@ -94,36 +99,62 @@ namespace annotate
 		return mCycles;
 	}
 	
-	bool AnnotationTertiaryCycles::isTertiary(
-		const std::pair<mccore::ResId, mccore::ResId>& aCyclePair,
-		const resid_pair_vector& a3DPairs) const
+	bool AnnotationTertiaryCycles::compare_less(
+		const BasePair& aLeft, 
+		const resid_pair& aRight) const
 	{
-		bool bTertiary = false;
-		resid_pair_vector::const_iterator it = a3DPairs.begin();
-		it = std::find(a3DPairs.begin(), a3DPairs.end(), aCyclePair);
-		bTertiary = (it != a3DPairs.end());
-		return bTertiary;
+		mccore::ResId leftMin = std::min(aLeft.fResId, aLeft.rResId);
+		mccore::ResId rightMin = std::min(aRight.first, aRight.second);
+		return ( leftMin < rightMin 
+			|| (leftMin == rightMin 
+				&& (std::max(aLeft.fResId, aLeft.rResId) < std::max(aRight.first, aRight.second))));
+	}
+	
+	bool AnnotationTertiaryCycles::compare_less(
+		const resid_pair& aLeft, 
+		const BasePair& aRight) const
+	{
+		mccore::ResId rightMin = std::min(aRight.fResId, aRight.rResId);
+		mccore::ResId leftMin = std::min(aLeft.first, aLeft.second);
+		return ( leftMin < rightMin 
+			|| (leftMin == rightMin 
+				&& (std::max(aLeft.first, aLeft.second) < std::max(aRight.fResId, aRight.rResId))));
 	}
 	
 	bool AnnotationTertiaryCycles::isTertiary(
-		const resid_pair_vector& aCyclePairs, 
-		const resid_pair_vector& a3DPairs) const
+		const resid_pair_set& aCyclePairs, 
+		const std::vector<BasePair>& a3DPairs) const
 	{		
 		bool bTertiary = false;
-		resid_pair_vector::const_iterator itCP;
-		for(itCP = aCyclePairs.begin(); 
-			itCP != aCyclePairs.end() && !bTertiary; 
-			++itCP)
+		
+		resid_pair_set::const_iterator first1 = aCyclePairs.begin();
+		resid_pair_set::const_iterator last1 = aCyclePairs.end();
+		std::vector<BasePair>::const_iterator first2 = a3DPairs.begin();
+		std::vector<BasePair>::const_iterator last2 = a3DPairs.end();
+			
+		while (first1!=last1 && first2!=last2)
 		{
-			bTertiary = isTertiary(*itCP, a3DPairs);
+		    if (compare_less(*first1, *first2))
+		    {
+		    	 ++first1;
+		    }
+		    else if (compare_less(*first2, *first1))
+		    {
+		    	 ++first2;
+		    }
+		    else 
+		    { 
+		    	bTertiary = true;
+		    	break;
+		    }
 		}
 		return bTertiary;		
 	}
 	
-	AnnotationTertiaryCycles::resid_pair_vector
-	AnnotationTertiaryCycles::getPairs(const Cycle& aCycle) const
-	{
-		resid_pair_vector pairs;    		
+	void AnnotationTertiaryCycles::getPairs(
+		const Cycle& aCycle, 
+		resid_pair_set& aPairs) const
+	{		
     	AbstractModel::const_iterator it;
 		for (it = aCycle.begin(); aCycle.end() != it; ++it)
 		{
@@ -144,34 +175,7 @@ namespace annotate
 				std::swap(resId1, resId2);
 			}
 			std::pair<mccore::ResId, mccore::ResId> pair(resId1, resId2);
-			
-		
-			pairs.push_back(pair);
+			aPairs.insert(pair);
 		}
-		return pairs;
-	}
-	
-	AnnotationTertiaryCycles::resid_pair_vector 
-	AnnotationTertiaryCycles::getPairs(
-		const AnnotationTertiaryPairs& aTPAnnotation) const
-	{
-		resid_pair_vector pairs;
-		std::vector<BasePair>::const_iterator it;
-		for(
-			it = aTPAnnotation.getPairs().begin(); 
-			it != aTPAnnotation.getPairs().end(); 
-			++ it)
-		{
-			ResId resId1 = it->fResId;
-			ResId resId2 = it->rResId;
-			
-			if(resId1 < resId2)
-			{
-				std::swap(resId1, resId2);
-			}
-			std::pair<mccore::ResId, mccore::ResId> pair(resId1, resId2);
-			pairs.push_back(pair);			
-		}
-		return pairs;
 	}
 }

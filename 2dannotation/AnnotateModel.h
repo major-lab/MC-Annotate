@@ -39,34 +39,6 @@
 using namespace mccore;
 using namespace std;
 
-//----------------------------------------------------------------------
-template < class T >
-set< T > SetIntersection( set< T > & set1, set< T > & set2 )
-{
- set< T > setInter;
- insert_iterator< set< T > > iter( setInter, setInter.begin() );
-
- set_intersection( set1.begin(), set1.end(),
-          set2.begin(), set2.end(),
-          iter );
-
- return setInter;
-};
-
-//----------------------------------------------------------------------
-template < class T >
-set< T > SetDifference( set< T > & set1, set< T > & set2 )
-{
- set< T > setDiff;
- insert_iterator< set< T > > iter( setDiff, setDiff.begin() );
-
- set_difference( set1.begin(), set1.end(),
-        set2.begin(), set2.end(),
-        iter );
-
- return setDiff;
-};
-
 namespace mccore
 {
   class iBinstream;
