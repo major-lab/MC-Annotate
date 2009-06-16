@@ -101,7 +101,7 @@ namespace annotate
 		}
 		return bOverlaps;
 	}
-		
+	
 	bool Stem::continues(const BasePair& aBasePair) const
 	{
 		bool bContinues = true;
@@ -110,12 +110,12 @@ namespace annotate
 		{
 			const BasePair* pLast = &mBasePairs.back();
 			bContinues = pLast->fResId < aBasePair.fResId;
-			bContinues &= pLast->areContiguous(aBasePair);
+			bContinues = bContinues && pLast->areContiguous(aBasePair);
 			if(1 < mBasePairs.size())
 			{
 				enOrientation eOrient;
 				eOrient = pairOrientation(*pLast, aBasePair);
-				bContinues &= (eOrient == meOrientation);
+				bContinues = bContinues && (eOrient == meOrientation);
 			}
 		}
 		return bContinues;

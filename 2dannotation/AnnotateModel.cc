@@ -119,6 +119,7 @@ namespace annotate
     links.clear ();
     marks.clear ();
 
+	gOut (3) << "Computing basic annotation ..." << std::endl;
     GraphModel::annotate ();
     marks.resize (size (), 0);
     fillSeqBPStacks ();
@@ -128,15 +129,18 @@ namespace annotate
     
     // TODO : This should be moved into AnnotationCycle, but some const 
     // correctness work needs to be done in mccore.
+    gOut (3) << "Computing minimum cycle bases union ..." << std::endl;
     unionMinimumCycleBases(mCyclesMolecule);
 
 	// Find the chains in the pdb file
+	gOut (3) << "Computing chains ..." << std::endl;
 	findChains();
 	
 	// Compute all the requested annotations
 	std::vector<Annotation*>::const_iterator it = annotations.begin();
 	for(;it != annotations.end(); ++it)
 	{
+		gOut (3) << "Computing " << (*it)->provides() << " ..." << std::endl;
 		(*it)->update(*this);
 	}
   }

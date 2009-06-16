@@ -138,7 +138,7 @@ namespace annotate
 					{
 						if(NULL != mResidueInfos[i].pStem)
 						{
-							gOut(0) << "Residue associated with more than one stem" << endl;
+							gOut(1) << "Residue " << (*it).getResId() << " associated with more than one stem" << endl;
 						}
 						mResidueInfos[i].pStem = &(*stemIt);
 					}

@@ -101,7 +101,7 @@ namespace annotate
 	bool areContiguous(const BasePair &aBasePair) const
 	{
 		bool bContiguous = fResId.areContiguous(aBasePair.fResId);
-		bContiguous |= rResId.areContiguous(aBasePair.rResId);
+		bContiguous = bContiguous && rResId.areContiguous(aBasePair.rResId);
 		return bContiguous;
 	}
 

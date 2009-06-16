@@ -152,6 +152,7 @@ namespace annotate
 		const AnnotateModel& aModel, 
 		std::vector<Stem>& aStems) const
 	{
+		std::vector<Stem> potentialStems;
 		std::set< BasePair > potentials;
 		potentials = getWWBasePairs(aModel);
 		
@@ -160,13 +161,26 @@ namespace annotate
 		for( ; it != potentials.end(); ++ it)
 		{
 			bool bContinues = false;
-			std::vector<Stem>::iterator itStem;
-			for(itStem = aStems.begin(); itStem != aStems.end(); ++ itStem)
+			std::vector<Stem>::iterator itStem = potentialStems.begin();
+			while(itStem != potentialStems.end())
 			{
 				if(itStem->continues(*it))
 				{
 					itStem->push_back(*it);
 					bContinues = true;
+					++itStem;
+				}
+				else
+				{
+					if(!itStem->basePairs().back().areContiguous(*it))
+					{
+						aStems.push_back(*itStem);
+						itStem = potentialStems.erase(itStem);
+					}
+					else
+					{
+						++itStem;
+					}
 				}
 			}
 			
@@ -174,8 +188,15 @@ namespace annotate
 			{
 				Stem currentStem;
 				currentStem.push_back(*it);
-				aStems.push_back(currentStem);
+				potentialStems.push_back(currentStem);
 			}
+		}
+		
+		for(std::vector<Stem>::const_iterator itS =	potentialStems.begin(); 
+			itS != potentialStems.end(); 
+			++itS)
+		{
+			aStems.push_back(*itS);
 		}
 	}
 	
