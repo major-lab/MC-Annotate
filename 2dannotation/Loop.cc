@@ -60,7 +60,7 @@ namespace annotate
 		return bEqual;
 	}
 	
-	bool Loop::contains(const ResId& aResId) const
+	bool Loop::contains(const mccore::ResId& aResId) const
 	{
 		bool bContains = false;
 		std::vector< Linker >::const_iterator it;

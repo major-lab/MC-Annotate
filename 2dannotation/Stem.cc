@@ -43,7 +43,7 @@ namespace annotate
 		return contains(aResidue.getResId());
 	}
 	
-	bool Stem::contains(const ResId& aResId) const
+	bool Stem::contains(const mccore::ResId& aResId) const
 	{
 		bool bContains = false;
 		if(0 < size())
@@ -145,15 +145,15 @@ namespace annotate
 		bool bPseudoKnots = false;
 		if(0 < aStem.size() && 0 < size())
 		{
-			ResId aR1 = aStem.basePairs().front().fResId;
-			ResId aR2 = aStem.basePairs().back().fResId;
-			ResId aR3 = aStem.basePairs().front().rResId;
-			ResId aR4 = aStem.basePairs().back().rResId;
+			mccore::ResId aR1 = aStem.basePairs().front().fResId;
+			mccore::ResId aR2 = aStem.basePairs().back().fResId;
+			mccore::ResId aR3 = aStem.basePairs().front().rResId;
+			mccore::ResId aR4 = aStem.basePairs().back().rResId;
 			
-			ResId tR1 = mBasePairs.front().fResId;
-			ResId tR2 = mBasePairs.back().fResId;
-			ResId tR3 = mBasePairs.front().rResId;
-			ResId tR4 = mBasePairs.back().rResId;
+			mccore::ResId tR1 = mBasePairs.front().fResId;
+			mccore::ResId tR2 = mBasePairs.back().fResId;
+			mccore::ResId tR3 = mBasePairs.front().rResId;
+			mccore::ResId tR4 = mBasePairs.back().rResId;
 			
 			if(((tR2 < aR1 && aR2 < tR3) && (tR4 < aR3))
 				|| ((aR2 < tR1 && tR2 < aR3) && (aR4 < tR3)))
@@ -226,10 +226,10 @@ namespace annotate
 		return eOrientation;
 	}
 	
-	ResId Stem::getResidue(const enConnection& ePoint) const 
+	mccore::ResId Stem::getResidue(const enConnection& ePoint) const 
 		throw(mccore::NoSuchElementException)
 	{
-		ResId residueId;
+		mccore::ResId residueId;
 		switch(ePoint)
 		{
 			case eFIRST_STRAND_FRONT_PAIR:
@@ -251,7 +251,7 @@ namespace annotate
 		return residueId;
 	}
 	
-	Stem::enConnection Stem::getConnection(const ResId& aId) const
+	Stem::enConnection Stem::getConnection(const mccore::ResId& aId) const
 	{
 		enConnection eConnect = eUNDEFINED_CONNECTION;
 		
@@ -320,7 +320,7 @@ namespace annotate
 	
 	mccore::ResId StemConnection::nextId() const
 	{
-		ResId id;
+		mccore::ResId id;
 		if(NULL != mpStem && meConnection != Stem::eUNDEFINED_CONNECTION)
 		{
 			switch(meConnection)

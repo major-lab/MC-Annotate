@@ -35,6 +35,7 @@
 
 #include "AnnotateModel.h"
 #include "AnnotationCycles.h"
+#include "AnnotationInteractions.h"
 #include "AnnotationLinkers.h"
 #include "AnnotationLoops.h"
 #include "AnnotationStems.h"
@@ -269,7 +270,7 @@ void dumpCyclesFiles(
 			gErr (0) << "Cannot open file " << oss.str() << endl;
 			continue;
 		}
-		ops << *it;
+		ops << it->getModel();
 		ops.close ();
 		++ i;
 	}	
@@ -299,6 +300,7 @@ main (int argc, char *argv[])
 				else
 				{
 					AnnotateModel &am = (AnnotateModel&) *molIt;
+					AnnotationInteractions annInteractions;
 					AnnotationStems annStems;
 					AnnotationLinkers annLinkers;
 					AnnotationLoops annLoops;
@@ -306,16 +308,17 @@ main (int argc, char *argv[])
 					AnnotationCycles annCycles;
 					AnnotationTertiaryCycles annTertiaryCycles;
 		  
+		  			am.addAnnotation(annInteractions);
 					am.addAnnotation(annStems);
 					am.addAnnotation(annLinkers);
 					am.addAnnotation(annLoops);
 					am.addAnnotation(annTertiaryPairs);
 					am.addAnnotation(annCycles);
 					am.addAnnotation(annTertiaryCycles);
-					am.annotate ();
 					
-					gOut (0) << "Annotating Model ------------------------------------------------" << endl;
+					gOut (0) << "Annotating Model ------------------------------------------------" << endl;										
 					gOut (0) << filename << std::endl;
+					am.annotate ();
 					gOut(0) << am;
 					
 					dumpCyclesFiles(getFilePrefix(filename), annTertiaryCycles);					

@@ -1,11 +1,14 @@
+#include "AlgorithmExtra.h"
 #include "AnnotationStems.h"
 #include "AnnotateModel.h"
+#include "AnnotationInteractions.h"
 #include <sstream>
 
 namespace annotate
 {
 	AnnotationStems::AnnotationStems()
 	{
+		addRequirement(AnnotationInteractions().provides());
 	}
 	
 	AnnotationStems::~AnnotationStems()
@@ -72,31 +75,99 @@ namespace annotate
 		mStems.clear();
 	}
 	
+	bool AnnotationStems::isWatsonCrick(
+		const mccore::Relation &aRelation,
+		bool bStrict) const
+	{
+		bool bIsWatsonCrick = checkNucleotides(aRelation) 
+			&& checkOrientation(aRelation);
+		if(bIsWatsonCrick)
+		{
+			if(bStrict)
+			{
+				bIsWatsonCrick = checkFacesStrict(aRelation);
+			}
+			else
+			{
+				bIsWatsonCrick = checkFacesRelax(aRelation);
+			}
+		}
+		
+		return bIsWatsonCrick;
+	}
+	
 	std::set< BasePair > AnnotationStems::getWWBasePairs(
 		const AnnotateModel& aModel) const
 	{
-	  	set< BasePair> oWWBasePairs;
-	  	vector< BasePair >::const_iterator bpit = aModel.getBasePairs().begin();
-
-		for(;aModel.getBasePairs().end () != bpit; ++bpit)
+		std::set< BasePair> oWWBasePairs;
+		std::set< BasePair> excludedPairs;
+		const AnnotationInteractions* pAInteractions = NULL;
+		pAInteractions = aModel.getAnnotation<AnnotationInteractions>(AnnotationInteractions().provides());
+		
+		if(NULL != pAInteractions)
 		{
-			const mccore::Relation &rel = *aModel.internalGetEdge (bpit->first, bpit->second);
-			
-			// Filter on nucleotides
-			if( checkNucleotides(rel) 
-				&& checkFaces(rel) 
-				&& checkOrientation(rel))
+			std::vector<const BasePair*> resToPair;
+			resToPair.resize(aModel.size());
+		  	std::vector< BasePair >::const_iterator bpit = pAInteractions->getPairs().begin();
+	
+			for(;pAInteractions->getPairs().end () != bpit; ++bpit)
 			{
-				// Add the pair if it passed all tests
-				BasePair oWWPair = *bpit;
-				if(oWWPair.rResId < oWWPair.fResId)
+				const mccore::Relation &rel = *aModel.internalGetEdge (bpit->first, bpit->second);
+				
+				// Filter on nucleotides
+				if( isWatsonCrick(rel, false))
 				{
-					oWWPair.reverse();	  				
+					BasePair oWWPair = *bpit;
+		  			if(oWWPair.rResId < oWWPair.fResId)
+					{
+						oWWPair.reverse();	  				
+					}
+					oWWBasePairs.insert(oWWPair);
+					
+					// Check if residues share pairs
+					if(NULL == resToPair[bpit->first] && NULL == resToPair[bpit->second])
+					{
+						resToPair[bpit->first] = &(*bpit);
+						resToPair[bpit->second] = &(*bpit);
+					}
+					else 
+					{
+						bool bRelationStrict = checkFacesStrict(rel);
+						if(NULL != resToPair[bpit->first])
+						{
+							const BasePair* oldPair = resToPair[bpit->first];
+							const mccore::Relation &oldRel = *aModel.internalGetEdge (oldPair->first, oldPair->second);
+							if(!checkFacesStrict(oldRel) && bRelationStrict)
+							{
+								excludedPairs.insert(*oldPair);
+								resToPair[bpit->first] = &(*bpit);
+							} 
+							else
+							{
+								excludedPairs.insert(*bpit);
+							}
+						}
+						
+						if(NULL != resToPair[bpit->second])
+						{
+							const BasePair* oldPair = resToPair[bpit->second];
+							const mccore::Relation &oldRel = 
+								*aModel.internalGetEdge (oldPair->first, oldPair->second);
+							if(!checkFacesStrict(oldRel) && bRelationStrict)
+							{
+								excludedPairs.insert(*oldPair);
+								resToPair[bpit->second] = &(*bpit);
+							}
+							else
+							{
+								excludedPairs.insert(*bpit);
+							}
+						}
+					}
 				}
-				oWWBasePairs.insert(oWWPair);
-			}			
+			}		
 	  	}
-  		return oWWBasePairs;
+  		return SetDifference<BasePair>(oWWBasePairs, excludedPairs);
 	}
 	
 	bool AnnotationStems::checkNucleotides(
@@ -115,7 +186,7 @@ namespace annotate
 		return bNucleotides;
 	}
 	
-	bool AnnotationStems::checkFaces(const mccore::Relation &aRelation) const
+	bool AnnotationStems::checkFacesRelax(const mccore::Relation &aRelation) const
 	{
 		bool bFaces = false;
 		const std::vector< pair< const PropertyType*, const PropertyType* > > &faces = aRelation.getPairedFaces ();
@@ -132,20 +203,73 @@ namespace annotate
 		return bFaces;
 	}
 	
+	bool AnnotationStems::checkFacesStrict(const mccore::Relation &aRelation) const
+	{
+		bool bFaces = false;
+		const std::vector< pair< const PropertyType*, const PropertyType* > > &faces = aRelation.getPairedFaces ();
+		std::vector< pair< const PropertyType*, const PropertyType* > >::const_iterator pfit;
+		for (pfit = faces.begin (); faces.end () != pfit && !bFaces; ++pfit)
+	  	{
+	  		const PropertyType* pProp1 = pfit->first;
+  			const PropertyType* pProp2 = pfit->second;
+	  		if(pProp1->toString() == "Ww" && pProp2->toString() == "Ww")
+	  		{
+	  			bFaces = true;		  			
+  			}
+		}
+		return bFaces;
+	}
+	
 	bool AnnotationStems::checkOrientation(const mccore::Relation &aRelation) const
 	{
 		// Filter on orientation
 		bool bCis = false;
+		bool bAntiparallel = false;
 		const std::set< const PropertyType* > &labels = aRelation.getLabels ();
 		std::set< const PropertyType* >::const_iterator it;
-		for(it = labels.begin(); it != labels.end() && !bCis; ++it)
+		for(it = labels.begin(); it != labels.end() && !(bCis && bAntiparallel); ++it)
 		{	  		
 			if((*it)->toString() == "cis")
 			{
 				bCis = true;
 			}
+			else if((*it)->toString() == "antiparallel")
+			{
+				bAntiparallel = true;
+			}
 		}
-		return bCis;
+		return bCis && bAntiparallel;
+	}
+	
+	bool AnnotationStems::isBestPartner(
+		const AnnotateModel& aModel, 
+		const BasePair& aPair, 
+		const std::set<BasePair>& aPairs) const
+	{
+		bool bBestPartner = true;
+		const mccore::ResId resId = aPair.fResId;
+		std::set<BasePair>::const_iterator it = aPairs.begin();
+		// Find the first occurence
+		while(it != aPairs.end() && (*it).fResId < resId) 
+		{
+			++it;
+		}
+		
+		// Check for a better partner
+		while(it != aPairs.end() && (*it).fResId == resId)
+		{
+			if(aPair != *it)
+			{
+				const mccore::Relation &rel = *aModel.internalGetEdge (it->first, it->second);
+				if(checkFacesStrict(rel))
+				{
+					gOut (0) << it->fResId << "-" << it->rResId << " is considered a best partner" << std::endl;
+					bBestPartner = false;
+				}
+			}
+			++ it;								
+		}
+		return bBestPartner;
 	}
 	
 	void AnnotationStems::getPotentialStems(
@@ -164,7 +288,18 @@ namespace annotate
 			std::vector<Stem>::iterator itStem = potentialStems.begin();
 			while(itStem != potentialStems.end())
 			{
-				if(itStem->continues(*it))
+				bool bCont = itStem->continues(*it);
+
+				if(bCont)
+				{
+					const mccore::Relation &rel = *aModel.internalGetEdge (it->first, it->second);
+					if(!checkFacesStrict(rel))
+					{
+						bCont = isBestPartner(aModel, *it, potentials);
+					}			
+				}
+				
+				if(bCont)
 				{
 					itStem->push_back(*it);
 					bContinues = true;

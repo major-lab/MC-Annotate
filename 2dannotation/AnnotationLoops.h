@@ -35,10 +35,10 @@ namespace annotate
 			std::map<mccore::ResId, const Linker*>& aResidueLinkerMap,
 			const Linker& aLinker) const;
 		std::vector<Loop>::iterator getLoopStartingBy(
-			const ResId& aResId, 
+			const mccore::ResId& aResId, 
 			std::vector<Loop>& aLoops) const;
 		std::vector<Loop>::iterator getLoopEndingBy(
-			const ResId& aResId, 
+			const mccore::ResId& aResId, 
 			std::vector<Loop>& aLoops) const;
 			
 			

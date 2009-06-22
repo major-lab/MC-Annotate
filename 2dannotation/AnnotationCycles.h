@@ -2,14 +2,12 @@
 #define _annotate_AnnotationCycles_H_
 
 #include "Annotation.h"
+#include "Cycle.h"
 #include <mccore/GraphModel.h>
 #include <vector>
 
 namespace annotate
 {
-	
-	typedef mccore::GraphModel Cycle;
-	
 	class AnnotationCycles : public Annotation
 	{
 	public:

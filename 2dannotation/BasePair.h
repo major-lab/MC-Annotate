@@ -13,34 +13,23 @@
 #define _annotate_BasePair_h_
 
 #include <algorithm>
-#include <utility>
-
-#include "mccore/GraphModel.h"
-#include "mccore/ResId.h"
-
-using namespace mccore;
-using namespace std;
-
-
+#include "BaseInteraction.h"
 
 namespace annotate
 {
 
-  class BasePair : public pair< GraphModel::label, GraphModel::label >
+  class BasePair : public BaseInteraction
   {
 
   public:
-
-    ResId fResId;
-
-    ResId rResId;
     
     // LIFECYCLE ------------------------------------------------------------
 
-    BasePair (GraphModel::label l, const ResId &fResId, GraphModel::label r, const ResId &rResId)
-      : pair< GraphModel::label, GraphModel::label > (l, r),
-	fResId (fResId),
-	rResId (rResId)
+    BasePair (	mccore::GraphModel::label l, 
+    			const mccore::ResId &fResId, 
+    			mccore::GraphModel::label r, 
+    			const mccore::ResId &rResId)
+      : BaseInteraction(l, fResId, r, rResId)
     { }
 
     ~BasePair () { }
@@ -71,8 +60,7 @@ namespace annotate
      */
     bool operator== (const BasePair &right) const
     {
-      return (&right == this
-	      || (first == right.first && second == right.second));
+      return BaseInteraction::operator == (right);
     }
 
     /**
@@ -82,17 +70,14 @@ namespace annotate
      */
     bool operator!= (const BasePair &right) const
     {
-      return ! operator== (right);
+		return BaseInteraction::operator != (right);
     }
 
     /**
      */
     bool operator< (const BasePair &right) const
     {
-      return (&right != this
-	      && (fResId < right.fResId
-		  || (fResId == right.fResId
-		      && rResId < right.rResId)));
+      return BaseInteraction::operator < (right);
     }
     
     // ACCESS ---------------------------------------------------------------

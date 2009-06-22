@@ -38,7 +38,8 @@ namespace annotate
 				itMol != aModel.getCyclesMolecule().end(); 
 				++ itMol)
 			{
-				mCycles.push_back(*itMol);
+				Cycle cycle(*itMol);
+				mCycles.push_back(cycle);
 			}
 		}
 	}
@@ -53,11 +54,11 @@ namespace annotate
 	    	AbstractModel::const_iterator it;
 	    	oss << "Cycle " << i << " : ";
 	    	oss << "[";
-			for (it = itCycle->begin (); itCycle->end () != it; ++it)
+			for (it = itCycle->getModel().begin (); itCycle->getModel().end () != it; ++it)
 			{
 				oss << " " << it->getResId () << *it->getType ();
 			}
-			oss << " ] " << itCycle->size () << endl;
+			oss << " ] " << itCycle->getModel().size () << endl;
 			++ i;
 	    }
 	  	

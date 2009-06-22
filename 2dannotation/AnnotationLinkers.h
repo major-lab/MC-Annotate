@@ -22,8 +22,7 @@ namespace annotate
 	private:
 		struct stResidueInfo
 		{
-			ResId resId;
-			// const mccore::Residue* pResidue;
+			mccore::ResId resId;
 			const Stem* pStem;
 		};
 		std::vector<stResidueInfo> mResidueInfos;
@@ -39,7 +38,7 @@ namespace annotate
 	  	
 		void computeResidueInfos(const AnnotateModel& aModel);
 		std::vector<stResidueInfo>::const_iterator findResidueInfo(
-			const ResId& aResId) const;
+			const mccore::ResId& aResId) const;
 	};
 	
 }

@@ -73,11 +73,11 @@ namespace annotate
 	{
 		AbstractModel::const_iterator it;
     	oss << "[";
-		for (it = aCycle.begin(); aCycle.end() != it; ++it)
+		for (it = aCycle.getModel().begin(); aCycle.getModel().end() != it; ++it)
 		{
 			oss << " " << it->getResId () << *it->getType ();
 		}
-		oss << " ] " << aCycle.size() << endl;
+		oss << " ] " << aCycle.getModel().size() << endl;
 	}
 	
 	std::string AnnotationTertiaryCycles::output() const
@@ -156,15 +156,15 @@ namespace annotate
 		resid_pair_set& aPairs) const
 	{		
     	AbstractModel::const_iterator it;
-		for (it = aCycle.begin(); aCycle.end() != it; ++it)
+		for (it = aCycle.getModel().begin(); aCycle.getModel().end() != it; ++it)
 		{
 			mccore::ResId resId1 = it->getResId();
 			mccore::ResId resId2;
 			AbstractModel::const_iterator itNext = it;
 			itNext ++;
-			if(itNext == aCycle.end())
+			if(itNext == aCycle.getModel().end())
 			{
-				resId2 = aCycle.front().getResId();
+				resId2 = aCycle.getModel().front().getResId();
 			}
 			else
 			{

@@ -29,13 +29,6 @@
 #include "mccore/Residue.h"
 #include "mccore/ResidueType.h"
 
-#include "BaseLink.h"
-#include "BasePair.h"
-#include "BaseStack.h"
-#include "Stem.h"
-#include "Loop.h"
-#include "Linker.h"
-
 using namespace mccore;
 using namespace std;
 
@@ -159,11 +152,6 @@ namespace annotate
 
     std::vector< std::vector< const Residue * > > chains;
 
-    vector< BasePair > basepairs;
-    vector< BaseStack > stacks;
-    vector< BaseLink > links;
-
-    vector< unsigned int > marks;
     // TODO : Cycle annotation is affecting self, const correctness work needs to be done.
     mccore::Molecule mCyclesMolecule;
 
@@ -214,7 +202,6 @@ namespace annotate
     // OPERATORS ------------------------------------------------------------
     
     // ACCESS ---------------------------------------------------------------
-    const std::vector<BasePair>& getBasePairs() const { return basepairs; }
 	const Annotation* getAnnotation(const std::string& astrAnnotName) const;
     
     template<class T>
@@ -248,19 +235,12 @@ namespace annotate
     {
       return areConnected (i, j) && isPairing (getEdge (i, j));
     }
-    
-    void dumpPair (const BasePair& aBasePair) const;
    
   public:
  
  	void findChains();
  	void dumpChains () const;
-
-    void fillSeqBPStacks ();
-
-    void dumpPairs () const;
     void dumpConformations () const;
-    void dumpStacks () const;
 
     // I/O  -----------------------------------------------------------------
   

@@ -82,7 +82,7 @@ namespace annotate
     	 * pair constituting the stem, false otherwise.
     	 */
     	bool contains(const mccore::Residue& aResidue) const;
-    	bool contains(const ResId& aResId) const;
+    	bool contains(const mccore::ResId& aResId) const;
     	
     	/**
     	 * @brief Checks if given stem shares residue with 
@@ -106,10 +106,10 @@ namespace annotate
     	std::vector<const Stem*> notPseudoKnotted(
     		std::vector<const Stem*>& aStems ) const;
     		
-    	ResId getResidue(const enConnection& ePoint) const 
+    	mccore::ResId getResidue(const enConnection& ePoint) const 
     		throw (mccore::NoSuchElementException);
     		
-    	enConnection getConnection(const ResId& aId) const;
+    	enConnection getConnection(const mccore::ResId& aId) const;
 	private:
 		/**
     	 * @brief Order base pair on increasing residue id.
@@ -145,7 +145,10 @@ namespace annotate
 			return (NULL != mpStem && meConnection != Stem::eUNDEFINED_CONNECTION);
 		}
 		
-		ResId getResidue() const { return mpStem->getResidue(meConnection); }
+		mccore::ResId getResidue() const 
+		{ 
+			return mpStem->getResidue(meConnection); 
+		}
 		
 		const Stem& getStem() const {return *mpStem;}
 		const Stem::enConnection getConnection() const { return meConnection; }

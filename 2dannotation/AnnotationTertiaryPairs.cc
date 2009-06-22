@@ -1,5 +1,6 @@
 #include "AnnotationTertiaryPairs.h"
 #include "AnnotateModel.h"
+#include "AnnotationInteractions.h"
 #include "AnnotationStems.h"
 #include "AnnotationLoops.h"
 #include <sstream>
@@ -8,7 +9,8 @@ namespace annotate
 {
 	AnnotationTertiaryPairs::AnnotationTertiaryPairs()
 	{
-		// Requires 
+		// Requires
+		addRequirement(AnnotationInteractions().provides());
 		addRequirement(AnnotationStems().provides());
 		addRequirement(AnnotationLoops().provides());
 	}
@@ -38,25 +40,31 @@ namespace annotate
 	{
 		struct_association_map associationMap;
 		
-		// Add the stem associations
-		addStemsAssociations(aModel, associationMap);
+		const AnnotationInteractions* pAInteractions = NULL;
+		pAInteractions = aModel.getAnnotation<AnnotationInteractions>(AnnotationInteractions().provides());
 		
-		// Add the loop associations
-		addLoopsAssociations(aModel, associationMap);
-		
-		std::vector<BasePair>::const_iterator it = aModel.getBasePairs().begin();
-		for(; it != aModel.getBasePairs().end(); ++ it)
+		if(NULL != pAInteractions)
 		{
-			bool bAdjacent = false;
-			bAdjacent = areAdjacent(
-				(*it).fResId, 
-				(*it).rResId, 
-				associationMap);
-				
-			if(!bAdjacent)
+			// Add the stem associations
+			addStemsAssociations(aModel, associationMap);
+			
+			// Add the loop associations
+			addLoopsAssociations(aModel, associationMap);
+			
+			std::vector<BasePair>::const_iterator it = pAInteractions->getPairs().begin();
+			for(; it != pAInteractions->getPairs().end(); ++ it)
 			{
-				mPairs.push_back(*it);
-			}			
+				bool bAdjacent = false;
+				bAdjacent = areAdjacent(
+					(*it).fResId, 
+					(*it).rResId, 
+					associationMap);
+					
+				if(!bAdjacent)
+				{
+					mPairs.push_back(*it);
+				}			
+			}
 		}
 	}
 	

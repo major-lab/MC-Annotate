@@ -1,34 +1,37 @@
 #ifndef _annotate_AlgorithmExtra_h_
 #define _annotate_AlgorithmExtra_h_
 
+#include <set>
+#include <algorithm>
+
 namespace annotate
 {
 	//----------------------------------------------------------------------
 	template < class T >
-	set< T > SetIntersection( set< T > & set1, set< T > & set2 )
+	std::set< T > SetIntersection( std::set< T > & set1, std::set< T > & set2 )
 	{
-	 set< T > setInter;
-	 insert_iterator< set< T > > iter( setInter, setInter.begin() );
+		std::set< T > setInter;
+		std::insert_iterator< std::set< T > > iter( setInter, setInter.begin() );
 	
-	 set_intersection( set1.begin(), set1.end(),
+		std::set_intersection( set1.begin(), set1.end(),
 	          set2.begin(), set2.end(),
 	          iter );
 	
-	 return setInter;
+		return setInter;
 	};
 	
 	//----------------------------------------------------------------------
 	template < class T >
-	set< T > SetDifference( set< T > & set1, set< T > & set2 )
+	std::set< T > SetDifference( std::set< T > & set1, std::set< T > & set2 )
 	{
-	 set< T > setDiff;
-	 insert_iterator< set< T > > iter( setDiff, setDiff.begin() );
+		std::set< T > setDiff;
+		std::insert_iterator< std::set< T > > iter( setDiff, setDiff.begin() );
 	
-	 set_difference( set1.begin(), set1.end(),
+		std::set_difference( set1.begin(), set1.end(),
 	        set2.begin(), set2.end(),
 	        iter );
 	
-	 return setDiff;
+		return setDiff;
 	};
 	
 	template <class InputIterator1, class InputIterator2>

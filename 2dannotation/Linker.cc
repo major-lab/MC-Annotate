@@ -68,7 +68,7 @@ namespace annotate
     	
     	if(!isEmpty() && !other.isEmpty())
     	{
-    		ResId thisId;
+    		mccore::ResId thisId;
     		if(mStart.isValid())
 	    	{
 	    		thisId = mStart.getResidue();
@@ -78,7 +78,7 @@ namespace annotate
 	    		thisId = mResidues.front();
 	    	}
 	    	
-	    	ResId otherId;
+	    	mccore::ResId otherId;
 	    	if(other.mStart.isValid())
 	    	{
 	    		otherId = other.mStart.getResidue();

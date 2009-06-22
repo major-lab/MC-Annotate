@@ -3,12 +3,10 @@
 
 #include "Annotation.h"
 #include "BasePair.h"
-#include <mccore/GraphModel.h>
+#include "Cycle.h"
 #include <vector>
 namespace annotate
-{
-	typedef mccore::GraphModel Cycle;
-	
+{	
 	class AnnotationTertiaryPairs;
 	
 	class AnnotationTertiaryCycles : public Annotation
@@ -38,6 +36,8 @@ namespace annotate
 		void outputCycle(
 			std::ostringstream& oss, 
 			const Cycle& aCycle) const;
+			
+		std::string getCycleDescription(const Cycle& aCycle) const;
 	};
 	
 }

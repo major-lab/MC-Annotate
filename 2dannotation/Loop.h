@@ -20,7 +20,7 @@ namespace annotate
 				
 		void clear();
 		
-		bool contains(const ResId& aResId) const;
+		bool contains(const mccore::ResId& aResId) const;
 		
 		bool operator ==(const Loop& other) const;
 		bool isAdjacent(const SecondaryStructure& aStruct) const;

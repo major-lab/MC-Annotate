@@ -24,8 +24,16 @@ namespace annotate
 		
 		std::set< BasePair > getWWBasePairs(const AnnotateModel& aModel) const;
 		bool checkNucleotides(const mccore::Relation &aRelation) const;
-		bool checkFaces(const mccore::Relation &aRelation) const;
+		bool checkFacesRelax(const mccore::Relation &aRelation) const;
+		bool checkFacesStrict(const mccore::Relation &aRelation) const;
 		bool checkOrientation(const mccore::Relation &aRelation) const;
+		bool isWatsonCrick(
+			const mccore::Relation &aRelation,
+			bool bStrict) const;
+		bool isBestPartner(
+			const AnnotateModel& aModel, 
+			const BasePair& aPair, 
+			const std::set<BasePair>& aPairs) const;
 		
 		void getPotentialStems(
 			const AnnotateModel& aModel, 

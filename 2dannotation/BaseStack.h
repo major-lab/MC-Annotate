@@ -12,10 +12,7 @@
 #ifndef _annotate_BaseStack_h_
 #define _annotate_BaseStack_h_
 
-#include <utility>
-
-#include "mccore/GraphModel.h"
-#include "mccore/ResId.h"
+#include "BaseInteraction.h"
 
 using namespace mccore;
 using namespace std;
@@ -25,21 +22,15 @@ using namespace std;
 namespace annotate
 {
 
-  class BaseStack : public pair< GraphModel::label, GraphModel::label >
+  class BaseStack : public BaseInteraction
   {
     
   public:
-    
-    ResId fResId;
-
-    ResId rResId;
-
+  
     // LIFECYCLE ------------------------------------------------------------
 
     BaseStack (GraphModel::label l, const ResId &fResId, GraphModel::label r, const ResId &rResId)
-      : pair< GraphModel::label, GraphModel::label > (l, r),
-	fResId (fResId),
-	rResId (rResId)
+      : BaseInteraction(l, fResId, r, rResId)
     { }
 
     ~BaseStack () { }
@@ -53,14 +44,14 @@ namespace annotate
      */
     BaseStack& operator= (const BaseStack &right)
     {
-      if (this != &right)
-	{
-	  first = right.first;
-	  second = right.second;
-	  fResId = right.fResId;
-	  rResId = right.rResId;
-	}
-      return *this;
+		if (this != &right)
+		{
+			first = right.first;
+			second = right.second;
+			fResId = right.fResId;
+			rResId = right.rResId;
+		}
+		return *this;
     }
 
     /**
@@ -70,8 +61,7 @@ namespace annotate
      */
     bool operator== (const BaseStack &right) const
     {
-      return (&right == this
-	      || (first == right.first && second == right.second));
+		return BaseInteraction::operator==(right);
     }
 
     /**
@@ -81,17 +71,14 @@ namespace annotate
      */
     bool operator!= (const BaseStack &right) const
     {
-      return ! operator== (right);
+		return BaseInteraction::operator!=(right);
     }
 
     /**
      */
     bool operator< (const BaseStack &right) const
     {
-      return (&right != this
-	      && (fResId < right.fResId
-		  || (fResId == right.fResId
-		      && rResId < right.rResId)));
+		return BaseInteraction::operator<(right);
     }
     
     // ACCESS ---------------------------------------------------------------
