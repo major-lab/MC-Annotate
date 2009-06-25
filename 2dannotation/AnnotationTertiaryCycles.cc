@@ -99,6 +99,11 @@ namespace annotate
 		return mCycles;
 	}
 	
+	std::vector< Cycle >& AnnotationTertiaryCycles::getCycles()
+	{
+		return mCycles;
+	}
+	
 	bool AnnotationTertiaryCycles::compare_less(
 		const BasePair& aLeft, 
 		const resid_pair& aRight) const

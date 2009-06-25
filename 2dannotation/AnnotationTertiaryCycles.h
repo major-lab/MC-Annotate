@@ -20,6 +20,7 @@ namespace annotate
 		virtual const std::string provides() const;
 		
 		const std::vector< Cycle >& getCycles() const;
+		std::vector< Cycle >& getCycles();
 	private:
 		typedef std::pair<mccore::ResId, mccore::ResId> resid_pair;
 		typedef std::set<resid_pair> resid_pair_set;

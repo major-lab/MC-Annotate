@@ -256,7 +256,7 @@ void dumpCyclesFiles(
 	for(std::vector<annotate::Cycle>::const_iterator it = aAnnotationCycles.getCycles().begin();
 		it != aAnnotationCycles.getCycles().end();
 		++ it)
-	{
+	{		
 		std::ostringstream oss;
 		if(!gstrOutputDirectory.empty())
 		{
@@ -320,6 +320,23 @@ main (int argc, char *argv[])
 					gOut (0) << filename << std::endl;
 					am.annotate ();
 					gOut(0) << am;
+					
+					// TODO : Remove this test
+					int i = 0;
+					for(std::vector<annotate::Cycle>::iterator it = annTertiaryCycles.getCycles().begin();
+						it != annTertiaryCycles.getCycles().end();
+						++ it)
+					{
+						it->order();
+						gOut (0) << "Cycle " << i++ << " (" << it->getTopology().size() << ") : ";
+						std::list<unsigned int>::const_iterator strandIt = it->getTopology().begin();
+						for(; strandIt != it->getTopology().end(); ++strandIt)
+						{
+							gOut (0) << "-" << *strandIt;
+						}
+						gOut (0) << std::endl;
+					}
+					// End of test
 					
 					dumpCyclesFiles(getFilePrefix(filename), annTertiaryCycles);					
 					

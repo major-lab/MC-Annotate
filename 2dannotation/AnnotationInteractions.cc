@@ -30,6 +30,13 @@ namespace annotate
     	mStacks.clear();
 		mLinks.clear();
     	mMarks.clear();
+    	
+    	std::map< ResIdPair, BaseInteraction*, ResIdPairCmp>::const_iterator it;
+    	for(it = mInteractions.begin(); it != mInteractions.end(); ++ it)
+    	{
+    		delete it->second;
+    	}
+    	mInteractions.clear();
 	}
 	
 	void AnnotationInteractions::update(const mccore::GraphModel& aModel)
@@ -51,23 +58,26 @@ namespace annotate
 				mccore::GraphModel::label refLabel = aModel.getVertexLabel (const_cast< mccore::Residue* > (ref));
 				mccore::GraphModel::label resLabel = aModel.getVertexLabel (const_cast< mccore::Residue* > (res));
 				ResIdPair mapKey(refId, resId);
-
-				if ((*eit)->isStacking ())
-				{
-					mStacks.push_back(BaseStack(refLabel, refId, resLabel, resId));
-					mInteractions[mapKey] = &mStacks.back();
-				}
-				if ((*eit)->is (PropertyType::pAdjacent5p))
-				{
-					mLinks.push_back(BaseLink(refLabel, refId, resLabel, resId));
-					mInteractions[mapKey] = &mLinks.back();
-				}
+				
 				if ((*eit)->isPairing ())
 				{
 					mMarks[refLabel] |= PAIRING_MARK;
 					mMarks[resLabel] |= PAIRING_MARK;
-					mPairs.push_back(BasePair(refLabel, refId, resLabel, resId));
-				    mInteractions[mapKey] = &mPairs.back();
+					BasePair* pInteraction = new BasePair(refLabel, refId, resLabel, resId);
+					mPairs.push_back(*pInteraction);
+					mInteractions.insert(interaction_pair(mapKey, pInteraction));
+				}
+				if ((*eit)->is (PropertyType::pAdjacent5p))
+				{
+					BaseLink* pInteraction = new BaseLink(refLabel, refId, resLabel, resId);
+					mLinks.push_back(*pInteraction);
+					mInteractions.insert(interaction_pair(mapKey, pInteraction));
+				}
+				if ((*eit)->isStacking ())
+				{
+					BaseStack* pInteraction = new BaseStack(refLabel, refId, resLabel, resId);
+					mStacks.push_back(*pInteraction);
+					mInteractions.insert(interaction_pair(mapKey, pInteraction));
 				}
 			}
 		}
@@ -173,7 +183,7 @@ namespace annotate
 			const mccore::ResId res) const
 	{
 		const BaseInteraction* pInteraction = NULL;
-		std::map< ResIdPair, const BaseInteraction*, ResIdPairCmp>::const_iterator it;
+		std::map< ResIdPair, BaseInteraction*, ResIdPairCmp>::const_iterator it;
 		it = mInteractions.find(ResIdPair(ref, res));
 		if(it != mInteractions.end())
 		{

@@ -49,12 +49,13 @@ namespace annotate
 			const mccore::ResId res) const; 
 		
 	private:
+		typedef std::pair<ResIdPair, BaseInteraction*> interaction_pair;
 		const mccore::GraphModel* mpModel;
 		std::vector< BasePair > mPairs;
     	std::vector< BaseStack > mStacks;
 		std::vector< BaseLink > mLinks;
     	std::vector< unsigned int > mMarks;
-    	std::map< ResIdPair, const BaseInteraction*, ResIdPairCmp> mInteractions;
+    	std::map< ResIdPair, BaseInteraction*, ResIdPairCmp> mInteractions;
 		virtual void clear();
 		
 		void outputPairs(std::ostringstream& oss) const;
