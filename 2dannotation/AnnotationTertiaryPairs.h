@@ -5,7 +5,7 @@
 #include "SecondaryStructure.h"
 #include "BasePair.h"
 #include <mccore/ResId.h>
-#include <vector>
+#include <set>
 #include <map>
 
 namespace annotate
@@ -20,11 +20,11 @@ namespace annotate
 		virtual std::string output() const;
 		virtual const std::string provides() const;
 		
-		const std::vector< BasePair >& getPairs() const;
+		const std::set< BasePair >& getPairs() const;
 	private:
 		typedef std::pair<mccore::ResId, const SecondaryStructure*> struct_association;
 		typedef std::multimap<mccore::ResId, const SecondaryStructure*> struct_association_map;
-		std::vector< BasePair > mPairs;
+		std::set< BasePair > mPairs;
 		virtual void clear();
 		
 		void addStemsAssociations(

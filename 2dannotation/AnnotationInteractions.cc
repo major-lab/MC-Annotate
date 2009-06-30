@@ -31,10 +31,10 @@ namespace annotate
 		mLinks.clear();
     	mMarks.clear();
     	
-    	std::map< ResIdPair, BaseInteraction*, ResIdPairCmp>::const_iterator it;
+    	std::multiset< BaseInteraction*, LessBaseInteractionPtr>::const_iterator it;
     	for(it = mInteractions.begin(); it != mInteractions.end(); ++ it)
     	{
-    		delete it->second;
+    		*it;
     	}
     	mInteractions.clear();
 	}
@@ -57,7 +57,6 @@ namespace annotate
 				const mccore::ResId resId = res->getResId();
 				mccore::GraphModel::label refLabel = aModel.getVertexLabel (const_cast< mccore::Residue* > (ref));
 				mccore::GraphModel::label resLabel = aModel.getVertexLabel (const_cast< mccore::Residue* > (res));
-				ResIdPair mapKey(refId, resId);
 				
 				if ((*eit)->isPairing ())
 				{
@@ -65,19 +64,19 @@ namespace annotate
 					mMarks[resLabel] |= PAIRING_MARK;
 					BasePair* pInteraction = new BasePair(refLabel, refId, resLabel, resId);
 					mPairs.push_back(*pInteraction);
-					mInteractions.insert(interaction_pair(mapKey, pInteraction));
+					mInteractions.insert(pInteraction);
 				}
 				if ((*eit)->is (PropertyType::pAdjacent5p))
 				{
 					BaseLink* pInteraction = new BaseLink(refLabel, refId, resLabel, resId);
 					mLinks.push_back(*pInteraction);
-					mInteractions.insert(interaction_pair(mapKey, pInteraction));
+					mInteractions.insert(pInteraction);
 				}
 				if ((*eit)->isStacking ())
 				{
 					BaseStack* pInteraction = new BaseStack(refLabel, refId, resLabel, resId);
 					mStacks.push_back(*pInteraction);
-					mInteractions.insert(interaction_pair(mapKey, pInteraction));
+					mInteractions.insert(pInteraction);
 				}
 			}
 		}
@@ -178,17 +177,20 @@ namespace annotate
 		}
 	}
 	
-	const BaseInteraction* AnnotationInteractions::getInteraction(
+	std::list<const BaseInteraction*> AnnotationInteractions::getInteractions(
 			const mccore::ResId ref, 
 			const mccore::ResId res) const
 	{
-		const BaseInteraction* pInteraction = NULL;
-		std::map< ResIdPair, BaseInteraction*, ResIdPairCmp>::const_iterator it;
-		it = mInteractions.find(ResIdPair(ref, res));
-		if(it != mInteractions.end())
+		std::list<const BaseInteraction*> interactions;
+		std::multiset< BaseInteraction*, LessBaseInteractionPtr>::const_iterator it;
+		BaseInteraction key(0, std::min(ref, res), 0, std::max(ref, res)); // Dummy interaction for search
+		// TODO : Return a list of interactions
+		std::pair<interaction_multiset_const_it, interaction_multiset_const_it> range;
+		range = mInteractions.equal_range(&key);
+		for(it = range.first; it != range.second; ++it)
 		{
-			pInteraction = it->second;
+			interactions.push_back(*it);
 		}
-		return pInteraction;		
+		return interactions;
 	}
 }

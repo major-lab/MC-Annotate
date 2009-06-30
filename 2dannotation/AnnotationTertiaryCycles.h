@@ -22,18 +22,13 @@ namespace annotate
 		const std::vector< Cycle >& getCycles() const;
 		std::vector< Cycle >& getCycles();
 	private:
-		typedef std::pair<mccore::ResId, mccore::ResId> resid_pair;
-		typedef std::set<resid_pair> resid_pair_set;
 		std::vector< Cycle > mCycles;
 		virtual void clear();
 		bool isTertiary(
-			const resid_pair_set& aCyclePairs, 
-			const std::vector<BasePair>& a3DPairs) const;
-		void getPairs(const Cycle& aCycle, resid_pair_set& aPairs) const;
-			
-		bool compare_less(const BasePair& aLeft, const resid_pair& aRight) const;
-		bool compare_less(const resid_pair& aLeft, const BasePair& aRight) const;
-			
+			const std::set<BaseInteraction>& aCyclePairs, 
+			const std::set<BasePair>& a3DPairs) const;
+		void getPairs(const Cycle& aCycle, std::set<BaseInteraction>& aPairs) const;
+					
 		void outputCycle(
 			std::ostringstream& oss, 
 			const Cycle& aCycle) const;

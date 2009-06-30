@@ -31,7 +31,7 @@ namespace annotate
 		return strAnnotationName;
 	}
 		
-	const std::vector< BasePair >& AnnotationTertiaryPairs::getPairs() const
+	const std::set< BasePair >& AnnotationTertiaryPairs::getPairs() const
 	{
 		return mPairs;
 	}
@@ -62,7 +62,7 @@ namespace annotate
 					
 				if(!bAdjacent)
 				{
-					mPairs.push_back(*it);
+					mPairs.insert(*it);
 				}			
 			}
 		}
@@ -165,7 +165,7 @@ namespace annotate
 	std::string AnnotationTertiaryPairs::output() const
 	{
 		std::ostringstream oss;
-		std::vector<BasePair>::const_iterator it;
+		std::set<BasePair>::const_iterator it;
 		for(it = mPairs.begin(); it != mPairs.end(); ++ it)
 		{
 			oss << it->fResId << "-" << it->rResId << std::endl;

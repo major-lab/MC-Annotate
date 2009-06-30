@@ -40,7 +40,7 @@ namespace annotate
 		
 		if(NULL != pAnnCycles && NULL != pAnnTertiaryPairs)
 		{
-			resid_pair_set cyclePairs;
+			std::set<BaseInteraction> cyclePairs;
 			mCycles = pAnnCycles->getCycles();
 			bool bTertiary = false;
 			std::vector<Cycle>::iterator it = mCycles.begin();
@@ -103,62 +103,35 @@ namespace annotate
 	{
 		return mCycles;
 	}
-	
-	bool AnnotationTertiaryCycles::compare_less(
-		const BasePair& aLeft, 
-		const resid_pair& aRight) const
-	{
-		mccore::ResId leftMin = std::min(aLeft.fResId, aLeft.rResId);
-		mccore::ResId rightMin = std::min(aRight.first, aRight.second);
-		return ( leftMin < rightMin 
-			|| (leftMin == rightMin 
-				&& (std::max(aLeft.fResId, aLeft.rResId) < std::max(aRight.first, aRight.second))));
-	}
-	
-	bool AnnotationTertiaryCycles::compare_less(
-		const resid_pair& aLeft, 
-		const BasePair& aRight) const
-	{
-		mccore::ResId rightMin = std::min(aRight.fResId, aRight.rResId);
-		mccore::ResId leftMin = std::min(aLeft.first, aLeft.second);
-		return ( leftMin < rightMin 
-			|| (leftMin == rightMin 
-				&& (std::max(aLeft.first, aLeft.second) < std::max(aRight.fResId, aRight.rResId))));
-	}
-	
-	bool AnnotationTertiaryCycles::isTertiary(
-		const resid_pair_set& aCyclePairs, 
-		const std::vector<BasePair>& a3DPairs) const
-	{		
-		bool bTertiary = false;
 		
-		resid_pair_set::const_iterator first1 = aCyclePairs.begin();
-		resid_pair_set::const_iterator last1 = aCyclePairs.end();
-		std::vector<BasePair>::const_iterator first2 = a3DPairs.begin();
-		std::vector<BasePair>::const_iterator last2 = a3DPairs.end();
-			
+	bool AnnotationTertiaryCycles::isTertiary(
+		const std::set<BaseInteraction>& aCyclePairs, 
+		const std::set<BasePair>& a3DPairs) const
+	{
+		bool bTertiary = false;
+		std::set<BaseInteraction>::const_iterator first1 = aCyclePairs.begin();
+		std::set<BaseInteraction>::const_iterator last1 = aCyclePairs.end();
+		std::set<BasePair>::const_iterator first2 = a3DPairs.begin();
+		std::set<BasePair>::const_iterator last2 = a3DPairs.end();
 		while (first1!=last1 && first2!=last2)
-		{
-		    if (compare_less(*first1, *first2))
-		    {
-		    	 ++first1;
-		    }
-		    else if (compare_less(*first2, *first1))
-		    {
-		    	 ++first2;
-		    }
-		    else 
-		    { 
-		    	bTertiary = true;
-		    	break;
-		    }
-		}
+  		{
+  			const BaseInteraction* pLeft = &(*first1);
+  			const BaseInteraction* pRight = &(*first2);
+  			
+			if (*pLeft<*pRight) ++first1;
+			else if (*pRight<*pLeft) ++first2;
+			else 
+			{
+				bTertiary = true;
+				break; 
+			}
+		}				
 		return bTertiary;		
 	}
 	
 	void AnnotationTertiaryCycles::getPairs(
 		const Cycle& aCycle, 
-		resid_pair_set& aPairs) const
+		std::set<BaseInteraction>& aPairs) const
 	{		
     	AbstractModel::const_iterator it;
 		for (it = aCycle.getModel().begin(); aCycle.getModel().end() != it; ++it)
@@ -175,12 +148,12 @@ namespace annotate
 			{
 				resId2 = itNext->getResId();
 			}
-			if(resId1 < resId2)
+			if(resId2 < resId1)
 			{
 				std::swap(resId1, resId2);
 			}
-			std::pair<mccore::ResId, mccore::ResId> pair(resId1, resId2);
-			aPairs.insert(pair);
+			BaseInteraction interaction(0, resId1, 0, resId2);
+			aPairs.insert(interaction);
 		}
 	}
 }

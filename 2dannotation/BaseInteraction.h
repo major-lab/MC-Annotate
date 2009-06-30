@@ -41,6 +41,12 @@ namespace annotate
 			      && rResId < right.rResId)));
 	    }
 	    
+	    bool sameResidues(const BaseInteraction &right) const
+	    {
+	    	return (&right == this
+			      || (first == right.first && second == right.second));
+	    }
+	    
 	    protected:
 			
 			/**
@@ -50,8 +56,7 @@ namespace annotate
 		     */
 		    virtual bool operator== (const BaseInteraction &right) const
 		    {
-		      return (&right == this
-			      || (first == right.first && second == right.second));
+		      return sameResidues(right);
 		    }
 		
 		    /**

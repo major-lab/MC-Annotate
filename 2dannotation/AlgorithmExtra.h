@@ -20,6 +20,19 @@ namespace annotate
 		return setInter;
 	};
 	
+	template < class T >
+	std::set< T > SetIntersection( const std::set< T > & set1, const std::set< T > & set2 )
+	{
+		std::set< T > setInter;
+		std::insert_iterator< std::set< T > > iter( setInter, setInter.begin() );
+	
+		std::set_intersection( set1.begin(), set1.end(),
+	          set2.begin(), set2.end(),
+	          iter );
+	
+		return setInter;
+	};
+		
 	//----------------------------------------------------------------------
 	template < class T >
 	std::set< T > SetDifference( std::set< T > & set1, std::set< T > & set2 )
@@ -41,11 +54,11 @@ namespace annotate
 		bool bIntersects = false;
 		while (first1!=last1 && first2!=last2)
 		{
-		    if (*first1<*first2)
+		    if ((*first1) < (*first2))
 		    {
 		    	 ++first1;
 		    }
-		    else if (*first2<*first1)
+		    else if ((*first2) < (*first1))
 		    {
 		    	 ++first2;
 		    }

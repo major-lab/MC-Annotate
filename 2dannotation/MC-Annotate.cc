@@ -262,7 +262,7 @@ void dumpCyclesFiles(
 		{
 			oss << gstrOutputDirectory << "/";
 		}
-		oss << aFilePrefix << "_c" << i << ".pdb.gz";
+		oss << aFilePrefix << "_l" << it->getModel().size() << "_c" << i << ".pdb.gz";
 		ozfPdbstream ops;
 		ops.open ((oss.str ()).c_str ());
 		if (! ops)
@@ -328,11 +328,16 @@ main (int argc, char *argv[])
 						++ it)
 					{
 						it->order();
-						gOut (0) << "Cycle " << i++ << " (" << it->getTopology().size() << ") : ";
-						std::list<unsigned int>::const_iterator strandIt = it->getTopology().begin();
-						for(; strandIt != it->getTopology().end(); ++strandIt)
+						std::list<std::string> labels = it->getInteractionLabels();
+						gOut (0) << "Cycle " << i++ << " (" << labels.size() << ") : ";
+						std::list<std::string>::const_iterator lIt;
+						for(lIt = labels.begin(); lIt != labels.end(); ++lIt)
 						{
-							gOut (0) << "-" << *strandIt;
+							if(lIt != labels.begin())
+							{
+								gOut (0) << "-";
+							}
+							gOut (0) << *lIt;
 						}
 						gOut (0) << std::endl;
 					}
