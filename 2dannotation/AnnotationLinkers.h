@@ -34,7 +34,7 @@ namespace annotate
 	  		const Stem* apStem, 
 	  		const Stem::enConnection& aeConnect, 
 	  		std::set<Linker>& outLinkerSet) const;
-	  	
+	  	Linker allResiduesLinker() const;
 	  	
 		void computeResidueInfos(const AnnotateModel& aModel);
 		std::vector<stResidueInfo>::const_iterator findResidueInfo(

@@ -94,7 +94,7 @@ namespace annotate
 			const SecondaryStructure* pStruct1 = it1->second;
 			for(it2 = range2.first; it2 != range2.second && !bAdjacent; ++ it2)
 			{
-				bAdjacent |= pStruct1->isAdjacent(*it2->second);
+				bAdjacent = pStruct1->isAdjacent(*it2->second);
 			}		
 		}
 		

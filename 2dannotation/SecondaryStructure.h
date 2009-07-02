@@ -17,7 +17,7 @@ namespace annotate
 
 		// METHODS --------------------------------------------------------------
 		virtual bool isAdjacent(const SecondaryStructure& aStruct) const = 0;
-	private:    	 
+	private:
 	};
 }
 

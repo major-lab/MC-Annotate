@@ -36,17 +36,24 @@ namespace annotate
 		const AnnotationStems* pAnnotStems = aModel.getAnnotation<AnnotationStems>(AnnotationStems().provides());
 		
 		if(NULL != pAnnotStems)
-		{		
+		{
 			std::set<Linker> linkerSet;
-		  	std::vector< Stem >::const_iterator it;
-			for(it = pAnnotStems->getStems().begin(); 
-				it != pAnnotStems->getStems().end(); 
-				++it)
+			if(0 < pAnnotStems->getStems().size())
+			{		
+			  	std::vector< Stem >::const_iterator it;
+				for(it = pAnnotStems->getStems().begin(); 
+					it != pAnnotStems->getStems().end(); 
+					++it)
+				{
+					findLinker((&*it), Stem::eFIRST_STRAND_FRONT_PAIR, linkerSet);
+					findLinker((&*it), Stem::eFIRST_STRAND_BACK_PAIR, linkerSet);
+					findLinker((&*it), Stem::eSECOND_STRAND_FRONT_PAIR, linkerSet);
+					findLinker((&*it), Stem::eSECOND_STRAND_BACK_PAIR, linkerSet);		
+				}
+			}
+			else if(0 < aModel.size())
 			{
-				findLinker((&*it), Stem::eFIRST_STRAND_FRONT_PAIR, linkerSet);
-				findLinker((&*it), Stem::eFIRST_STRAND_BACK_PAIR, linkerSet);
-				findLinker((&*it), Stem::eSECOND_STRAND_FRONT_PAIR, linkerSet);
-				findLinker((&*it), Stem::eSECOND_STRAND_BACK_PAIR, linkerSet);		
+				linkerSet.insert(allResiduesLinker());
 			}
 			
 			std::set<Linker>::const_iterator itLinker = linkerSet.begin();
@@ -116,6 +123,19 @@ namespace annotate
 		}
   	}
   	
+  	Linker AnnotationLinkers::allResiduesLinker() const
+  	{
+  		std::vector<mccore::ResId> linkerResidues;
+  		std::vector<stResidueInfo>::const_iterator it;
+  		for(it = mResidueInfos.begin(); it != mResidueInfos.end(); ++ it)
+  		{
+  			linkerResidues.push_back(it->resId);
+  		}
+  		Linker linker = Linker(linkerResidues, StemConnection(), StemConnection());
+	  	linker.order();
+	  	return linker;
+  	}
+  	
   	void AnnotationLinkers::computeResidueInfos(const AnnotateModel& aModel)
 	{
 		int i = 0;
@@ -138,7 +158,9 @@ namespace annotate
 					{
 						if(NULL != mResidueInfos[i].pStem)
 						{
-							gOut(1) << "Residue " << (*it).getResId() << " associated with more than one stem" << endl;
+							gOut(1) << "Residue " << (*it).getResId();
+							gOut(1) << " associated with more than one stem";
+							gOut(1) << std::endl;
 						}
 						mResidueInfos[i].pStem = &(*stemIt);
 					}

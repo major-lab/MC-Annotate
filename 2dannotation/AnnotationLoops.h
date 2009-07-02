@@ -9,6 +9,7 @@
 namespace annotate
 {
 	class Linker;
+	class AnnotationLinkers;
 	class AnnotationLoops : public Annotation
 	{
 	public:
@@ -24,10 +25,11 @@ namespace annotate
 		std::vector< Loop > mLoops;
 		virtual void clear();
 		
+		void findLoops(std::map<mccore::ResId, const Linker*> residueLinkerMap);
 		void findOpenLoops(std::vector< Loop >& aOpenLoops);
 		
 		std::map<mccore::ResId, const Linker*> getResidueLinkerMap(
-			const AnnotateModel& aModel) const;
+			const AnnotationLinkers& aAnnotLinkers) const;
     	Linker nextLinker(
 			const Linker& aLinker,
 			const std::map<mccore::ResId, const Linker*>& aResidueLinkerMap) const;

@@ -33,10 +33,34 @@ namespace annotate
 	
 	void AnnotationLoops::update(const AnnotateModel& aModel)
 	{
-		std::vector< Loop > openLoops;
+		// This model contains no stems, there is only one open loop
+		const Annotation* pAnnotation = aModel.getAnnotation("Linkers");
+		const AnnotationLinkers* pAnnotLinkers = NULL;
+		pAnnotLinkers = dynamic_cast<const AnnotationLinkers*>(pAnnotation);
 		
-		std::map<ResId, const Linker*> residueLinkerMap;
-		residueLinkerMap = getResidueLinkerMap(aModel);
+		if(NULL != pAnnotLinkers)
+		{
+			std::map<ResId, const Linker*> residueLinkerMap;
+			residueLinkerMap = getResidueLinkerMap(*pAnnotLinkers);
+			if(residueLinkerMap.empty() && 0 < aModel.size())
+			{			
+				// TODO : Assert that there is only one linker
+				std::vector<Linker> potentialLoop;
+				potentialLoop.push_back(pAnnotLinkers->getLinkers().front());
+				mLoops.push_back(Loop(potentialLoop));			
+			}
+			else
+			{
+				// Find all the loops contained in the linker map
+				findLoops(residueLinkerMap);
+			}
+		}
+	}
+	
+	void AnnotationLoops::findLoops(
+		std::map<ResId, const Linker*> residueLinkerMap)
+	{
+		std::vector< Loop > openLoops;
 		while(!residueLinkerMap.empty())
 		{
 			const Linker* pFirstLinker = NULL;
@@ -85,7 +109,7 @@ namespace annotate
 				}
 			}
 		}
-		// Find the open loops from the remaining liners
+		// Find the open loops from the remaining linkers
 		findOpenLoops(openLoops);
 	}
 	
@@ -189,34 +213,28 @@ namespace annotate
 	}
 	
 	std::map<mccore::ResId, const Linker*>
-	AnnotationLoops::getResidueLinkerMap(const AnnotateModel& aModel) const
+	AnnotationLoops::getResidueLinkerMap(const AnnotationLinkers& aAnnotLinkers) const
 	{
 		std::map<mccore::ResId, const Linker*> residueLinkerMap;
-		const Annotation* pAnnotation = aModel.getAnnotation("Linkers");
-		const AnnotationLinkers* pAnnotLinkers = NULL;
-		pAnnotLinkers = dynamic_cast<const AnnotationLinkers*>(pAnnotation);
-		if(NULL != pAnnotLinkers)
+		std::vector<Linker>::const_iterator it;
+		for(it = aAnnotLinkers.getLinkers().begin();
+			it != aAnnotLinkers.getLinkers().end(); 
+			++it)
 		{
-			std::vector<Linker>::const_iterator it;
-			for(it = pAnnotLinkers->getLinkers().begin();
-				it != pAnnotLinkers->getLinkers().end(); 
-				++it)
+			if((*it).getStart().isValid())
 			{
-				if((*it).getStart().isValid())
-				{
-					const StemConnection* pConnect = &(*it).getStart();
-					ResId resId = pConnect->getResidue();
-					std::pair<ResId, const Linker*> mapping(resId, &(*it));
-					residueLinkerMap.insert(mapping);	
-				}
-				
-				if((*it).getEnd().isValid())
-				{
-					const StemConnection* pConnection = &(*it).getEnd();
-					ResId resId = pConnection->getResidue();
-					std::pair<ResId, const Linker*> mapping(resId, &(*it));
-					residueLinkerMap.insert(mapping);
-				}
+				const StemConnection* pConnect = &(*it).getStart();
+				ResId resId = pConnect->getResidue();
+				std::pair<ResId, const Linker*> mapping(resId, &(*it));
+				residueLinkerMap.insert(mapping);	
+			}
+			
+			if((*it).getEnd().isValid())
+			{
+				const StemConnection* pConnection = &(*it).getEnd();
+				ResId resId = pConnection->getResidue();
+				std::pair<ResId, const Linker*> mapping(resId, &(*it));
+				residueLinkerMap.insert(mapping);
 			}
 		}
 		return residueLinkerMap;
