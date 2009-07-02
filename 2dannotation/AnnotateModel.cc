@@ -109,29 +109,30 @@ namespace annotate
 	}
 
 
-  void
-  AnnotateModel::annotate ()
-  {
-	gOut (3) << "Computing basic annotation ..." << std::endl;
-    GraphModel::annotate ();
-    
-    // TODO : This should be moved into AnnotationCycle, but some const 
-    // correctness work needs to be done in mccore.
-    gOut (3) << "Computing minimum cycle bases union ..." << std::endl;
-    unionMinimumCycleBases(mCyclesMolecule);
-
-	// Compute all the requested annotations
-	std::vector<Annotation*>::const_iterator it = annotations.begin();
-	for(;it != annotations.end(); ++it)
+	void
+	AnnotateModel::annotate (unsigned char aspb)
 	{
-		gOut (3) << "Computing " << (*it)->provides() << " ..." << std::endl;
-		(*it)->update(*this);
+		gOut (3) << "Computing basic annotation ..." << std::endl;
+		GraphModel::annotate (aspb);
+    
+		// TODO : This should be moved into AnnotationCycle, but some const 
+		// correctness work needs to be done in mccore.
+		gOut (3) << "Computing minimum cycle bases union ..." << std::endl;
+		unionMinimumCycleBases(mCyclesMolecule);
+
+		// Compute all the requested annotations
+		std::vector<Annotation*>::const_iterator it = annotations.begin();
+		for(;it != annotations.end(); ++it)
+		{
+			gOut (3) << "Computing " << (*it)->provides() << " ..." << std::endl;
+			(*it)->update(*this);
+		}
+		
+		// Find the chains in the pdb file
+		gOut (3) << "Computing chains ..." << std::endl;
+		findChains();
 	}
-	
-	// Find the chains in the pdb file
-	gOut (3) << "Computing chains ..." << std::endl;
-	findChains();
-  } 	
+	 	
 	void 
 	AnnotateModel::findChains()
 	{

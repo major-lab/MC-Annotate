@@ -51,8 +51,13 @@ unsigned int environment = 0;
 bool oneModel = false;
 unsigned int modelNumber = 0;  // 1 based vector identifier, 0 means all
 std::string gstrOutputDirectory = "";
+unsigned char gucRelationMask = 
+	mccore::Relation::adjacent_mask
+	| mccore::Relation::pairing_mask 
+	| mccore::Relation::stacking_mask 
+	| mccore::Relation::backbone_mask;
 ResIdSet residueSelection;
-const char* shortopts = "Vbd:e:f:hlr:v";
+const char* shortopts = "Vbd:e:f:hlr:vm:";
 
 
 
@@ -70,7 +75,7 @@ void
 usage ()
 {
   gOut (0) << "usage: " << PACKAGE
-	   << " [-bhlvV] [-e num] [-d <output directory>] [-f <model number>] [-r <residue ids>] <structure file> ..."
+	   << " [-bhlvV] [-e num] [-d <output directory>] [-f <model number>] [-r <residue ids>] [-m <relation mask>] <structure file> ..."
 	   << endl;
 }
 
@@ -82,6 +87,7 @@ help ()
     << "This program annotate structures (and more)." << endl
     << "  -b                read binary files instead of pdb files" << endl
     << "  -d <directory>    output directory" << endl
+    << "  -m <mask>         annotation mask string: any combination of 'A' (adjacent), 'S' (stacking), 'P' (pairing) and 'B' (backbone). (default: all)" << endl
     << "  -e num            number of surrounding layers of connected residues to annotate" << endl
     << "  -f model number   model to print" << endl
     << "  -h                print this help" << endl
@@ -157,6 +163,28 @@ read_options (int argc, char* argv[])
         case 'l':
           gErr.setVerboseLevel (gErr.getVerboseLevel () + 1);
           break;
+    case 'm':
+    	{
+    		std::string strMask = optarg;
+    		gucRelationMask = 0;
+    		if(strMask.find("A") != std::string::npos)
+    		{
+    			gucRelationMask |= mccore::Relation::adjacent_mask;
+    		}
+    		if(strMask.find("S") != std::string::npos)
+    		{
+    			gucRelationMask |= mccore::Relation::stacking_mask;
+    		}
+    		if(strMask.find("P") != std::string::npos)
+    		{
+    			gucRelationMask |= mccore::Relation::pairing_mask;
+    		}
+    		if(strMask.find("B") != std::string::npos)
+    		{
+    			gucRelationMask |= mccore::Relation::backbone_mask;
+    		}
+			break;
+    	}
 	case 'r':
 	  try
 	    {
@@ -318,7 +346,7 @@ main (int argc, char *argv[])
 					
 					gOut (0) << "Annotating Model ------------------------------------------------" << endl;										
 					gOut (0) << filename << std::endl;
-					am.annotate ();
+					am.annotate (gucRelationMask);
 					gOut(0) << am;
 					
 					// TODO : Remove this test

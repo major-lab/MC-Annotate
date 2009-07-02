@@ -220,7 +220,7 @@ namespace annotate
     /**
      * Builds the graph of relations, find strands and helices.
      */
-    void annotate ();
+    void annotate (unsigned char aspb = Relation::adjacent_mask|Relation::pairing_mask|Relation::stacking_mask|Relation::backbone_mask);
     
     void addAnnotation(Annotation& aAnnotation);
     
