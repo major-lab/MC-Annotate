@@ -5,8 +5,11 @@
 
 namespace annotate
 {
-	AnnotationCycles::AnnotationCycles()
+	std::string AnnotationCycles::mstrAnnotationName = "Cycles";
+	
+	AnnotationCycles::AnnotationCycles(unsigned int auiMaxCycleSize)
 	{
+		muiMaxCycleSize = auiMaxCycleSize;
 	}
 	
 	AnnotationCycles::~AnnotationCycles()
@@ -17,12 +20,6 @@ namespace annotate
 	void AnnotationCycles::clear()
 	{
 		mCycles.clear();
-	}
-	
-	const std::string AnnotationCycles::provides() const
-	{
-		std::string strAnnotationName = "Cycles";
-		return strAnnotationName;
 	}
 		
 	void AnnotationCycles::update(const AnnotateModel& aModel)
@@ -38,8 +35,11 @@ namespace annotate
 				itMol != aModel.getCyclesMolecule().end(); 
 				++ itMol)
 			{
-				Cycle cycle(*itMol);
-				mCycles.push_back(cycle);
+				if(0 == muiMaxCycleSize || itMol->size() <= muiMaxCycleSize)
+				{
+					Cycle cycle(*itMol);
+					mCycles.push_back(cycle);
+				}				
 			}
 		}
 	}

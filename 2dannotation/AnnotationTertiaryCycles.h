@@ -1,11 +1,13 @@
 #ifndef _annotate_AnnotationTertiaryCycles_H_
 #define _annotate_AnnotationTertiaryCycles_H_
 
+#include <vector>
+
 #include "Annotation.h"
 #include "BasePair.h"
 #include "BaseStack.h"
 #include "Cycle.h"
-#include <vector>
+
 namespace annotate
 {	
 	class AnnotationTertiaryPairs;
@@ -19,11 +21,14 @@ namespace annotate
 		
 		virtual void update(const AnnotateModel& aModel);		
 		virtual std::string output() const;
-		virtual const std::string provides() const;
 		
 		const std::vector< Cycle >& getCycles() const;
 		std::vector< Cycle >& getCycles();
+		
+		static const std::string& AnnotationName() {return mstrAnnotationName;}
+		virtual const std::string& annotationName() {return AnnotationName();}
 	private:
+		static std::string mstrAnnotationName;
 		std::vector< Cycle > mCycles;
 		virtual void clear();
 		bool isTertiary(

@@ -7,12 +7,16 @@
 
 namespace annotate
 {
+	// Static members
+	std::string AnnotationTertiaryStacks::mstrAnnotationName = "Tertiary Stacks";
+	
+	// Methods
 	AnnotationTertiaryStacks::AnnotationTertiaryStacks()
 	{
 		// Requires
-		addRequirement(AnnotationInteractions().provides());
-		addRequirement(AnnotationStems().provides());
-		addRequirement(AnnotationLoops().provides());
+		addRequirement<AnnotationInteractions>();
+		addRequirement<AnnotationStems>();
+		addRequirement<AnnotationLoops>();
 	}
 	
 	AnnotationTertiaryStacks::~AnnotationTertiaryStacks()
@@ -25,12 +29,6 @@ namespace annotate
 		mStacks.clear();
 	}
 	
-	const std::string AnnotationTertiaryStacks::provides() const
-	{
-		std::string strAnnotationName = "Tertiary Stacks";
-		return strAnnotationName;
-	}
-		
 	const std::set< BaseStack >& AnnotationTertiaryStacks::getStacks() const
 	{
 		return mStacks;
@@ -43,7 +41,7 @@ namespace annotate
 		struct_association_map associationMap;
 		
 		const AnnotationInteractions* pAInteractions = NULL;
-		pAInteractions = aModel.getAnnotation<AnnotationInteractions>(AnnotationInteractions().provides());
+		pAInteractions = aModel.getAnnotation<AnnotationInteractions>();
 		
 		if(NULL != pAInteractions)
 		{
@@ -107,7 +105,7 @@ namespace annotate
 		const AnnotateModel& aModel, 
 		struct_association_map& associationMap	)
 	{
-		const AnnotationStems* pAnnotStems = aModel.getAnnotation<AnnotationStems>(AnnotationStems().provides());
+		const AnnotationStems* pAnnotStems = aModel.getAnnotation<AnnotationStems>();
 		
 		if(NULL != pAnnotStems)
 		{
@@ -138,7 +136,7 @@ namespace annotate
 	{
 		// Add the loop associations
 		const AnnotationLoops* pAnnotLoops = NULL;
-		pAnnotLoops = aModel.getAnnotation<AnnotationLoops>("Loops");
+		pAnnotLoops = aModel.getAnnotation<AnnotationLoops>();
 
 		if(NULL != pAnnotLoops)
 		{		

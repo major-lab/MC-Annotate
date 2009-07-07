@@ -5,20 +5,18 @@
 
 namespace annotate
 {
+	// Static members
+	std::string AnnotationLinkers::mstrAnnotationName = "Linkers";
+	
+	// Methods
 	AnnotationLinkers::AnnotationLinkers()
 	{
-		addRequirement(AnnotationStems().provides());
+		addRequirement<AnnotationStems>();
 	}
 	
 	AnnotationLinkers::~AnnotationLinkers()
 	{
 		clear();
-	}
-	
-	const std::string AnnotationLinkers::provides() const
-	{
-		std::string strAnnotationName = "Linkers";
-		return strAnnotationName;
 	}
 	
 	void AnnotationLinkers::clear()
@@ -33,7 +31,7 @@ namespace annotate
 		
 		computeResidueInfos(aModel);
 		
-		const AnnotationStems* pAnnotStems = aModel.getAnnotation<AnnotationStems>(AnnotationStems().provides());
+		const AnnotationStems* pAnnotStems = aModel.getAnnotation<AnnotationStems>();
 		
 		if(NULL != pAnnotStems)
 		{
@@ -139,7 +137,7 @@ namespace annotate
   	void AnnotationLinkers::computeResidueInfos(const AnnotateModel& aModel)
 	{
 		int i = 0;
-		const AnnotationStems* pAnnotStems = aModel.getAnnotation<AnnotationStems>(AnnotationStems().provides());
+		const AnnotationStems* pAnnotStems = aModel.getAnnotation<AnnotationStems>();
 		
 		if(NULL != pAnnotStems)
 		{

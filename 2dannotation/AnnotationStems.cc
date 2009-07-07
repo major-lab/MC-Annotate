@@ -6,20 +6,18 @@
 
 namespace annotate
 {
+	// Static members
+	std::string AnnotationStems::mstrAnnotationName = "Stems";
+	
+	// Methods	
 	AnnotationStems::AnnotationStems()
 	{
-		addRequirement(AnnotationInteractions().provides());
+		addRequirement<AnnotationInteractions>();
 	}
 	
 	AnnotationStems::~AnnotationStems()
 	{
 		clear();
-	}
-	
-	const std::string AnnotationStems::provides() const
-	{
-		std::string strAnnotationName = "Stems";
-		return strAnnotationName;
 	}
 		
 	void AnnotationStems::update(const AnnotateModel& aModel)
@@ -102,7 +100,7 @@ namespace annotate
 		std::set< BasePair> oWWBasePairs;
 		std::set< BasePair> excludedPairs;
 		const AnnotationInteractions* pAInteractions = NULL;
-		pAInteractions = aModel.getAnnotation<AnnotationInteractions>(AnnotationInteractions().provides());
+		pAInteractions = aModel.getAnnotation<AnnotationInteractions>();
 		
 		if(NULL != pAInteractions)
 		{

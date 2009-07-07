@@ -1,12 +1,16 @@
 #ifndef _annotate_AnnotationTertiaryPairs_H_
 #define _annotate_AnnotationTertiaryPairs_H_
 
+
+#include <set>
+#include <map>
+
+#include "mccore/ResId.h"
+
 #include "Annotation.h"
 #include "SecondaryStructure.h"
 #include "BasePair.h"
-#include <mccore/ResId.h>
-#include <set>
-#include <map>
+
 
 namespace annotate
 {
@@ -18,10 +22,13 @@ namespace annotate
 		
 		virtual void update(const AnnotateModel& aModel);		
 		virtual std::string output() const;
-		virtual const std::string provides() const;
 		
 		const std::set< BasePair >& getPairs() const;
+		
+		static const std::string& AnnotationName() {return mstrAnnotationName;}
+		virtual const std::string& annotationName() {return AnnotationName();}
 	private:
+		static std::string mstrAnnotationName;
 		typedef std::pair<mccore::ResId, const SecondaryStructure*> struct_association;
 		typedef std::multimap<mccore::ResId, const SecondaryStructure*> struct_association_map;
 		std::set< BasePair > mPairs;

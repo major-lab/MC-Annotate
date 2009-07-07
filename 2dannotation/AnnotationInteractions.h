@@ -13,8 +13,6 @@
 namespace annotate
 {
 	class AnnotateModel;
-	/*
-	typedef std::pair<mccore::ResId, mccore::ResId> ResIdPair;*/
 	
 	class LessBaseInteractionPtr
 	{
@@ -39,7 +37,6 @@ namespace annotate
 		
 		virtual void update(const AnnotateModel& aModel);		
 		virtual std::string output() const;
-		virtual const std::string provides() const;
 		
 		const std::vector< BasePair >& getPairs() const {return mPairs;}
 		const std::vector< BaseStack >& getStacks() const {return mStacks;}
@@ -48,9 +45,13 @@ namespace annotate
 		// NOTE : Return value should use smart pointers
 		std::list<const BaseInteraction*> getInteractions(
 			const mccore::ResId ref, 
-			const mccore::ResId res) const; 
+			const mccore::ResId res) const;
+		
+		static const std::string& AnnotationName() {return mstrAnnotationName;}
+		virtual const std::string& annotationName() {return AnnotationName();}
 		
 	private:
+		static std::string mstrAnnotationName;
 		typedef std::multiset< BaseInteraction*, LessBaseInteractionPtr> interaction_multiset;
 		typedef interaction_multiset::const_iterator interaction_multiset_const_it;
 		const mccore::GraphModel* mpModel;

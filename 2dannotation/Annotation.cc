@@ -6,9 +6,4 @@ namespace annotate
 	{
 		return mRequirements;
 	}
-	
-	void Annotation::addRequirement(const std::string& aRequirement)
-	{
-		mRequirements.insert(aRequirement);
-	}
 }

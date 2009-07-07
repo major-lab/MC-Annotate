@@ -5,9 +5,13 @@
 
 namespace annotate
 {
+	// Static members
+	std::string AnnotationLoops::mstrAnnotationName = "Loops";
+	
+	// Methods	
 	AnnotationLoops::AnnotationLoops() 
 	{
-		addRequirement(AnnotationLinkers().provides());
+		addRequirement<AnnotationLinkers>();
 	}
 	
 	AnnotationLoops::~AnnotationLoops() 
@@ -18,12 +22,6 @@ namespace annotate
 	void AnnotationLoops::clear()
 	{
 		mLoops.clear();
-	}
-	
-	const std::string AnnotationLoops::provides() const 
-	{
-		std::string strAnnotationName = "Loops";
-		return strAnnotationName;
 	}
 	
 	const std::vector< Loop >& AnnotationLoops::getLoops() const

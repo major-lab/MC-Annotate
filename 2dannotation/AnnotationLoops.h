@@ -1,10 +1,10 @@
 #ifndef _annotate_AnnotationLoops_H_
 #define _annotate_AnnotationLoops_H_
 
+#include <vector>
+
 #include "Annotation.h"
 #include "Loop.h"
-
-#include <vector>
 
 namespace annotate
 {
@@ -18,10 +18,12 @@ namespace annotate
 		
 		virtual void update(const AnnotateModel& aModel);		
 		virtual std::string output() const;
-		virtual const std::string provides() const;
 		
 		const std::vector< Loop >& getLoops() const;
+		static const std::string& AnnotationName() {return mstrAnnotationName;}
+		virtual const std::string& annotationName() {return AnnotationName();}
 	private:
+		static std::string mstrAnnotationName;
 		std::vector< Loop > mLoops;
 		virtual void clear();
 		

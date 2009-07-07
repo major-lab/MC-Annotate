@@ -11,18 +11,20 @@ namespace annotate
 	class AnnotationCycles : public Annotation
 	{
 	public:
-		AnnotationCycles();
+		AnnotationCycles(unsigned int auiMaxCycleSize = 0);
 		virtual ~AnnotationCycles();
 		
 		virtual void update(const AnnotateModel& aModel);		
 		virtual std::string output() const;
-		virtual const std::string provides() const;
 		
 		const std::vector< Cycle >& getCycles() const;
+		static const std::string& AnnotationName() {return mstrAnnotationName;}
+		virtual const std::string& annotationName() {return AnnotationName();}
 	private:
+		static std::string mstrAnnotationName;
 		std::vector< Cycle > mCycles;
+		unsigned int muiMaxCycleSize;
 		virtual void clear();
-	};
-	
+	};	
 }
 #endif /*_annotate_AnnotationCycles_H_*/

@@ -205,9 +205,9 @@ namespace annotate
 	const Annotation* getAnnotation(const std::string& astrAnnotName) const;
     
     template<class T>
-    const T* getAnnotation(const std::string& astrAnnotName) const
+    const T* getAnnotation() const
     {
-    	return dynamic_cast<const T*>(getAnnotation(astrAnnotName));
+    	return dynamic_cast<const T*>(getAnnotation(T::AnnotationName()));
     }
     
     const mccore::Molecule& getCyclesMolecule() const

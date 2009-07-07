@@ -52,15 +52,14 @@ unsigned int environment = 0;
 bool oneModel = false;
 unsigned int modelNumber = 0;  // 1 based vector identifier, 0 means all
 std::string gstrOutputDirectory = "";
+unsigned int guiMaxCycleSize = 0;
 unsigned char gucRelationMask = 
 	mccore::Relation::adjacent_mask
 	| mccore::Relation::pairing_mask 
 	| mccore::Relation::stacking_mask 
 	| mccore::Relation::backbone_mask;
 ResIdSet residueSelection;
-const char* shortopts = "Vbd:e:f:hlr:vm:";
-
-
+const char* shortopts = "Vbd:c:e:f:hlr:vm:";
 
 void
 version ()
@@ -76,7 +75,7 @@ void
 usage ()
 {
   gOut (0) << "usage: " << PACKAGE
-	   << " [-bhlvV] [-e num] [-d <output directory>] [-f <model number>] [-r <residue ids>] [-m <relation mask>] <structure file> ..."
+	   << " [-bhlvV] [-e num] [-d <output directory>] [-f <model number>] [-r <residue ids>] [-m <relation mask>] [-c <max cycle size>] <structure file> ..."
 	   << endl;
 }
 
@@ -89,6 +88,7 @@ help ()
     << "  -b                read binary files instead of pdb files" << endl
     << "  -d <directory>    output directory" << endl
     << "  -m <mask>         annotation mask string: any combination of 'A' (adjacent), 'S' (stacking), 'P' (pairing) and 'B' (backbone). (default: all)" << endl
+    << "  -c <cycle size>   maximum size of cycles" << endl
     << "  -e num            number of surrounding layers of connected residues to annotate" << endl
     << "  -f model number   model to print" << endl
     << "  -h                print this help" << endl
@@ -154,6 +154,11 @@ read_options (int argc, char* argv[])
 	      }
 	    modelNumber = tmp;
 	    oneModel = true;
+	    break;
+	  }
+	 case 'c':
+	  {
+	    guiMaxCycleSize = atol (optarg);
 	    break;
 	  }
         case 'h':
@@ -336,7 +341,7 @@ main (int argc, char *argv[])
 					AnnotationLoops annLoops;
 					AnnotationTertiaryPairs annTertiaryPairs;
 					AnnotationTertiaryStacks annTertiaryStacks;
-					AnnotationCycles annCycles;
+					AnnotationCycles annCycles(guiMaxCycleSize);
 					AnnotationTertiaryCycles annTertiaryCycles;
 		  
 		  			am.addAnnotation(annInteractions);
@@ -353,29 +358,6 @@ main (int argc, char *argv[])
 					am.annotate (gucRelationMask);
 					gOut(0) << am;
 					
-					// TODO : Remove this test
-					int i = 0;
-					for(std::vector<annotate::Cycle>::iterator it = annTertiaryCycles.getCycles().begin();
-						it != annTertiaryCycles.getCycles().end();
-						++ it)
-					{
-						it->order();
-						std::list<std::string> labels = it->getInteractionLabels();
-						gOut (0) << "Cycle " << i++ << " (" << labels.size() << ") : ";
-						std::list<std::string>::const_iterator lIt;
-						for(lIt = labels.begin(); lIt != labels.end(); ++lIt)
-						{
-							if(lIt != labels.begin())
-							{
-								gOut (0) << "-";
-							}
-							gOut (0) << *lIt;
-						}
-						gOut (0) << std::endl;
-						models.push_back(*it);
-					}
-					// End of test
-					
 					dumpCyclesFiles(getFilePrefix(filename), annTertiaryCycles);			
 					
 					if (oneModel)
@@ -388,6 +370,5 @@ main (int argc, char *argv[])
 		}
 		++optind;
 	}
-	gOut(0) << "Found " << models.size() << " non-adjacent cycle" << std::endl;
 	return EXIT_SUCCESS;	
 }

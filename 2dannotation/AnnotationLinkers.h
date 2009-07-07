@@ -1,9 +1,11 @@
 #ifndef _annotate_AnnotationLinkers_H_
 #define _annotate_AnnotationLinkers_H_
 
+#include <vector>
+#include <string>
+
 #include "Annotation.h"
 #include "Linker.h"
-#include <vector>
 
 namespace annotate
 {
@@ -16,10 +18,13 @@ namespace annotate
 		
 		virtual void update(const AnnotateModel& aModel);		
 		virtual std::string output() const;
-		virtual const std::string provides() const;
 		
 		const std::vector< Linker >& getLinkers() const;
+		
+		static const std::string& AnnotationName() {return mstrAnnotationName;}
+		virtual const std::string& annotationName() {return AnnotationName();}
 	private:
+		static std::string mstrAnnotationName;
 		struct stResidueInfo
 		{
 			mccore::ResId resId;

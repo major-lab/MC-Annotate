@@ -16,16 +16,20 @@ namespace annotate
 		
 		// PROVIDED
 		const std::set<std::string >& requires() const;
-		void addRequirement(const std::string& aRequirement);
 		
 		// MUST IMPLEMENT
 		virtual void update(const AnnotateModel& aModel) = 0;		
 		virtual std::string output() const = 0;
-		virtual const std::string provides() const = 0;
-		
+		virtual const std::string& annotationName() = 0;
+				
 	protected:
 		virtual void clear() = 0;
 		std::set< std::string > mRequirements;
+		
+		template <class T> void addRequirement()
+		{
+			mRequirements.insert(T::AnnotationName());
+		}
 	};
 }
 

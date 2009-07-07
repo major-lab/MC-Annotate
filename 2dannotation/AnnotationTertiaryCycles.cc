@@ -8,11 +8,16 @@
 #include <sstream>
 
 namespace annotate
-{	
+{
+	// Static members
+	std::string AnnotationTertiaryCycles::mstrAnnotationName = "Tertiary Cycles";
+	
+	// Methods	
 	AnnotationTertiaryCycles::AnnotationTertiaryCycles()
 	{
-		addRequirement(AnnotationCycles().provides());
-		addRequirement(AnnotationTertiaryPairs().provides());
+		addRequirement<AnnotationCycles>();
+		addRequirement<AnnotationTertiaryPairs>();
+		addRequirement<AnnotationTertiaryStacks>();
 	}
 	
 	AnnotationTertiaryCycles::~AnnotationTertiaryCycles()
@@ -24,23 +29,17 @@ namespace annotate
 	{
 		mCycles.clear();
 	}
-	
-	const std::string AnnotationTertiaryCycles::provides() const
-	{
-		std::string strAnnotationName = "Tertiary Cycles";
-		return strAnnotationName;
-	}
 		
 	void AnnotationTertiaryCycles::update(const AnnotateModel& aModel)
 	{
 		clear();
 		
 		const AnnotationCycles* pAnnCycles = 
-			aModel.getAnnotation<AnnotationCycles>(AnnotationCycles().provides());
+			aModel.getAnnotation<AnnotationCycles>();
 		const AnnotationTertiaryPairs* pAnnTertiaryPairs = 
-			aModel.getAnnotation<AnnotationTertiaryPairs>(AnnotationTertiaryPairs().provides());
+			aModel.getAnnotation<AnnotationTertiaryPairs>();
 		const AnnotationTertiaryStacks* pAnnTertiaryStacks = 
-			aModel.getAnnotation<AnnotationTertiaryStacks>(AnnotationTertiaryStacks().provides());
+			aModel.getAnnotation<AnnotationTertiaryStacks>();
 		
 		if(NULL != pAnnCycles && NULL != pAnnTertiaryPairs && NULL != pAnnTertiaryStacks)
 		{
@@ -103,7 +102,7 @@ namespace annotate
 	    	outputCycle(oss, *itCycle);
 	    	++ i;
 	    }	  	
-		return oss.str();		
+		return oss.str();
 	}
 	
 	const std::vector< Cycle >& AnnotationTertiaryCycles::getCycles() const

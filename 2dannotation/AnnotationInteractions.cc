@@ -9,6 +9,8 @@
 namespace annotate
 {
 	static const unsigned int PAIRING_MARK = 1;
+	
+	std::string AnnotationInteractions::mstrAnnotationName = "Interactions";
 		
 	AnnotationInteractions::AnnotationInteractions() : mpModel(NULL)
 	{}
@@ -16,12 +18,6 @@ namespace annotate
 	AnnotationInteractions::~AnnotationInteractions()
 	{
 		clear();
-	}
-	
-	const std::string AnnotationInteractions::provides() const
-	{
-		std::string strAnnotationName = "Interactions";
-		return strAnnotationName;
 	}
 	
 	void AnnotationInteractions::clear()

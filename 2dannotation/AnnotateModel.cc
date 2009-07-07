@@ -85,7 +85,7 @@ namespace annotate
 		if(match.size() == requirements.size())
 		{
 			annotations.push_back(&aAnnotation);
-			mProvidedAnnotations.insert(aAnnotation.provides());
+			mProvidedAnnotations.insert(aAnnotation.annotationName());
 		}
 		else
 		{
@@ -100,7 +100,7 @@ namespace annotate
 		const Annotation* pAnnotation = NULL;
 		for(; it != annotations.end() && NULL == pAnnotation; ++it)
 		{
-			if((*it)->provides() == astrAnnotName)
+			if((*it)->annotationName() == astrAnnotName)
 			{
 				pAnnotation = *it;
 			}
@@ -124,7 +124,7 @@ namespace annotate
 		std::vector<Annotation*>::const_iterator it = annotations.begin();
 		for(;it != annotations.end(); ++it)
 		{
-			gOut (3) << "Computing " << (*it)->provides() << " ..." << std::endl;
+			gOut (3) << "Computing " << (*it)->annotationName() << " ..." << std::endl;
 			(*it)->update(*this);
 		}
 		
@@ -217,7 +217,7 @@ namespace annotate
 	std::vector<Annotation*>::const_iterator it = annotations.begin();
 	for(;it != annotations.end(); ++it)
 	{
-		std::string strAnnotationName = (*it)->provides();
+		std::string strAnnotationName = (*it)->annotationName();
 		strAnnotationName.append(" ");
 		strAnnotationName.append(65 - strAnnotationName.size(), '-');
 		gOut (0) << strAnnotationName << endl;
