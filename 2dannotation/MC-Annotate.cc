@@ -41,6 +41,7 @@
 #include "AnnotationStems.h"
 #include "AnnotationTertiaryCycles.h"
 #include "AnnotationTertiaryPairs.h"
+#include "AnnotationTertiaryStacks.h"
 
 using namespace mccore;
 using namespace std;
@@ -308,6 +309,7 @@ void dumpCyclesFiles(
 int
 main (int argc, char *argv[])
 {
+	std::list<annotate::Cycle> models;
 	read_options (argc, argv);
 
 	while (optind < argc)
@@ -333,6 +335,7 @@ main (int argc, char *argv[])
 					AnnotationLinkers annLinkers;
 					AnnotationLoops annLoops;
 					AnnotationTertiaryPairs annTertiaryPairs;
+					AnnotationTertiaryStacks annTertiaryStacks;
 					AnnotationCycles annCycles;
 					AnnotationTertiaryCycles annTertiaryCycles;
 		  
@@ -341,6 +344,7 @@ main (int argc, char *argv[])
 					am.addAnnotation(annLinkers);
 					am.addAnnotation(annLoops);
 					am.addAnnotation(annTertiaryPairs);
+					am.addAnnotation(annTertiaryStacks);
 					am.addAnnotation(annCycles);
 					am.addAnnotation(annTertiaryCycles);
 					
@@ -368,10 +372,11 @@ main (int argc, char *argv[])
 							gOut (0) << *lIt;
 						}
 						gOut (0) << std::endl;
+						models.push_back(*it);
 					}
 					// End of test
 					
-					dumpCyclesFiles(getFilePrefix(filename), annTertiaryCycles);					
+					dumpCyclesFiles(getFilePrefix(filename), annTertiaryCycles);			
 					
 					if (oneModel)
 					{
@@ -383,5 +388,6 @@ main (int argc, char *argv[])
 		}
 		++optind;
 	}
+	gOut(0) << "Found " << models.size() << " non-adjacent cycle" << std::endl;
 	return EXIT_SUCCESS;	
 }

@@ -1,6 +1,8 @@
 #include "AnnotationTertiaryCycles.h"
 #include "AnnotationCycles.h"
 #include "AnnotationTertiaryPairs.h"
+#include "AnnotationTertiaryStacks.h"
+#include "AnnotationInteractions.h"
 #include "AnnotateModel.h"
 #include "AlgorithmExtra.h"
 #include <sstream>
@@ -37,9 +39,12 @@ namespace annotate
 			aModel.getAnnotation<AnnotationCycles>(AnnotationCycles().provides());
 		const AnnotationTertiaryPairs* pAnnTertiaryPairs = 
 			aModel.getAnnotation<AnnotationTertiaryPairs>(AnnotationTertiaryPairs().provides());
+		const AnnotationTertiaryStacks* pAnnTertiaryStacks = 
+			aModel.getAnnotation<AnnotationTertiaryStacks>(AnnotationTertiaryStacks().provides());
 		
-		if(NULL != pAnnCycles && NULL != pAnnTertiaryPairs)
+		if(NULL != pAnnCycles && NULL != pAnnTertiaryPairs && NULL != pAnnTertiaryStacks)
 		{
+			
 			std::set<BaseInteraction> cyclePairs;
 			mCycles = pAnnCycles->getCycles();
 			bool bTertiary = false;
@@ -52,8 +57,14 @@ namespace annotate
 				bTertiary = isTertiary(
 					cyclePairs, 
 					pAnnTertiaryPairs->getPairs());
+				if(!bTertiary)
+				{
+					bTertiary = isTertiary(
+						cyclePairs, 
+						pAnnTertiaryStacks->getStacks());
+				}
 				cyclePairs.clear();
-				
+			
 				if(bTertiary)
 				{
 					++it;
@@ -63,6 +74,7 @@ namespace annotate
 					it = mCycles.erase(it);
 				}
 				++ i;
+				
 			}
 		}
 	}
@@ -113,6 +125,31 @@ namespace annotate
 		std::set<BaseInteraction>::const_iterator last1 = aCyclePairs.end();
 		std::set<BasePair>::const_iterator first2 = a3DPairs.begin();
 		std::set<BasePair>::const_iterator last2 = a3DPairs.end();
+		while (first1!=last1 && first2!=last2)
+  		{
+  			const BaseInteraction* pLeft = &(*first1);
+  			const BaseInteraction* pRight = &(*first2);
+  			
+			if (*pLeft<*pRight) ++first1;
+			else if (*pRight<*pLeft) ++first2;
+			else 
+			{
+				bTertiary = true;
+				break; 
+			}
+		}				
+		return bTertiary;		
+	}
+	
+	bool AnnotationTertiaryCycles::isTertiary(
+		const std::set<BaseInteraction>& aCyclePairs, 
+		const std::set<BaseStack>& a3DStacks) const
+	{
+		bool bTertiary = false;
+		std::set<BaseInteraction>::const_iterator first1 = aCyclePairs.begin();
+		std::set<BaseInteraction>::const_iterator last1 = aCyclePairs.end();
+		std::set<BaseStack>::const_iterator first2 = a3DStacks.begin();
+		std::set<BaseStack>::const_iterator last2 = a3DStacks.end();
 		while (first1!=last1 && first2!=last2)
   		{
   			const BaseInteraction* pLeft = &(*first1);

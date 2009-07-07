@@ -3,11 +3,13 @@
 
 #include "Annotation.h"
 #include "BasePair.h"
+#include "BaseStack.h"
 #include "Cycle.h"
 #include <vector>
 namespace annotate
 {	
 	class AnnotationTertiaryPairs;
+	class AnnotationTertiaryStacks;
 	
 	class AnnotationTertiaryCycles : public Annotation
 	{
@@ -27,6 +29,9 @@ namespace annotate
 		bool isTertiary(
 			const std::set<BaseInteraction>& aCyclePairs, 
 			const std::set<BasePair>& a3DPairs) const;
+		bool isTertiary(
+			const std::set<BaseInteraction>& aCyclePairs, 
+			const std::set<BaseStack>& a3DStacks) const;
 		void getPairs(const Cycle& aCycle, std::set<BaseInteraction>& aPairs) const;
 					
 		void outputCycle(
@@ -34,7 +39,6 @@ namespace annotate
 			const Cycle& aCycle) const;
 			
 		std::string getCycleDescription(const Cycle& aCycle) const;
-	};
-	
+	};	
 }
 #endif /*_annotate_AnnotationTertiaryCycles_H_*/

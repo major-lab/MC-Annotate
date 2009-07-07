@@ -51,7 +51,6 @@ namespace annotate
 			const mccore::ResId res) const; 
 		
 	private:
-		// typedef std::pair<ResIdPair, BaseInteraction*> interaction_pair;
 		typedef std::multiset< BaseInteraction*, LessBaseInteractionPtr> interaction_multiset;
 		typedef interaction_multiset::const_iterator interaction_multiset_const_it;
 		const mccore::GraphModel* mpModel;
