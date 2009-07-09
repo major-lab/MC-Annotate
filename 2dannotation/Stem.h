@@ -28,7 +28,7 @@ namespace annotate
   		};
 		
 		// LIFECYCLE ------------------------------------------------------------
-		Stem () { meOrientation = eUNDEFINED; }
+		Stem (const std::string& aName = "" ) : SecondaryStructure(aName) { meOrientation = eUNDEFINED; }
 	    ~Stem () { }
 
 		// OPERATORS ------------------------------------------------------------

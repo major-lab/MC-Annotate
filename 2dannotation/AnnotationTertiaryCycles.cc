@@ -43,11 +43,10 @@ namespace annotate
 		
 		if(NULL != pAnnCycles && NULL != pAnnTertiaryPairs && NULL != pAnnTertiaryStacks)
 		{
-			
 			std::set<BaseInteraction> cyclePairs;
 			mCycles = pAnnCycles->getCycles();
 			bool bTertiary = false;
-			std::vector<Cycle>::iterator it = mCycles.begin();
+			std::list<Cycle>::iterator it = mCycles.begin();
 			int i = 0;
 			while(it != mCycles.end())
 			{
@@ -78,43 +77,17 @@ namespace annotate
 		}
 	}
 	
-	void AnnotationTertiaryCycles::outputCycle(
-		std::ostringstream& oss, 
-		const Cycle& aCycle) const
-	{
-		AbstractModel::const_iterator it;
-    	oss << "[";
-		for (it = aCycle.getModel().begin(); aCycle.getModel().end() != it; ++it)
-		{
-			oss << " " << it->getResId () << *it->getType ();
-		}
-		oss << " ] " << aCycle.getModel().size() << endl;
-	}
-	
 	std::string AnnotationTertiaryCycles::output() const
 	{
-		int i = 0;
 		std::ostringstream oss;
-		std::vector<Cycle>::const_iterator itCycle;
+		std::list<Cycle>::const_iterator itCycle;
 		for (itCycle = mCycles.begin(); mCycles.end() != itCycle; ++itCycle)
 	    {
-	    	oss << "Cycle " << i << " : ";
-	    	outputCycle(oss, *itCycle);
-	    	++ i;
+	    	oss << itCycle->name() << std::endl;
 	    }	  	
 		return oss.str();
 	}
 	
-	const std::vector< Cycle >& AnnotationTertiaryCycles::getCycles() const
-	{
-		return mCycles;
-	}
-	
-	std::vector< Cycle >& AnnotationTertiaryCycles::getCycles()
-	{
-		return mCycles;
-	}
-		
 	bool AnnotationTertiaryCycles::isTertiary(
 		const std::set<BaseInteraction>& aCyclePairs, 
 		const std::set<BasePair>& a3DPairs) const

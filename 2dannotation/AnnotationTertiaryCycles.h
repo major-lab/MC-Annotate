@@ -22,14 +22,17 @@ namespace annotate
 		virtual void update(const AnnotateModel& aModel);		
 		virtual std::string output() const;
 		
-		const std::vector< Cycle >& getCycles() const;
-		std::vector< Cycle >& getCycles();
+		const std::list< Cycle >& getCycles() const {return mCycles;}
+		std::list< Cycle >& getCycles()  {return mCycles;}
 		
 		static const std::string& AnnotationName() {return mstrAnnotationName;}
 		virtual const std::string& annotationName() {return AnnotationName();}
+		
+		// TODO : Make this a method of cycle
+		void getPairs(const Cycle& aCycle, std::set<BaseInteraction>& aPairs) const;
 	private:
 		static std::string mstrAnnotationName;
-		std::vector< Cycle > mCycles;
+		std::list< Cycle > mCycles;
 		virtual void clear();
 		bool isTertiary(
 			const std::set<BaseInteraction>& aCyclePairs, 
@@ -37,11 +40,6 @@ namespace annotate
 		bool isTertiary(
 			const std::set<BaseInteraction>& aCyclePairs, 
 			const std::set<BaseStack>& a3DStacks) const;
-		void getPairs(const Cycle& aCycle, std::set<BaseInteraction>& aPairs) const;
-					
-		void outputCycle(
-			std::ostringstream& oss, 
-			const Cycle& aCycle) const;
 			
 		std::string getCycleDescription(const Cycle& aCycle) const;
 	};	

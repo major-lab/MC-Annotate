@@ -37,35 +37,45 @@ namespace annotate
 			{
 				if(0 == muiMaxCycleSize || itMol->size() <= muiMaxCycleSize)
 				{
-					Cycle cycle(*itMol);
+					Cycle cycle(*itMol, aModel.relationMask());
+					std::string name = cycleName(aModel, cycle);
+					cycle.name(name);
 					mCycles.push_back(cycle);
 				}				
 			}
 		}
 	}
 	
+	std::string AnnotationCycles::cycleName(
+		const AnnotateModel& aModel, 
+		const Cycle& aCycle) const
+	{
+		std::ostringstream oss;
+		oss << "[" << aModel.name() << "] ";
+		
+		std::list<mccore::ResId>::const_iterator it;
+		for(it = aCycle.getResidues().begin();
+			it != aCycle.getResidues().end(); 
+			++ it)
+		{
+			oss << *it << " ";
+		}		
+		return oss.str();
+	}
+	
 	std::string AnnotationCycles::output() const
 	{
 		ostringstream oss;
-		int i = 0;
-		std::vector<Cycle>::const_iterator itCycle;
+		std::list<Cycle>::const_iterator itCycle;
 		for (itCycle = mCycles.begin(); mCycles.end() != itCycle; ++itCycle)
 	    {
-	    	AbstractModel::const_iterator it;
-	    	oss << "Cycle " << i << " : ";
-	    	oss << "[";
-			for (it = itCycle->getModel().begin (); itCycle->getModel().end () != it; ++it)
-			{
-				oss << " " << it->getResId () << *it->getType ();
-			}
-			oss << " ] " << itCycle->getModel().size () << endl;
-			++ i;
+	    	oss << itCycle->name() << std::endl;
 	    }
 	  	
 		return oss.str();		
 	}
 	
-	const std::vector< Cycle >& AnnotationCycles::getCycles() const
+	const std::list< Cycle >& AnnotationCycles::getCycles() const
 	{
 		return mCycles;
 	}

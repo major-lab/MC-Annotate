@@ -17,14 +17,18 @@ namespace annotate
 		virtual void update(const AnnotateModel& aModel);		
 		virtual std::string output() const;
 		
-		const std::vector< Cycle >& getCycles() const;
+		const std::list< Cycle >& getCycles() const;
 		static const std::string& AnnotationName() {return mstrAnnotationName;}
 		virtual const std::string& annotationName() {return AnnotationName();}
 	private:
 		static std::string mstrAnnotationName;
-		std::vector< Cycle > mCycles;
+		std::list< Cycle > mCycles;
 		unsigned int muiMaxCycleSize;
+		
 		virtual void clear();
+		std::string cycleName(
+			const AnnotateModel& aModel, 
+			const Cycle& aCycle) const;
 	};	
 }
 #endif /*_annotate_AnnotationCycles_H_*/

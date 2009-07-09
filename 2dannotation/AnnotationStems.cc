@@ -39,26 +39,36 @@ namespace annotate
 		std::vector<Stem>::iterator itStem = stems.begin();
 		for(itStem = stems.begin(); itStem != stems.end(); ++itStem)
 		{
+			// Name the stem properly
+			std::string name = stemName(aModel, *itStem);
+			itStem->name(name);			
 			mStems.push_back(*itStem);
 		}
-	}	
+	}
+	
+	std::string AnnotationStems::stemName(
+		const AnnotateModel& aModel, 
+		const Stem& aStem)
+	{
+		std::ostringstream oss;
+		oss << "[" << aModel.name() << "] ";
+    	mccore::ResId r1 = aStem.basePairs().front().fResId;
+    	mccore::ResId r2 = aStem.basePairs().back().fResId;
+    	mccore::ResId r3= aStem.basePairs().front().rResId;
+    	mccore::ResId r4 = aStem.basePairs().back().rResId;
+    	oss << r1 << "-" << r2 << ", " << r3 << "-" << r4; 
+		
+		return oss.str();
+	}
 	
 	std::string AnnotationStems::output() const
 	{
 		std::ostringstream oss;
-		int i=0;
     	vector< Stem >::const_iterator it;	
     
     	for (it = mStems.begin (); mStems.end () != it; ++it)
 	    {
-	    	ResId r1, r2, r3, r4;
-	    	r1 = (*it).basePairs().front().fResId;
-	    	r2 = (*it).basePairs().back().fResId;
-	    	r3= (*it).basePairs().front().rResId;
-	    	r4 = (*it).basePairs().back().rResId;
-	    	oss << "Stem " << i << " : " << r1 << "-" << r2;
-	    	oss << ", " << r3 << "-" << r4 << std::endl; 
-	    	i ++;
+	    	oss << it->name() << std::endl;
     	}
 		return oss.str();
 	}
@@ -94,6 +104,7 @@ namespace annotate
 		return bIsWatsonCrick;
 	}
 	
+	// TODO : Modify this to use interaction annotation
 	std::set< BasePair > AnnotationStems::getWWBasePairs(
 		const AnnotateModel& aModel) const
 	{

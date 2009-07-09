@@ -56,7 +56,9 @@ namespace annotate
   	: GraphModel (fm),
 		residueSelection (rs),
 		environment (env)
-    {}
+    {
+    	mucRelationMask = 0;
+    }
     
     AnnotateModel::AnnotateModel (
     	const AbstractModel &right, 
@@ -66,7 +68,9 @@ namespace annotate
     : GraphModel (right, fm),
 		residueSelection (rs),
 		environment (env)
-    { }
+    {
+    	mucRelationMask = 0;
+    }
     
     AnnotateModel::~AnnotateModel ()
     {
@@ -112,6 +116,8 @@ namespace annotate
 	void
 	AnnotateModel::annotate (unsigned char aspb)
 	{
+		mucRelationMask = aspb;
+		
 		gOut (3) << "Computing basic annotation ..." << std::endl;
 		GraphModel::annotate (aspb);
     

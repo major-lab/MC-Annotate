@@ -54,7 +54,7 @@ namespace annotate
 		static std::string mstrAnnotationName;
 		typedef std::multiset< BaseInteraction*, LessBaseInteractionPtr> interaction_multiset;
 		typedef interaction_multiset::const_iterator interaction_multiset_const_it;
-		const mccore::GraphModel* mpModel;
+		const mccore::GraphModel* mpModel; // Note : This should be a smart ptr
 		std::vector< BasePair > mPairs;
     	std::vector< BaseStack > mStacks;
 		std::vector< BaseLink > mLinks;

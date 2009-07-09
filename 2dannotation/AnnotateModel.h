@@ -148,7 +148,12 @@ namespace annotate
     /**
      * The model name.
      */
-    string name;
+    string mName;
+    
+    /**
+     * The relation mask used for the annotation
+     */
+     unsigned char mucRelationMask;
 
     std::vector< std::vector< const Residue * > > chains;
 
@@ -214,6 +219,11 @@ namespace annotate
     {
     	return mCyclesMolecule;
     }
+    
+    const std::string& name() const {return mName;}
+    void name(const std::string& aName) {mName = aName;}
+    
+    unsigned char relationMask() const {return mucRelationMask;}
     
     // METHODS --------------------------------------------------------------
 

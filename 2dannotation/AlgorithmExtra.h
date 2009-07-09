@@ -95,6 +95,15 @@ namespace annotate
 		}
 		return bIntersects;
 	}
+	
+	//----------------------------------------------------------------------
+	template <class T> struct less_ptr : std::binary_function <T,T,bool> 
+	{
+  		bool operator() (const T* x, const T* y) const
+    	{
+    		return *x < *y;
+    	}
+	};
 }
 
 #endif /*_annotate_AlgorithmExtra_h_*/
