@@ -25,6 +25,8 @@ namespace annotate
 		bool operator ==(const Loop& other) const;
 		bool isAdjacent(const SecondaryStructure& aStruct) const;
 		
+		std::string describe() const;
+		
 	protected:
 		std::vector<Linker> mLinkers;
 	};

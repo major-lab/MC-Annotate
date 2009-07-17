@@ -96,4 +96,34 @@ namespace annotate
 		}
 		return bAdjacent;
 	}
+	
+	std::string Loop::describe() const
+	{
+		std::string strDescription;
+		// qualify the loop
+		const StemConnection* pStart = &getLinkers().front().getStart();
+		const StemConnection* pEnd = &getLinkers().back().getEnd();
+		if(	pStart->isValid() 
+			&& pEnd->isValid() 
+			&& (&pStart->getStem() == &pEnd->getStem()))
+		{
+			int iSize = getLinkers().size();
+			switch(iSize)
+			{
+			case 1:
+				strDescription = "hairpin";
+				break;
+			case 2: 
+				strDescription = "internal";
+				break;
+			default:
+				strDescription = "multibranch";
+			}
+		}
+		else
+		{
+			strDescription = "open";
+		}
+		return strDescription;
+	}
 }

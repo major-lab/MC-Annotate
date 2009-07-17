@@ -7,6 +7,7 @@
 #include "BasePair.h"
 #include "BaseStack.h"
 #include "Cycle.h"
+#include "TertiaryStructure.h"
 
 namespace annotate
 {
@@ -22,20 +23,22 @@ namespace annotate
 		static const std::string& AnnotationName() {return mstrAnnotationName;}
 		virtual const std::string& annotationName() {return AnnotationName();}
 		
-		const std::list<mccore::GraphModel>& getModels() const {return mMolecules;}
+		const std::list<TertiaryStructure>& getStructures() const {return mStructures;}
 		
 	private:		
 		static std::string mstrAnnotationName;
 		
 		std::set<BasePair> mSinglePairs;
 		std::set<BaseStack> mSingleStacks;
-		std::list<std::list<Cycle> > mStructures;
-		std::list<mccore::GraphModel> mMolecules;
+		std::list<TertiaryStructure> mStructures;
 		const mccore::GraphModel* mpModel;
 		
 		virtual void clear();
 		
 		void computeModels(const AnnotateModel& aModel);
+		std::string structureName(
+			const AnnotateModel& aModel, 
+			const TertiaryStructure& aStructure) const;
 		
 		std::set<BasePair> difference(
 			const std::set<BasePair>& aPairs, 

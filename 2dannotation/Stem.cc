@@ -15,6 +15,8 @@ namespace annotate
 				meOrientation = pairOrientation(*pLast, toAdd);				
 			}
 			mBasePairs.push_back(toAdd);
+			mResIds.insert(toAdd.fResId);
+			mResIds.insert(toAdd.rResId);
 		}
 	}
 	
@@ -22,6 +24,7 @@ namespace annotate
 	{
 		meOrientation = eUNDEFINED;
 		mBasePairs.clear();
+		mResIds.clear();
 	}
 	
 	bool Stem::operator ==(const Stem& other) const
@@ -46,6 +49,7 @@ namespace annotate
 	bool Stem::contains(const mccore::ResId& aResId) const
 	{
 		bool bContains = false;
+		/*
 		if(0 < size())
 		{
 			if(aResId == mBasePairs.front().fResId 
@@ -60,19 +64,13 @@ namespace annotate
 			{
 				bContains = true;
 			}
-			else if(eANTIPARALLEL == meOrientation 
-				&& aResId < mBasePairs.front().rResId 
-				&& mBasePairs.back().rResId < aResId)
+			else if(aResId < std::max(mBasePairs.front().rResId, mBasePairs.back().rResId) 
+				&& std::min(mBasePairs.front().rResId, mBasePairs.back().rResId) < aResId)
 			{
 				bContains = true;
 			}
-			else if(ePARALLEL == meOrientation 
-				&& mBasePairs.front().rResId < aResId 
-				&& aResId < mBasePairs.back().rResId)
-			{
-				bContains = true;
-			}
-		}
+		}*/
+		bContains = (mResIds.find(aResId) != mResIds.end());
 		return bContains;
 	}
 	

@@ -38,6 +38,7 @@
 #include "AnnotationInteractions.h"
 #include "AnnotationLinkers.h"
 #include "AnnotationLoops.h"
+#include "AnnotationResSecondaryStructures.h"
 #include "AnnotationStems.h"
 #include "AnnotationTertiaryCycles.h"
 #include "AnnotationTertiaryPairs.h"
@@ -77,7 +78,7 @@ void
 usage ()
 {
   gOut (0) << "usage: " << PACKAGE
-	   << " [-bhlvV] [-e num] [-d <output directory>] [-f <model number>] [-r <residue ids>] [-m <relation mask>] [-c <max cycle size>] <structure file> ..."
+	   << " [-bhlvV] [-e num] [-z <cycle size>] [-s <structure directory>] [-f <model number>] [-r <residue ids>] [-m <relation mask>] [-c <cycle directory>] <structure file> ..."
 	   << endl;
 }
 
@@ -318,8 +319,8 @@ void dumpStructuresFiles(
 	const AnnotationTertiaryStructures& aAnnotationStructures)
 {
 	int i = 1;
-	for(std::list<mccore::GraphModel>::const_iterator it = aAnnotationStructures.getModels().begin();
-		it != aAnnotationStructures.getModels().end();
+	for(std::list<TertiaryStructure>::const_iterator it = aAnnotationStructures.getStructures().begin();
+		it != aAnnotationStructures.getStructures().end();
 		++ it)
 	{		
 		std::ostringstream oss;
@@ -327,7 +328,7 @@ void dumpStructuresFiles(
 		{
 			oss << gstrStructureOutputDir << "/";
 		}
-		oss << aFilePrefix << "_l" << it->size() << "_s" << i << ".pdb.gz";
+		oss << it->name() << "-l" << it->getModel().size() << ".pdb.gz";
 		ozfPdbstream ops;
 		ops.open ((oss.str ()).c_str ());
 		if (! ops)
@@ -335,7 +336,7 @@ void dumpStructuresFiles(
 			gErr (0) << "Cannot open file " << oss.str() << endl;
 			continue;
 		}
-		ops << *it;
+		ops << it->getModel();
 		ops.close ();
 		++ i;
 	}	
@@ -345,7 +346,7 @@ void dumpStructuresFiles(
 int
 main (int argc, char *argv[])
 {
-	std::list<annotate::Cycle> models;
+	std::list<TertiaryStructure> structures;
 	read_options (argc, argv);
 
 	while (optind < argc)
@@ -375,6 +376,7 @@ main (int argc, char *argv[])
 					AnnotationTertiaryStacks annTertiaryStacks;
 					AnnotationCycles annCycles(guiMaxCycleSize);
 					AnnotationTertiaryCycles annTertiaryCycles;
+					AnnotationResSecondaryStructures annResSecondaryStructures;
 					AnnotationTertiaryStructures annTertiaryStructures;
 		  
 		  			am.addAnnotation(annInteractions);
@@ -385,6 +387,7 @@ main (int argc, char *argv[])
 					am.addAnnotation(annTertiaryStacks);
 					am.addAnnotation(annCycles);
 					am.addAnnotation(annTertiaryCycles);
+					am.addAnnotation(annResSecondaryStructures);
 					am.addAnnotation(annTertiaryStructures);
 					
 					gOut (0) << "Annotating Model ------------------------------------------------" << endl;										
@@ -397,9 +400,17 @@ main (int argc, char *argv[])
 						dumpCyclesFiles(getFilePrefix(filename), annTertiaryCycles);
 					}
 					
-					if(!gstrCycleOutputDir.empty())
+					if(!gstrStructureOutputDir.empty())
 					{
 						dumpStructuresFiles(getFilePrefix(filename), annTertiaryStructures);
+					}
+					
+					std::list<TertiaryStructure>::const_iterator itStruct;
+					for(itStruct = annTertiaryStructures.getStructures().begin();
+						itStruct != annTertiaryStructures.getStructures().end();
+						++ itStruct)
+					{
+						structures.push_back(*itStruct);		
 					}
 					
 					if (oneModel)
@@ -411,6 +422,12 @@ main (int argc, char *argv[])
 			delete molecule;
 		}
 		++optind;
+	}
+	gOut (0) << "------------------------------------------------------------" << std::endl;
+	std::list<TertiaryStructure>::const_iterator itStruct;
+	for(itStruct = structures.begin(); itStruct != structures.end(); ++ itStruct)
+	{
+		gOut (0) << itStruct->name() << std::endl;
 	}
 	return EXIT_SUCCESS;	
 }

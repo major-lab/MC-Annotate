@@ -122,6 +122,8 @@ namespace annotate
 		
 		enOrientation meOrientation;
 		std::vector< BasePair > mBasePairs;
+		
+		std::set< mccore::ResId > mResIds;
     	 
 	};
 	

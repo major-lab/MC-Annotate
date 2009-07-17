@@ -27,6 +27,7 @@ namespace annotate
 		
 		// METHODS --------------------------------------------------------------
 		bool shareInteractions(const Cycle& aCycle) const;
+		bool isSingleChain() const;
 		
 	private:
 		std::string mName;

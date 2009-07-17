@@ -86,4 +86,22 @@ namespace annotate
 		}				
 		return bShare;		
 	}
+	
+	bool Cycle::isSingleChain() const
+	{
+		bool bSingleChain = false;
+		if(0 < mResidues.size())
+		{
+			bSingleChain = true;
+			std::list<mccore::ResId>::const_iterator it = mResidues.begin();
+			char chainId = it->getChainId();
+			++ it;
+			while(it != mResidues.end() && bSingleChain)
+			{
+				bSingleChain = (it->getChainId() == chainId);
+				++ it;
+			}
+		}
+		return bSingleChain;
+	}
 }

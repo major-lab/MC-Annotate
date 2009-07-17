@@ -306,39 +306,8 @@ namespace annotate
 			}
 			oss << "}, ";
 		}
-		oss << describeLoop(aLoop);
-	}
-	
-	std::string AnnotationLoops::describeLoop(const Loop& aLoop) const
-	{
-		std::string strDescription;
-		// quality the loop
-		const StemConnection* pStart = &aLoop.getLinkers().front().getStart();
-		const StemConnection* pEnd = &aLoop.getLinkers().back().getEnd();
-		if(	pStart->isValid() 
-			&& pEnd->isValid() 
-			&& (&pStart->getStem() == &pEnd->getStem()))
-		{
-			int iSize = aLoop.getLinkers().size();
-			switch(iSize)
-			{
-			case 1:
-				strDescription = "hairpin";
-				break;
-			case 2: 
-				strDescription = "internal";
-				break;
-			default:
-				strDescription = "multibranch";
-			}
-		}
-		else
-		{
-			strDescription = "open";
-		}
-		return strDescription;
-	}
-	
+		oss << aLoop.describe();
+	}	
 	
 	std::string AnnotationLoops::output() const
 	{

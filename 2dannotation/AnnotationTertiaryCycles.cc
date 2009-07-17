@@ -50,19 +50,24 @@ namespace annotate
 			int i = 0;
 			while(it != mCycles.end())
 			{
-				// Check if the cycle is tertiary
-				getPairs(*it, cyclePairs);
-				bTertiary = isTertiary(
-					cyclePairs, 
-					pAnnTertiaryPairs->getPairs());
-				if(!bTertiary)
+				bTertiary = false;
+				if(it->isSingleChain())
 				{
+					// Check if the cycle is tertiary
+					getPairs(*it, cyclePairs);
+				
 					bTertiary = isTertiary(
 						cyclePairs, 
-						pAnnTertiaryStacks->getStacks());
+						pAnnTertiaryPairs->getPairs());
+					if(!bTertiary)
+					{
+						bTertiary = isTertiary(
+							cyclePairs, 
+							pAnnTertiaryStacks->getStacks());
+					}
+					cyclePairs.clear();
 				}
-				cyclePairs.clear();
-			
+				
 				if(bTertiary)
 				{
 					++it;

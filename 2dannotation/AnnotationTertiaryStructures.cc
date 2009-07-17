@@ -2,9 +2,12 @@
 
 #include <sstream>
 
+#include "mccore/Pdbstream.h"
+
 #include "AnnotateModel.h"
 #include "AnnotationStems.h"
 #include "AnnotationLoops.h"
+#include "AnnotationResSecondaryStructures.h"
 #include "AnnotationTertiaryPairs.h"
 #include "AnnotationTertiaryStacks.h"
 #include "AnnotationTertiaryCycles.h"
@@ -20,6 +23,7 @@ namespace annotate
 		addRequirement<AnnotationTertiaryPairs>();
 		addRequirement<AnnotationTertiaryStacks>();
 		addRequirement<AnnotationTertiaryCycles>();
+		addRequirement<AnnotationResSecondaryStructures>();
 	}
 	
 	AnnotationTertiaryStructures::~AnnotationTertiaryStructures()
@@ -71,15 +75,15 @@ namespace annotate
 			
 			while(!cycles.empty())
 			{
-				std::list<Cycle> structure;
-				structure.push_back(cycles.front());
+				TertiaryStructure structure;
+				structure.addCycle(cycles.front());
 				cycles.pop_front();
 				itCycle = cycles.begin();
 				while(itCycle != cycles.end())
 				{
-					if(itCycle->shareInteractions(structure.front()))
+					if(itCycle->shareInteractions(structure.getCycles().front()))
 					{
-						structure.push_back(*itCycle);
+						structure.addCycle(*itCycle);
 						itCycle = cycles.erase(itCycle);
 					}
 					else
@@ -178,15 +182,116 @@ namespace annotate
 		}
 		
 		oss << "Multiple cycle tertiary structure -------------------------------" << std::endl;
-		std::list<std::list<Cycle> >::const_iterator itStruct;
+		std::list<TertiaryStructure>::const_iterator itStruct;
 		for(itStruct = mStructures.begin(); itStruct != mStructures.end(); ++itStruct)
 		{
-			std::list<Cycle>::const_iterator itCycle = itStruct->begin();
-			for(; itCycle != itStruct->end(); ++itCycle)
-			{
-				oss << "{" << itCycle->name() << "} ";
-			}
+			oss << itStruct->name();
 			oss << std::endl;
+		}
+		
+		return oss.str();
+	}
+	
+	std::string AnnotationTertiaryStructures::structureName(
+		const AnnotateModel& aModel, 
+		const TertiaryStructure& aStructure) const
+	{
+		std::ostringstream oss;
+		
+		const AnnotationResSecondaryStructures* pAnnotSecondaryStruct = 
+			aModel.getAnnotation<AnnotationResSecondaryStructures>();
+		
+		// Add the name of the model where it comes from
+		oss << aModel.name();
+		
+		// Add the residues id in the model
+		std::set<mccore::ResId>::const_iterator it;
+		for(it = aStructure.getResidues().begin();
+			it != aStructure.getResidues().end(); 
+			++ it)
+		{
+			if(it == aStructure.getResidues().begin())
+			{
+				oss << "-";
+			}
+			else
+			{
+				oss << ".";
+			}
+			oss << *it;
+		}
+		
+		// Adds the structure
+		std::set<mccore::ResId>::const_iterator itPrev = aStructure.getResidues().end();
+		for(it = aStructure.getResidues().begin();
+			it != aStructure.getResidues().end(); 
+			++ it)
+		{
+			if(it == aStructure.getResidues().begin())
+			{
+				oss << "-";
+			}
+			else if(!itPrev->areContiguous(*it))
+			{
+				oss << "_";
+			}
+			oss << Pdbstream::stringifyResidueType (aModel.find(*it)->getType());
+			itPrev = it;
+		}
+		
+		// Add the associated secondary structure
+		itPrev = aStructure.getResidues().end();
+		const SecondaryStructure* pPrevStruct = NULL;
+		for(it = aStructure.getResidues().begin();
+			it != aStructure.getResidues().end(); 
+			++ it)
+		{
+			if(it == aStructure.getResidues().begin())
+			{
+				oss << "-";
+			}
+			else if(!itPrev->areContiguous(*it))
+			{
+				oss << "_";
+				pPrevStruct = NULL;
+			}
+			
+			
+			if(NULL != pAnnotSecondaryStruct)
+			{
+				std::map<mccore::ResId, const SecondaryStructure*>::const_iterator itMap;
+				itMap = pAnnotSecondaryStruct->getMapping().find(*it);
+				if(pAnnotSecondaryStruct->getMapping().end() != itMap)
+				{
+					const SecondaryStructure* pStruct = itMap->second;
+					if(pPrevStruct != pStruct)
+					{
+						if(pPrevStruct != NULL)
+						{
+							oss << ".";
+						}		
+						const Stem* pStem = dynamic_cast<const Stem*>(pStruct);
+						if(NULL != pStem)
+						{
+							oss << "stem";
+						}
+						else
+						{
+							const Loop* pLoop = dynamic_cast<const Loop*>(pStruct);
+							if(NULL != pLoop)
+							{
+								oss << pLoop->describe() << "loop";
+							}
+							else
+							{
+								oss << "unknown";
+							}
+						}
+						pPrevStruct = pStruct;
+					}
+				}
+			}
+			itPrev = it;
 		}
 		
 		return oss.str();
@@ -194,22 +299,11 @@ namespace annotate
 	
 	void AnnotationTertiaryStructures::computeModels(const AnnotateModel& aModel)
 	{
-		std::list<std::list<Cycle> >::const_iterator itStruct;
+		std::list<TertiaryStructure>::iterator itStruct;
 		for(itStruct = mStructures.begin(); itStruct != mStructures.end(); ++itStruct)
 		{
-			std::set<mccore::ResId> residues;
-			std::list<Cycle>::const_iterator itCycle = itStruct->begin();
-			mMolecules.push_back(GraphModel());
-			for(; itCycle != itStruct->end(); ++itCycle)
-			{
-				residues.insert(itCycle->getResidues().begin(), itCycle->getResidues().end());
-			}
-			std::set<mccore::ResId>::const_iterator itRes = residues.begin();
-			for(; itRes != residues.end(); ++ itRes)
-			{
-				GraphModel::const_iterator itResidue = aModel.find(*itRes);
-				mMolecules.back().insert(*itResidue);
-			}
+			itStruct->update(aModel);
+			itStruct->name(structureName(aModel, *itStruct));			
 		}
 	}
 }

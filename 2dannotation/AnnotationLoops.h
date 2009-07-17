@@ -48,7 +48,6 @@ namespace annotate
 			
 		// Output methods
 		void dumpLoop(std::ostringstream& oss, const Loop& aLoop) const;
-		std::string describeLoop(const Loop& aLoop) const;
 	};
 }
 
