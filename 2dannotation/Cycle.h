@@ -23,15 +23,23 @@ namespace annotate
 		const std::string& name() const {return mName;}
 		void name(const std::string& aName) {mName = aName;}
 		
+		const std::string& modelName() const {return mModelName;}
+		void modelName(const std::string& aName) {mModelName = aName;}
+		
+		const std::vector<unsigned int>& profile() const {return mProfile;}
+		
 		// OPERATORS ------------------------------------------------------------
+		bool operator <(const Cycle& aCycle) const;
 		
 		// METHODS --------------------------------------------------------------
 		bool shareInteractions(const Cycle& aCycle) const;
 		bool isSingleChain() const;
+		std::string getSequence() const;	
 		
 	private:
 		std::string mName;
-		
+		std::string mModelName;
+				
 		typedef std::set<const BaseInteraction*, less_ptr<const BaseInteraction> > interactions_set;
 		typedef interactions_set::const_iterator interactions_set_iterator;
 		
@@ -39,9 +47,11 @@ namespace annotate
 		mccore::GraphModel mModel;
 		AnnotationInteractions mInteractionsAnnotation;
 		interactions_set mInteractions;
+		std::vector<unsigned int> mProfile;
 		std::list<mccore::ResId> mResidues;
 		
-		void update();		
+		void update();
+		void updateProfile();
 		void clear();
 	};
 }

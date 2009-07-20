@@ -40,7 +40,8 @@ namespace annotate
 					Cycle cycle(*itMol, aModel.relationMask());
 					std::string name = cycleName(aModel, cycle);
 					cycle.name(name);
-					mCycles.push_back(cycle);
+					cycle.modelName(aModel.name());
+					mCycles.insert(cycle);
 				}				
 			}
 		}
@@ -51,7 +52,6 @@ namespace annotate
 		const Cycle& aCycle) const
 	{
 		std::ostringstream oss;
-		oss << "[" << aModel.name() << "] ";
 		
 		std::list<mccore::ResId>::const_iterator it;
 		for(it = aCycle.getResidues().begin();
@@ -66,7 +66,7 @@ namespace annotate
 	std::string AnnotationCycles::output() const
 	{
 		ostringstream oss;
-		std::list<Cycle>::const_iterator itCycle;
+		std::set<Cycle>::const_iterator itCycle;
 		for (itCycle = mCycles.begin(); mCycles.end() != itCycle; ++itCycle)
 	    {
 	    	oss << itCycle->name() << std::endl;
@@ -75,7 +75,7 @@ namespace annotate
 		return oss.str();		
 	}
 	
-	const std::list< Cycle >& AnnotationCycles::getCycles() const
+	const std::set< Cycle >& AnnotationCycles::getCycles() const
 	{
 		return mCycles;
 	}

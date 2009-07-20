@@ -56,13 +56,28 @@ unsigned int modelNumber = 0;  // 1 based vector identifier, 0 means all
 std::string gstrCycleOutputDir = "";
 std::string gstrStructureOutputDir = "";
 unsigned int guiMaxCycleSize = 0;
+unsigned int guiMax3DCycleSize = 0;
 unsigned char gucRelationMask = 
 	mccore::Relation::adjacent_mask
 	| mccore::Relation::pairing_mask 
 	| mccore::Relation::stacking_mask 
 	| mccore::Relation::backbone_mask;
 ResIdSet residueSelection;
-const char* shortopts = "Vbc:s:z:e:f:hlr:vm:";
+const char* shortopts = "Vbc:s:z:x:e:f:hlr:vm:";
+
+struct stCycleInfoEntry
+{
+	std::string strProfile;
+	std::string strResIds;
+	std::string strSequence;
+};
+
+struct stCycleInformation
+{
+	std::string strSignature;
+	std::string strModel;
+	std::list<stCycleInfoEntry> connects;
+};
 
 void
 version ()
@@ -78,10 +93,9 @@ void
 usage ()
 {
   gOut (0) << "usage: " << PACKAGE
-	   << " [-bhlvV] [-e num] [-z <cycle size>] [-s <structure directory>] [-f <model number>] [-r <residue ids>] [-m <relation mask>] [-c <cycle directory>] <structure file> ..."
+	   << " [-bhlvV] [-e num] [-z <cycle size>] [-x <3D cycle size>] [-s <structure directory>] [-f <model number>] [-r <residue ids>] [-m <relation mask>] [-c <cycle directory>] <structure file> ..."
 	   << endl;
 }
-
 
 void
 help ()
@@ -93,6 +107,7 @@ help ()
 	<< "  -s <directory>    directory in which to output tertiary structure files" << endl
     << "  -m <mask>         annotation mask string: any combination of 'A' (adjacent), 'S' (stacking), 'P' (pairing) and 'B' (backbone). (default: all)" << endl
     << "  -z <cycle size>   maximum size of cycles" << endl
+	<< "  -x <3Dcycle size> maximum size of non-adjacent cycles" << endl
     << "  -e num            number of surrounding layers of connected residues to annotate" << endl
     << "  -f model number   model to print" << endl
     << "  -h                print this help" << endl
@@ -163,6 +178,11 @@ read_options (int argc, char* argv[])
 	 case 'z':
 	  {
 	    guiMaxCycleSize = atol (optarg);
+	    break;
+	  }
+	  case 'x':
+	  {
+	    guiMax3DCycleSize = atol (optarg);
 	    break;
 	  }
         case 'h':
@@ -291,7 +311,8 @@ void dumpCyclesFiles(
 	const AnnotationTertiaryCycles& aAnnotationCycles)
 {
 	int i = 1;
-	for(std::list<annotate::Cycle>::const_iterator it = aAnnotationCycles.getCycles().begin();
+	std::set<annotate::Cycle>::const_iterator it;
+	for(it = aAnnotationCycles.getCycles().begin();
 		it != aAnnotationCycles.getCycles().end();
 		++ it)
 	{		
@@ -342,11 +363,88 @@ void dumpStructuresFiles(
 	}	
 }
 
+std::string cycleResidues(const annotate::Cycle& aCycle)
+{
+	std::ostringstream oss;
+	std::list<mccore::ResId>::const_iterator it;
+	for(it = aCycle.getResidues().begin(); it != aCycle.getResidues().end(); ++ it)
+	{
+		if(it != aCycle.getResidues().begin())
+		{
+			oss << ", ";
+		}
+		oss << *it;
+	}
+	return oss.str();
+}
+
+std::string cycleProfile(const annotate::Cycle& aCycle)
+{
+	std::ostringstream oss;
+	std::vector<unsigned int>::const_iterator it;
+	for(it = aCycle.profile().begin(); it != aCycle.profile().end(); ++ it)
+	{
+		oss << *it;
+	}
+	return oss.str();
+}
+
+std::string outputCycleInformation(const stCycleInformation& info)
+{
+	std::ostringstream oss;
+	oss << "index:" << std::endl;
+	oss << "\t" << info.strSignature << std::endl;
+	oss << "info:" << std::endl;
+	oss << "\t" << info.strModel << std::endl;
+	std::list<stCycleInfoEntry>::const_iterator it;
+	for(it = info.connects.begin(); it != info.connects.end(); ++it)
+	{
+		oss << "\t" << it->strProfile << "\t : ";;
+		oss << it->strResIds << ";\t";
+		oss << it->strSequence << ";" << std::endl;
+	}
+	return oss.str();
+}
+
+stCycleInformation cycleInformation(
+	const annotate::Cycle& aCycle,
+	const annotate::AnnotationTertiaryCycles& annot)
+{
+	stCycleInformation info;
+	info.strModel = aCycle.modelName();
+	info.strSignature = cycleProfile(aCycle) + " = ";
+	
+	stCycleInfoEntry cycleEntry;
+	cycleEntry.strProfile = cycleProfile(aCycle);
+	cycleEntry.strResIds = cycleResidues(aCycle);
+	cycleEntry.strSequence = aCycle.getSequence();
+	
+	info.connects.push_back(cycleEntry);
+
+	std::set<Cycle> connections = annot.getConnections(aCycle);
+	std::set<Cycle>::const_iterator it;
+	for(it = connections.begin(); it != connections.end(); ++it)
+	{
+		stCycleInfoEntry entry;
+		entry.strProfile = cycleProfile(*it);
+		entry.strResIds = cycleResidues(*it);
+		entry.strSequence = it->getSequence();
+		if(it != connections.begin())
+		{
+			info.strSignature += " + ";
+		}
+		info.strSignature += entry.strProfile;
+		info.connects.push_back(entry);	
+	}
+
+	return info;
+}
 
 int
 main (int argc, char *argv[])
 {
-	std::list<TertiaryStructure> structures;
+	std::list<stCycleInformation> cyclesInformations;
+	std::list<Cycle> non_adjacent_cycles;
 	read_options (argc, argv);
 
 	while (optind < argc)
@@ -375,7 +473,7 @@ main (int argc, char *argv[])
 					AnnotationTertiaryPairs annTertiaryPairs;
 					AnnotationTertiaryStacks annTertiaryStacks;
 					AnnotationCycles annCycles(guiMaxCycleSize);
-					AnnotationTertiaryCycles annTertiaryCycles;
+					AnnotationTertiaryCycles annTertiaryCycles(guiMax3DCycleSize);
 					AnnotationResSecondaryStructures annResSecondaryStructures;
 					AnnotationTertiaryStructures annTertiaryStructures;
 		  
@@ -404,13 +502,13 @@ main (int argc, char *argv[])
 					{
 						dumpStructuresFiles(getFilePrefix(filename), annTertiaryStructures);
 					}
-					
-					std::list<TertiaryStructure>::const_iterator itStruct;
-					for(itStruct = annTertiaryStructures.getStructures().begin();
-						itStruct != annTertiaryStructures.getStructures().end();
-						++ itStruct)
+										
+					for(std::set<Cycle>::const_iterator itCycle = annTertiaryCycles.getCycles().begin();
+						itCycle != annTertiaryCycles.getCycles().end();
+						++ itCycle)
 					{
-						structures.push_back(*itStruct);		
+						non_adjacent_cycles.push_back(*itCycle);
+						cyclesInformations.push_back(cycleInformation(*itCycle, annTertiaryCycles));
 					}
 					
 					if (oneModel)
@@ -423,11 +521,17 @@ main (int argc, char *argv[])
 		}
 		++optind;
 	}
-	gOut (0) << "------------------------------------------------------------" << std::endl;
-	std::list<TertiaryStructure>::const_iterator itStruct;
-	for(itStruct = structures.begin(); itStruct != structures.end(); ++ itStruct)
+	
+	mccore::gOut (0) << "------------------------------------------------------------" << std::endl;
+	std::list<stCycleInformation>::const_iterator itInfo;
+	for(itInfo = cyclesInformations.begin(); 
+		itInfo != cyclesInformations.end(); 
+		++ itInfo)
 	{
-		gOut (0) << itStruct->name() << std::endl;
+		mccore::gOut(0) << "------------------------------" << std::endl;
+		mccore::gOut(0) << outputCycleInformation(*itInfo);
+		mccore::gOut(0) << std::endl;
 	}
+	
 	return EXIT_SUCCESS;	
 }

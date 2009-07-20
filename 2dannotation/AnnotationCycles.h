@@ -17,12 +17,12 @@ namespace annotate
 		virtual void update(const AnnotateModel& aModel);		
 		virtual std::string output() const;
 		
-		const std::list< Cycle >& getCycles() const;
+		const std::set< Cycle >& getCycles() const;
 		static const std::string& AnnotationName() {return mstrAnnotationName;}
 		virtual const std::string& annotationName() {return AnnotationName();}
 	private:
 		static std::string mstrAnnotationName;
-		std::list< Cycle > mCycles;
+		std::set< Cycle > mCycles;
 		unsigned int muiMaxCycleSize;
 		
 		virtual void clear();

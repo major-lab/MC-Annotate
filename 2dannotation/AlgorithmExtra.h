@@ -35,7 +35,7 @@ namespace annotate
 		
 	//----------------------------------------------------------------------
 	template < class T >
-	std::set< T > SetDifference( std::set< T > & set1, std::set< T > & set2 )
+	std::set< T > SetDifference( const std::set< T > & set1, const std::set< T > & set2 )
 	{
 		std::set< T > setDiff;
 		std::insert_iterator< std::set< T > > iter( setDiff, setDiff.begin() );

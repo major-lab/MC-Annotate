@@ -13,11 +13,12 @@ namespace annotate
 	std::string AnnotationTertiaryCycles::mstrAnnotationName = "Tertiary Cycles";
 	
 	// Methods	
-	AnnotationTertiaryCycles::AnnotationTertiaryCycles()
+	AnnotationTertiaryCycles::AnnotationTertiaryCycles(unsigned int auiMaxCycleSize)
 	{
 		addRequirement<AnnotationCycles>();
 		addRequirement<AnnotationTertiaryPairs>();
 		addRequirement<AnnotationTertiaryStacks>();
+		muiMaxCycleSize = auiMaxCycleSize;
 	}
 	
 	AnnotationTertiaryCycles::~AnnotationTertiaryCycles()
@@ -28,6 +29,7 @@ namespace annotate
 	void AnnotationTertiaryCycles::clear()
 	{
 		mCycles.clear();
+		mConnects.clear();
 	}
 		
 	void AnnotationTertiaryCycles::update(const AnnotateModel& aModel)
@@ -44,14 +46,20 @@ namespace annotate
 		if(NULL != pAnnCycles && NULL != pAnnTertiaryPairs && NULL != pAnnTertiaryStacks)
 		{
 			std::set<BaseInteraction> cyclePairs;
-			mCycles = pAnnCycles->getCycles();
+			std::list<Cycle> cycles;
+			std::set<Cycle>::const_iterator itSet = pAnnCycles->getCycles().begin();
+			for(; itSet != pAnnCycles->getCycles().end(); ++itSet)
+			{
+				cycles.push_back(*itSet);
+			}
 			bool bTertiary = false;
-			std::list<Cycle>::iterator it = mCycles.begin();
-			int i = 0;
-			while(it != mCycles.end())
+			std::list<Cycle>::iterator it = cycles.begin();
+			while(it != cycles.end())
 			{
 				bTertiary = false;
-				if(it->isSingleChain())
+				unsigned int uiSize = it->getResidues().size();
+				if((0 == uiSize || uiSize < muiMaxCycleSize) 
+					&& it->isSingleChain())
 				{
 					// Check if the cycle is tertiary
 					getPairs(*it, cyclePairs);
@@ -74,18 +82,44 @@ namespace annotate
 				}
 				else
 				{
-					it = mCycles.erase(it);
+					it = cycles.erase(it);
 				}
-				++ i;
-				
 			}
+			mCycles.insert(cycles.begin(), cycles.end());
+		}
+		updateConnections(aModel);
+	}
+	
+	void AnnotationTertiaryCycles::updateConnections(const AnnotateModel& aModel)
+	{
+		const AnnotationCycles* pACycles = 
+			aModel.getAnnotation<AnnotationCycles>();
+		
+		if(NULL != pACycles)
+		{
+			std::set<Cycle> adjacents;
+			adjacents = SetDifference<Cycle>(pACycles->getCycles(), mCycles);
+			std::set<Cycle>::const_iterator it;
+			for(it = mCycles.begin(); it != mCycles.end(); ++ it)
+			{
+				std::set<Cycle> connections;
+				std::set<Cycle>::const_iterator adjIt;
+				for(adjIt = adjacents.begin(); adjIt != adjacents.end(); ++adjIt)
+				{
+					if(it->shareInteractions(*adjIt))
+					{
+						connections.insert(*adjIt);
+					}
+				}
+				mConnects.insert(std::pair<Cycle, std::set<Cycle> >(*it, connections));
+			}			
 		}
 	}
 	
 	std::string AnnotationTertiaryCycles::output() const
 	{
 		std::ostringstream oss;
-		std::list<Cycle>::const_iterator itCycle;
+		std::set<Cycle>::const_iterator itCycle;
 		for (itCycle = mCycles.begin(); mCycles.end() != itCycle; ++itCycle)
 	    {
 	    	oss << itCycle->name() << std::endl;
@@ -169,5 +203,15 @@ namespace annotate
 			BaseInteraction interaction(0, resId1, 0, resId2);
 			aPairs.insert(interaction);
 		}
+	}
+	
+	const std::set<Cycle>& AnnotationTertiaryCycles::getConnections(const Cycle& aCycle) const
+	{
+		std::map< Cycle, std::set <Cycle> >::const_iterator it = mConnects.find(aCycle);
+		if(it == mConnects.end())
+		{
+			throw mccore::NoSuchElementException("Cycle not found", __FILE__, __LINE__);
+		}
+		return it->second;
 	}
 }

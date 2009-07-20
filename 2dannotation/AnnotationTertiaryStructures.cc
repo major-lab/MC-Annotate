@@ -55,7 +55,12 @@ namespace annotate
 		if(	NULL != pAnnotStems && NULL != pAnnotCycles 
 			&& NULL != pAnnotPairs && NULL != pAnnotStacks)
 		{
-			std::list<Cycle> cycles = pAnnotCycles->getCycles();
+			std::list<Cycle> cycles;
+			std::set<Cycle>::const_iterator itSet = pAnnotCycles->getCycles().begin();
+			for(; itSet != pAnnotCycles->getCycles().end(); ++itSet)
+			{
+				cycles.push_back(*itSet);
+			}			
 			
 			// Get all the interactions from the cycles
 			std::set<BaseInteraction> cycleInteractions;
