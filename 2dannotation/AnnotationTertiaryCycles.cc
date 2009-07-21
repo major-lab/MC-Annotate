@@ -1,5 +1,6 @@
 #include "AnnotationTertiaryCycles.h"
 #include "AnnotationCycles.h"
+#include "AnnotationResSecondaryStructures.h"
 #include "AnnotationTertiaryPairs.h"
 #include "AnnotationTertiaryStacks.h"
 #include "AnnotationInteractions.h"
@@ -18,6 +19,7 @@ namespace annotate
 		addRequirement<AnnotationCycles>();
 		addRequirement<AnnotationTertiaryPairs>();
 		addRequirement<AnnotationTertiaryStacks>();
+		addRequirement<AnnotationResSecondaryStructures>();
 		muiMaxCycleSize = auiMaxCycleSize;
 	}
 	
@@ -104,7 +106,9 @@ namespace annotate
 			{
 				std::set<Cycle> connections;
 				std::set<Cycle>::const_iterator adjIt;
-				for(adjIt = adjacents.begin(); adjIt != adjacents.end(); ++adjIt)
+				for(adjIt = adjacents.begin(); 
+					adjIt != adjacents.end(); 
+					++adjIt)
 				{
 					if(it->shareInteractions(*adjIt))
 					{
@@ -112,8 +116,60 @@ namespace annotate
 					}
 				}
 				mConnects.insert(std::pair<Cycle, std::set<Cycle> >(*it, connections));
-			}			
+				std::list< std::list<mccore::ResId> > linkConnects = updateLinkerConnections(aModel, *it);
+				mConnectsLinkers.insert(std::pair<Cycle, linkers_connect>(*it, linkConnects));
+			}
 		}
+	}
+	
+	std::list< std::list<mccore::ResId> > 
+	AnnotationTertiaryCycles::updateLinkerConnections(
+		const AnnotateModel& aModel, 
+		const Cycle& aCycle) const
+	{
+		std::list< std::list<mccore::ResId> > connections;
+		
+		const AnnotationResSecondaryStructures* pAResIdStruct = 
+			aModel.getAnnotation<AnnotationResSecondaryStructures>();
+			
+		if(NULL != pAResIdStruct)
+		{
+			const Loop* pPrevLoop = NULL;
+			std::list<mccore::ResId> strand;
+			std::list<mccore::ResId>::const_iterator it;
+			for(it = aCycle.getResidues().begin(); 
+				it != aCycle.getResidues().end(); 
+				++it)
+			{
+				std::map<mccore::ResId, const SecondaryStructure*>::const_iterator mapIt;
+				mapIt = pAResIdStruct->getMapping().find(*it);
+				if(mapIt != pAResIdStruct->getMapping().end())
+				{
+					// Is this an open loop ?
+					const Loop* pLoop = dynamic_cast<const Loop*>(mapIt->second);
+					
+					if(NULL != pLoop && 0 == pLoop->describe().compare("open"))
+					{
+						// This is an open loop
+						if(0 == strand.size() || (pLoop == pPrevLoop))
+						{
+							strand.push_back(*it);
+						}
+						else
+						{
+							connections.push_back(strand);
+							strand.clear();
+						}
+					}
+				}
+			}
+			if(0 < strand.size())
+			{
+				connections.push_back(strand);
+				strand.clear();
+			}
+		}
+		return connections;
 	}
 	
 	std::string AnnotationTertiaryCycles::output() const
@@ -211,6 +267,17 @@ namespace annotate
 		if(it == mConnects.end())
 		{
 			throw mccore::NoSuchElementException("Cycle not found", __FILE__, __LINE__);
+		}
+		return it->second;
+	}
+	
+	const std::list<std::list<mccore::ResId> >& AnnotationTertiaryCycles::getLinkerConnections(
+		const Cycle& aCycle) const
+	{
+		std::map< Cycle, linkers_connect >::const_iterator it = mConnectsLinkers.find(aCycle);
+		if(it == mConnectsLinkers.end())
+		{
+			throw mccore::NoSuchElementException("Linkers not found", __FILE__, __LINE__);
 		}
 		return it->second;
 	}

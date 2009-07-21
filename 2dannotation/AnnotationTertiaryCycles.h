@@ -26,6 +26,7 @@ namespace annotate
 		std::set< Cycle >& getCycles()  {return mCycles;}
 		
 		const std::set<Cycle>& getConnections(const Cycle& aCycle) const;
+		const std::list<std::list<mccore::ResId> >& getLinkerConnections(const Cycle& aCycles) const;
 		
 		static const std::string& AnnotationName() {return mstrAnnotationName;}
 		virtual const std::string& annotationName() {return AnnotationName();}
@@ -33,9 +34,11 @@ namespace annotate
 		// TODO : Make this a method of cycle
 		void getPairs(const Cycle& aCycle, std::set<BaseInteraction>& aPairs) const;
 	private:
+		typedef std::list<std::list<mccore::ResId> > linkers_connect;
 		static std::string mstrAnnotationName;
 		std::set< Cycle > mCycles;
 		std::map< Cycle, std::set <Cycle> > mConnects;
+		std::map< Cycle, linkers_connect> mConnectsLinkers;
 		unsigned int muiMaxCycleSize;
 		virtual void clear();
 		bool isTertiary(
@@ -46,6 +49,9 @@ namespace annotate
 			const std::set<BaseStack>& a3DStacks) const;
 			
 		void updateConnections(const AnnotateModel& aModel);
+		std::list< std::list<mccore::ResId> > updateLinkerConnections(
+			const AnnotateModel& aModel, 
+			const Cycle& aCycle) const;
 	};	
 }
 #endif /*_annotate_AnnotationTertiaryCycles_H_*/

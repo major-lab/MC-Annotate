@@ -57,13 +57,14 @@ std::string gstrCycleOutputDir = "";
 std::string gstrStructureOutputDir = "";
 unsigned int guiMaxCycleSize = 0;
 unsigned int guiMax3DCycleSize = 0;
+unsigned int guiMax3DCycleStrands = 0;
 unsigned char gucRelationMask = 
 	mccore::Relation::adjacent_mask
 	| mccore::Relation::pairing_mask 
 	| mccore::Relation::stacking_mask 
 	| mccore::Relation::backbone_mask;
 ResIdSet residueSelection;
-const char* shortopts = "Vbc:s:z:x:e:f:hlr:vm:";
+const char* shortopts = "Vbc:s:z:x:n:e:f:hlr:vm:";
 
 struct stCycleInfoEntry
 {
@@ -93,7 +94,7 @@ void
 usage ()
 {
   gOut (0) << "usage: " << PACKAGE
-	   << " [-bhlvV] [-e num] [-z <cycle size>] [-x <3D cycle size>] [-s <structure directory>] [-f <model number>] [-r <residue ids>] [-m <relation mask>] [-c <cycle directory>] <structure file> ..."
+	   << " [-bhlvV] [-e num] [-z <cycle size>] [-x <3D cycle size>] [-n <3D cycle strands>] [-s <structure directory>] [-f <model number>] [-r <residue ids>] [-m <relation mask>] [-c <cycle directory>] <structure file> ..."
 	   << endl;
 }
 
@@ -108,6 +109,7 @@ help ()
     << "  -m <mask>         annotation mask string: any combination of 'A' (adjacent), 'S' (stacking), 'P' (pairing) and 'B' (backbone). (default: all)" << endl
     << "  -z <cycle size>   maximum size of cycles" << endl
 	<< "  -x <3Dcycle size> maximum size of non-adjacent cycles" << endl
+	<< "  -n <Nb strands> 	maximum number of strands of non-adjacent cycles" << endl
     << "  -e num            number of surrounding layers of connected residues to annotate" << endl
     << "  -f model number   model to print" << endl
     << "  -h                print this help" << endl
@@ -184,6 +186,11 @@ read_options (int argc, char* argv[])
 	  {
 	    guiMax3DCycleSize = atol (optarg);
 	    break;
+	  }
+	  case 'n':
+	  {
+	  	guiMax3DCycleStrands = atol(optarg);
+	  	break;
 	  }
         case 'h':
           usage ();
@@ -389,6 +396,47 @@ std::string cycleProfile(const annotate::Cycle& aCycle)
 	return oss.str();
 }
 
+std::string linkerResidues(const std::list<mccore::ResId>& aResidues)
+{
+	std::ostringstream oss;
+	std::list<mccore::ResId>::const_iterator it;
+	for(it = aResidues.begin(); it != aResidues.end(); ++ it)
+	{
+		if(it != aResidues.begin())
+		{
+			oss << ", ";
+		}
+		oss << *it;
+	}
+	return oss.str();
+}
+
+std::string linkerProfile(const std::list<mccore::ResId>& aResidues)
+{
+	std::ostringstream oss;
+	oss << aResidues.size() << "L";
+	return oss.str();
+}
+
+std::string linkerSequence(
+	const AnnotateModel &aModel, 
+	const std::list<mccore::ResId>& aResidues)
+{
+	std::ostringstream oss;
+	std::list<mccore::ResId>::const_iterator it;
+	for(it = aResidues.begin(); it != aResidues.end(); ++ it)
+	{
+		if(it != aResidues.begin())
+		{
+			oss << ", ";
+		}
+		mccore::GraphModel::const_iterator itRes = aModel.find(*it);
+		oss << mccore::Pdbstream::stringifyResidueType (itRes->getType());
+	}
+	return oss.str();
+}
+
+
 std::string outputCycleInformation(const stCycleInformation& info)
 {
 	std::ostringstream oss;
@@ -407,6 +455,7 @@ std::string outputCycleInformation(const stCycleInformation& info)
 }
 
 stCycleInformation cycleInformation(
+	const AnnotateModel &aModel,
 	const annotate::Cycle& aCycle,
 	const annotate::AnnotationTertiaryCycles& annot)
 {
@@ -436,6 +485,24 @@ stCycleInformation cycleInformation(
 		info.strSignature += entry.strProfile;
 		info.connects.push_back(entry);	
 	}
+	
+	std::list< std::list<mccore::ResId> > linkersConnect = annot.getLinkerConnections(aCycle);
+	std::list< std::list<mccore::ResId> >::const_iterator linkIt;
+	for(linkIt = linkersConnect.begin();
+		linkIt != linkersConnect.end(); 
+		++ linkIt)
+	{
+		stCycleInfoEntry entry;
+		entry.strProfile = linkerProfile(*linkIt);
+		entry.strResIds = linkerResidues(*linkIt);
+		entry.strSequence = linkerSequence(aModel, *linkIt);
+		if(linkIt != linkersConnect.begin() || 0 < connections.size())
+		{
+			info.strSignature += " + ";
+		}
+		info.strSignature += entry.strProfile;
+		info.connects.push_back(entry);
+	}
 
 	return info;
 }
@@ -444,7 +511,6 @@ int
 main (int argc, char *argv[])
 {
 	std::list<stCycleInformation> cyclesInformations;
-	std::list<Cycle> non_adjacent_cycles;
 	read_options (argc, argv);
 
 	while (optind < argc)
@@ -483,9 +549,9 @@ main (int argc, char *argv[])
 					am.addAnnotation(annLoops);
 					am.addAnnotation(annTertiaryPairs);
 					am.addAnnotation(annTertiaryStacks);
+					am.addAnnotation(annResSecondaryStructures);
 					am.addAnnotation(annCycles);
 					am.addAnnotation(annTertiaryCycles);
-					am.addAnnotation(annResSecondaryStructures);
 					am.addAnnotation(annTertiaryStructures);
 					
 					gOut (0) << "Annotating Model ------------------------------------------------" << endl;										
@@ -507,8 +573,12 @@ main (int argc, char *argv[])
 						itCycle != annTertiaryCycles.getCycles().end();
 						++ itCycle)
 					{
-						non_adjacent_cycles.push_back(*itCycle);
-						cyclesInformations.push_back(cycleInformation(*itCycle, annTertiaryCycles));
+						if(	guiMax3DCycleStrands == 0 
+							|| (itCycle->getNbStrands() <= guiMax3DCycleStrands))
+						{
+							cyclesInformations.push_back(
+								cycleInformation(am, *itCycle, annTertiaryCycles));
+						}
 					}
 					
 					if (oneModel)

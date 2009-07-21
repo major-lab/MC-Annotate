@@ -14,6 +14,7 @@ namespace annotate
 	public:		
 		// LIFECYCLE ------------------------------------------------------------
 		Cycle(const mccore::GraphModel& aModel, unsigned char aucRelationMask);
+		
 		virtual ~Cycle();
 		
 		// ACCESS ---------------------------------------------------------------
@@ -34,7 +35,8 @@ namespace annotate
 		// METHODS --------------------------------------------------------------
 		bool shareInteractions(const Cycle& aCycle) const;
 		bool isSingleChain() const;
-		std::string getSequence() const;	
+		std::string getSequence() const;
+		unsigned int getNbStrands() const {return mProfile.size();}
 		
 	private:
 		std::string mName;
