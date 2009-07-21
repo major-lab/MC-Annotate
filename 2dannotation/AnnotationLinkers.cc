@@ -37,21 +37,16 @@ namespace annotate
 		{
 			std::set<Linker> linkerSet;
 			if(0 < pAnnotStems->getStems().size())
-			{		
-			  	std::vector< Stem >::const_iterator it;
-				for(it = pAnnotStems->getStems().begin(); 
-					it != pAnnotStems->getStems().end(); 
-					++it)
-				{
-					findLinker((&*it), Stem::eFIRST_STRAND_FRONT_PAIR, linkerSet);
-					findLinker((&*it), Stem::eFIRST_STRAND_BACK_PAIR, linkerSet);
-					findLinker((&*it), Stem::eSECOND_STRAND_FRONT_PAIR, linkerSet);
-					findLinker((&*it), Stem::eSECOND_STRAND_BACK_PAIR, linkerSet);		
-				}
+			{
+				updateLinkers(linkerSet);
 			}
 			else if(0 < aModel.size())
 			{
-				linkerSet.insert(allResiduesLinker());
+				std::vector< std::vector<stResidueInfo> >::const_iterator it;
+				for(it = mResidueInfos.begin(); it != mResidueInfos.end(); ++ it)
+				{
+					allResiduesLinker(*it, linkerSet);
+				}
 			}
 			
 			std::set<Linker>::const_iterator itLinker = linkerSet.begin();
@@ -62,91 +57,163 @@ namespace annotate
 		}
 	}
 	
-	Linker AnnotationLinkers::findLinker(const StemConnection& aConnection) const
+	void AnnotationLinkers::updateLinkers(std::set<Linker>& linkers) const
 	{
-	  	Linker linker;
-	  	
-	  	// Find the possible strand from this end
-	  	int iDirection = aConnection.getDirection();
-	  	ResId resId = aConnection.getResidue();
-	
-	  	// Find the residue information
-	  	std::vector<stResidueInfo>::const_iterator it = findResidueInfo(resId);
-	  	
-	  	std::vector<mccore::ResId> linkerResidues;
-	  	
-	  	// Set the start of the linker
-	  	StemConnection linkerStart = aConnection;
-	 	StemConnection linkerEnd;
-	  	
-	  	// Walk the chain until we find a stem not pseudo-knotted
-	  	if(0 < iDirection)
-	  	{
-		  	std::advance(it, iDirection);
-		  	while(it != mResidueInfos.end())
-		  	{
-		  		const Stem* pStem = (*it).pStem;
-		  		if(NULL != pStem && !linkerStart.getStem().pseudoKnots(*pStem))
-		  		{
-		  			// Stem found
-		  			Stem::enConnection eConnect = pStem->getConnection((*it).resId);
-		  			linkerEnd = StemConnection(*pStem, eConnect);
-		  			it = mResidueInfos.end();
-		  		}
-		  		else
-		  		{
-		  			linkerResidues.push_back((*it).resId);
-		  			std::advance(it, iDirection);
-		  		}
-		  	}
-	  	}
-	  	linker = Linker(linkerResidues, linkerStart, linkerEnd);
-	  	linker.order();
-	  	
-	  	return linker;
-	}
-  
-  	void AnnotationLinkers::findLinker(
-  		const Stem* apStem, 
-  		const Stem::enConnection& aeConnect,
-  		std::set<Linker>& outLinkerSet) const
-	{
-	  	StemConnection connect(*apStem, aeConnect);
-	  		
-		Linker linker = findLinker(connect);
-		
-		if(!linker.isEmpty()) 
+		std::vector< std::vector<stResidueInfo> >::const_iterator it;
+		for(it = mResidueInfos.begin(); it != mResidueInfos.end(); ++ it)
 		{
-			outLinkerSet.insert(linker); 
+			updateChainLinkers(*it, linkers);
 		}
-  	}
-  	
-  	Linker AnnotationLinkers::allResiduesLinker() const
+	}
+	
+	void AnnotationLinkers::updateChainLinkers(
+		const std::vector<stResidueInfo>& chainInfo, 
+		std::set<Linker>& linkers) const
+	{
+		const Stem* pPrevStem = NULL;
+		std::vector<stResidueInfo>::const_iterator it;
+		std::vector<stResidueInfo>::const_iterator itPrevStem = chainInfo.end();
+		std::vector<mccore::ResId> linkerResidues;
+		for(it = chainInfo.begin(); it != chainInfo.end(); ++ it)
+		{
+			if(NULL == pPrevStem && NULL == it->pStem)
+			{
+				// First linker
+				linkerResidues.push_back(it->resId);
+			}
+			else if(NULL == pPrevStem && NULL != it->pStem)
+			{
+				// First linker completed
+				if(0 < linkerResidues.size())
+				{
+					Linker linker = createLinker(
+						linkerResidues, 
+						NULL, mccore::ResId(), 
+						it->pStem, it->resId);
+					linkers.insert(linker);
+					linkerResidues.clear();  // Starting a new linker
+				}
+				pPrevStem = it->pStem;
+				itPrevStem = it;
+			}
+			else if(NULL != pPrevStem && it->pStem == pPrevStem)
+			{
+				// Walking a stem
+				if(0 < linkerResidues.size())
+				{
+					// This is the end of an hairpin loop
+					Linker linker = createLinker(
+						linkerResidues, 
+						it->pStem, itPrevStem->resId, 
+						it->pStem, it->resId);
+					linkers.insert(linker);
+					linkerResidues.clear();  // Starting a new linker
+				}
+				itPrevStem = it;	
+			}
+			else if(NULL != pPrevStem && it->pStem == NULL)
+			{
+				// Between stems
+				linkerResidues.push_back(it->resId);
+			}
+			else if(NULL != pPrevStem && it->pStem != NULL)
+			{
+				if(pPrevStem->pseudoKnots(*it->pStem))
+				{
+					// Keep walking
+					linkerResidues.push_back(it->resId);
+				}
+				else
+				{
+					// Connection between stems done
+					Linker linker = createLinker(
+						linkerResidues, 
+						pPrevStem, itPrevStem->resId, 
+						it->pStem, it->resId);
+					linkers.insert(linker);
+					linkerResidues.clear();  // Starting a new linker
+					pPrevStem = it->pStem;
+				}
+			}
+		}
+		if(0 < linkerResidues.size())
+		{
+			mccore::ResId resId;
+			const Stem* pStem = NULL;
+			if(itPrevStem != chainInfo.end())
+			{
+				resId = itPrevStem->resId;
+				pStem = itPrevStem->pStem;
+			}
+			Linker linker = createLinker(
+				linkerResidues, 
+				pStem, resId, 
+				NULL, mccore::ResId());
+			linkers.insert(linker);
+			linkerResidues.clear();  // Starting a new linker
+		}
+	}
+	
+  	void AnnotationLinkers::allResiduesLinker(
+  		const std::vector<stResidueInfo>& chainInfo, 
+		std::set<Linker>& linkers) const
   	{
   		std::vector<mccore::ResId> linkerResidues;
   		std::vector<stResidueInfo>::const_iterator it;
-  		for(it = mResidueInfos.begin(); it != mResidueInfos.end(); ++ it)
+  		for(it = chainInfo.begin(); it != chainInfo.end(); ++ it)
   		{
   			linkerResidues.push_back(it->resId);
   		}
   		Linker linker = Linker(linkerResidues, StemConnection(), StemConnection());
 	  	linker.order();
-	  	return linker;
+	  	linkers.insert(linker);	  	
+  	}
+  	
+  	Linker AnnotationLinkers::createLinker(
+  		const std::vector<mccore::ResId>& aResidues, 
+  		const Stem* apStem1, 
+  		const mccore::ResId& aResId1, 
+  		const Stem* apStem2, 
+  		const mccore::ResId& aResId2) const
+  	{
+  		StemConnection startConnect;
+  		StemConnection endConnect;
+  		if(NULL != apStem1)
+  		{
+  			Stem::enConnection eStartConnect = apStem1->getConnection(aResId1);
+  			startConnect = StemConnection(*apStem1, eStartConnect); 
+  		}
+  		if(NULL != apStem2)
+  		{
+  			Stem::enConnection eEndConnect = apStem2->getConnection(aResId2);
+  			endConnect = StemConnection(*apStem2, eEndConnect); 
+  		}
+  		
+		Linker linker(aResidues, startConnect, endConnect);
+		linker.order();
+		return linker;
   	}
   	
   	void AnnotationLinkers::computeResidueInfos(const AnnotateModel& aModel)
 	{
-		int i = 0;
 		const AnnotationStems* pAnnotStems = aModel.getAnnotation<AnnotationStems>();
 		
-		if(NULL != pAnnotStems)
+		std::vector<stResidueInfo> chainInfo;
+		GraphModel::const_iterator it = aModel.begin();
+		char cPrevChain = it->getResId().getChainId();
+		for(;it != aModel.end(); ++ it)
 		{
-			mResidueInfos.resize(aModel.size());
-			GraphModel::const_iterator it = aModel.begin();
-			for(;it != aModel.end(); ++ it)
+			if(cPrevChain != it->getResId().getChainId())
 			{
-				mResidueInfos[i].resId = (*it).getResId();
-				mResidueInfos[i].pStem = NULL;
+				mResidueInfos.push_back(chainInfo);
+				chainInfo.clear();
+				cPrevChain = it->getResId().getChainId();
+			}
+			stResidueInfo resInfo;
+			resInfo.resId = (*it).getResId();
+			resInfo.pStem = NULL;
+			if(NULL != pAnnotStems)
+			{
 				std::vector<Stem>::const_iterator stemIt;
 				for(stemIt = pAnnotStems->getStems().begin(); 
 					stemIt != pAnnotStems->getStems().end(); 
@@ -154,32 +221,31 @@ namespace annotate
 				{
 					if((*stemIt).contains((*it).getResId()))
 					{
-						if(NULL != mResidueInfos[i].pStem)
-						{
-							gOut(1) << "Residue " << (*it).getResId();
-							gOut(1) << " associated with more than one stem";
-							gOut(1) << std::endl;
-						}
-						mResidueInfos[i].pStem = &(*stemIt);
+						resInfo.pStem = &(*stemIt);
 					}
 				}
-				++ i;
 			}
-		}	
+			chainInfo.push_back(resInfo);		
+		}
+		if(0 < chainInfo.size())
+		{
+			mResidueInfos.push_back(chainInfo);
+		}
 	}
 	
-	std::vector<AnnotationLinkers::stResidueInfo>::const_iterator 
-	AnnotationLinkers::findResidueInfo(const mccore::ResId& aResId) const
+	std::string AnnotationLinkers::outputLinker(const Linker& aLinker) const
 	{
-		std::vector<AnnotationLinkers::stResidueInfo>::const_iterator it;
-		for(it = mResidueInfos.begin(); it != mResidueInfos.end(); ++it)
+		std::ostringstream oss;
+		if(0 < aLinker.getResidues().size())
 		{
-			if(aResId == (*it).resId)
-			{
-				break;
-			}
+			oss << aLinker.getResidues().front();
+			oss << "-"; 
+			oss << aLinker.getResidues().back();
+		}else
+		{
+			oss << "no residues";
 		}
-		return it;
+		return oss.str();
 	}
 	
 	std::string AnnotationLinkers::output() const
@@ -189,7 +255,8 @@ namespace annotate
 		std::vector<Linker>::const_iterator it;
 		for(it = mLinkers.begin(); it != mLinkers.end(); ++it)
 		{
-			oss << "Linker " << i << " : ";
+			oss << "Linker " << i << " : " << outputLinker(*it) << std::endl;
+			/*
 			if(0 < it->getResidues().size())
 			{
 				oss << it->getResidues().front();
@@ -199,7 +266,7 @@ namespace annotate
 			{
 				oss << "no residues";
 			}
-			oss << std::endl;
+			oss << std::endl;*/
 			++ i;
 		}
 		return oss.str();

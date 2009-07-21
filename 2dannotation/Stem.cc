@@ -49,27 +49,6 @@ namespace annotate
 	bool Stem::contains(const mccore::ResId& aResId) const
 	{
 		bool bContains = false;
-		/*
-		if(0 < size())
-		{
-			if(aResId == mBasePairs.front().fResId 
-				|| aResId == mBasePairs.front().rResId 
-				|| aResId == mBasePairs.back().fResId 
-				|| aResId == mBasePairs.back().rResId)
-			{
-				bContains = true;
-			}
-			if(mBasePairs.front().fResId < aResId 
-				&& aResId < mBasePairs.back().fResId)
-			{
-				bContains = true;
-			}
-			else if(aResId < std::max(mBasePairs.front().rResId, mBasePairs.back().rResId) 
-				&& std::min(mBasePairs.front().rResId, mBasePairs.back().rResId) < aResId)
-			{
-				bContains = true;
-			}
-		}*/
 		bContains = (mResIds.find(aResId) != mResIds.end());
 		return bContains;
 	}
@@ -346,6 +325,19 @@ namespace annotate
 		}
 		
 		return id;
+	}
+	
+	bool StemConnection::connects(const StemConnection& aConnection) const
+	{
+		bool bConnects = false;
+		if(isValid() && aConnection.isValid())
+		{
+			if(mpStem == aConnection.mpStem)
+			{
+				bConnects = (nextId() == aConnection.getResidue());
+			}
+		}
+		return bConnects;
 	}
 };
 

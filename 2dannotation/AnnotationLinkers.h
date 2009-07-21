@@ -30,20 +30,27 @@ namespace annotate
 			mccore::ResId resId;
 			const Stem* pStem;
 		};
-		std::vector<stResidueInfo> mResidueInfos;
+		std::vector< std::vector<stResidueInfo> > mResidueInfos;
 		std::vector< Linker > mLinkers;
 		virtual void clear();
 		
-		Linker findLinker(const StemConnection& aConnection) const;
-		void findLinker(
-	  		const Stem* apStem, 
-	  		const Stem::enConnection& aeConnect, 
-	  		std::set<Linker>& outLinkerSet) const;
-	  	Linker allResiduesLinker() const;
+	  	void allResiduesLinker(
+	  		const std::vector<stResidueInfo>& chainInfo, 
+			std::set<Linker>& linkers) const;
 	  	
 		void computeResidueInfos(const AnnotateModel& aModel);
-		std::vector<stResidueInfo>::const_iterator findResidueInfo(
-			const mccore::ResId& aResId) const;
+		void updateLinkers(std::set<Linker>& linkers) const;
+		void updateChainLinkers(
+			const std::vector<stResidueInfo>& chainInfo, 
+			std::set<Linker>& linkers) const;
+		Linker createLinker(
+	  		const std::vector<mccore::ResId>& aResidues, 
+	  		const Stem* apStem1, 
+	  		const mccore::ResId& aResId1, 
+	  		const Stem* apStem2, 
+	  		const mccore::ResId& aResId2) const;
+			
+		std::string outputLinker(const Linker& aLinker) const;
 	};
 	
 }

@@ -166,4 +166,18 @@ namespace annotate
 		std::reverse(mResidues.begin(), mResidues.end());
 		std::swap(mStart, mEnd);
 	}
+	
+	bool Linker::connects(const Linker& aLinker) const
+	{
+		bool bConnects = false;
+		if( mStart.connects(aLinker.mStart) 
+			|| mStart.connects(aLinker.mEnd) 
+			|| mEnd.connects(aLinker.mStart) 
+			|| mEnd.connects(aLinker.mEnd) )
+		{
+			bConnects = true;
+		}
+		return bConnects;
+		
+	}
 };

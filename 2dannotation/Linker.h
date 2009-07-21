@@ -18,29 +18,39 @@ namespace annotate
 			const StemConnection& aEnd);
 		virtual ~Linker();
 		
+		// ACCESS ---------------------------------------------------------------
 		const std::vector<mccore::ResId >& getResidues() const;
-			
-		void clear();
+		const StemConnection& getStart() const {return mStart;}
+		const StemConnection& getEnd() const {return mEnd;}
 		
-		bool isEmpty() const;
-		bool isAdjacent(const SecondaryStructure& aStruct) const;
+		// OPERATORS ------------------------------------------------------------
 		
 		bool operator== (const Linker& other) const;
 		bool operator!= (const Linker& other) const;
 		bool operator< (const Linker& other) const;
 		
+		// METHODS --------------------------------------------------------------
+
+		/**
+    	 * @brief Verify the two linkers can be connected.
+    	 * @details Two linkers can be connected if they both have an extemity 
+    	 * connecting to the same pair of a stem.
+    	 */
+		bool connects(const Linker& aLinker) const;
+		
+		bool isEmpty() const;
+		bool isAdjacent(const SecondaryStructure& aStruct) const;
 		bool contains(const mccore::ResId& aResId) const;
 		
 		void order();
 		void reverse();
 		
-		const StemConnection& getStart() const {return mStart;}
-		const StemConnection& getEnd() const {return mEnd;}
-		
 	protected:
 		std::vector<mccore::ResId> mResidues;
 		StemConnection mStart;
 		StemConnection mEnd;
+		
+		void clear();
 	};
 }
 

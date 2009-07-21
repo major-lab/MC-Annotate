@@ -32,20 +32,68 @@ namespace annotate
 	void AnnotationLoops::update(const AnnotateModel& aModel)
 	{
 		// This model contains no stems, there is only one open loop
-		const Annotation* pAnnotation = aModel.getAnnotation("Linkers");
 		const AnnotationLinkers* pAnnotLinkers = NULL;
-		pAnnotLinkers = dynamic_cast<const AnnotationLinkers*>(pAnnotation);
+		pAnnotLinkers = aModel.getAnnotation<AnnotationLinkers>();
 		
 		if(NULL != pAnnotLinkers)
 		{
+			/*
+			std::list<Loop> potentialLoops;
+			std::vector<Linker>::const_iterator itLinker;
+			mccore::gOut(0) << pAnnotLinkers->getLinkers().size() << " linkers" << std::endl;
+			for(itLinker = pAnnotLinkers->getLinkers().begin();
+				itLinker != pAnnotLinkers->getLinkers().end(); 
+				++ itLinker)
+			{
+				potentialLoops.push_back(Loop(*itLinker));
+			}
+			mccore::gOut(0) << "Identified " << potentialLoops.size() << " potential loops" << std::endl;
+			
+			while(!potentialLoops.empty())
+			{
+				if(potentialLoops.front().complete())
+				{
+					mLoops.push_back(potentialLoops.front());
+					potentialLoops.pop_front();
+					mccore::gOut(0) << "Loop identified" << std::endl;
+					mccore::gOut(0) << potentialLoops.size() << " potential loops left" << std::endl;
+					
+				}else
+				{
+					Loop workLoop = potentialLoops.front();
+					potentialLoops.pop_front();
+
+					// Find other loop to connect this one to
+					std::list<Loop>::iterator it = potentialLoops.begin();
+					while(it != potentialLoops.end())
+					{
+						if(workLoop.connects(*it))
+						{
+							workLoop.append(*it);
+							it = potentialLoops.erase(it);
+						}
+						else
+						{
+							it ++;
+						}
+					}
+					potentialLoops.push_back(workLoop);
+					mccore::gOut(0) << potentialLoops.size() << " potential loops left" << std::endl;
+				}
+			}*/
+
 			std::map<ResId, const Linker*> residueLinkerMap;
 			residueLinkerMap = getResidueLinkerMap(*pAnnotLinkers);
 			if(residueLinkerMap.empty() && 0 < aModel.size())
-			{			
+			{
 				// TODO : Assert that there is only one linker
-				std::vector<Linker> potentialLoop;
-				potentialLoop.push_back(pAnnotLinkers->getLinkers().front());
-				mLoops.push_back(Loop(potentialLoop));			
+				if(0 < pAnnotLinkers->getLinkers().size())
+				{
+					// Add look if there is one
+					std::vector<Linker> potentialLoop;
+					potentialLoop.push_back(pAnnotLinkers->getLinkers().front());
+					mLoops.push_back(Loop(potentialLoop));
+				}
 			}
 			else
 			{

@@ -58,7 +58,7 @@ namespace annotate
 			{
 				bTertiary = false;
 				unsigned int uiSize = it->getResidues().size();
-				if((0 == uiSize || uiSize < muiMaxCycleSize) 
+				if((0 == muiMaxCycleSize || uiSize < muiMaxCycleSize) 
 					&& it->isSingleChain())
 				{
 					// Check if the cycle is tertiary
@@ -148,7 +148,7 @@ namespace annotate
 				bTertiary = true;
 				break; 
 			}
-		}				
+		}
 		return bTertiary;		
 	}
 	

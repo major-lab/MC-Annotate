@@ -61,7 +61,7 @@ namespace annotate
 				if(!bAdjacent)
 				{
 					mPairs.insert(*it);
-				}			
+				}
 			}
 		}
 	}
