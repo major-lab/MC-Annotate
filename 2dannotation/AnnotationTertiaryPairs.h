@@ -46,6 +46,11 @@ namespace annotate
 			const mccore::ResId& aResId1, 
 			const mccore::ResId& aResId2, 
 			const struct_association_map& associationMap) const;
+			
+		bool areSameLoop(
+			const AnnotateModel& aModel,
+			const mccore::ResId& aResId1, 
+			const mccore::ResId& aResId2) const;
 	};
 	
 }

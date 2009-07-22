@@ -45,6 +45,15 @@ namespace annotate
 		void order();
 		void reverse();
 		
+		/**
+		 * @brief getBaseInteractions forming the linker.
+		 * @details BaseInteractions are unspecialized interactions between 
+		 * residues.  This effectively return only one interaction between any 
+		 * pair of interacting residues.  The interactions are unqualified, ( no 
+		 * pairing, stacking, adjacency, etc... ).
+		 */
+		std::set<BaseInteraction> getBaseInteractions() const;
+		
 	protected:
 		std::vector<mccore::ResId> mResidues;
 		StemConnection mStart;

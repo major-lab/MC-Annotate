@@ -254,6 +254,26 @@ namespace annotate
 		return eConnect;
 	}
 	
+	std::set<BaseInteraction> Stem::getBaseInteractions() const
+	{
+		std::set<BaseInteraction> interactions;
+		std::vector< BasePair >::const_iterator it;
+		for(it = mBasePairs.begin(); it != mBasePairs.end(); ++ it)
+		{
+			interactions.insert(BaseInteraction(*it));
+			std::vector< BasePair >::const_iterator itNext = it;
+			++ itNext;
+			if(itNext != mBasePairs.end())
+			{
+				BaseInteraction link1(it->first, it->fResId, itNext->first, itNext->fResId);
+				BaseInteraction link2(itNext->second, itNext->rResId, it->second, it->rResId);
+				interactions.insert(link1);
+				interactions.insert(link2);
+			}
+		}
+		return interactions;
+	}
+	
 	int StemConnection::getDirection() const
 	{
 		int iDirection = 0;
@@ -296,6 +316,7 @@ namespace annotate
 	}
 	
 	mccore::ResId StemConnection::nextId() const
+		throw(mccore::NoSuchElementException)
 	{
 		mccore::ResId id;
 		if(NULL != mpStem && meConnection != Stem::eUNDEFINED_CONNECTION)
@@ -315,16 +336,47 @@ namespace annotate
 				id = mpStem->basePairs().back().fResId;
 				break;
 			default:
-				// TODO : This should be an exception
+				std::string strMsg("Invalid connections have no nextId");
+				throw mccore::NoSuchElementException(strMsg, __FILE__, __LINE__);
 				break;
 			}
 		}
 		else
 		{
-			// TODO : Throw an exception
+			std::string strMsg("Invalid connections have no nextId");
+			throw mccore::NoSuchElementException(strMsg, __FILE__, __LINE__);
 		}
 		
 		return id;
+	}
+	
+	BasePair StemConnection::getPair() const
+		throw(mccore::NoSuchElementException)
+	{
+		const BasePair* pBasePair = NULL;
+		if(NULL != mpStem && meConnection != Stem::eUNDEFINED_CONNECTION)
+		{
+			switch(meConnection)
+			{
+			case Stem::eFIRST_STRAND_FRONT_PAIR:
+			case Stem::eSECOND_STRAND_FRONT_PAIR:
+				pBasePair = &mpStem->basePairs().front();
+				break;
+			case Stem::eFIRST_STRAND_BACK_PAIR:
+			case Stem::eSECOND_STRAND_BACK_PAIR:
+				pBasePair = &mpStem->basePairs().back();
+				break;
+			default:
+				pBasePair = NULL;
+			}
+		}
+		
+		if(NULL == pBasePair)
+		{
+			std::string strMsg("Invalid connections have no connecting pairs");
+			throw mccore::NoSuchElementException(strMsg, __FILE__, __LINE__);
+		}
+		return *pBasePair;		
 	}
 	
 	bool StemConnection::connects(const StemConnection& aConnection) const

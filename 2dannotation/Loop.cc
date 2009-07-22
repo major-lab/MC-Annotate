@@ -253,4 +253,42 @@ namespace annotate
 		}
 		return bComplete;		
 	}
+	
+	std::set<BaseInteraction> Loop::getBaseInteractions() const
+	{
+		std::set<BaseInteraction> interactions;
+		std::vector<Linker>::const_iterator itLinker;
+		for(itLinker = mLinkers.begin(); itLinker != mLinkers.end(); ++itLinker)
+		{
+			std::set<BaseInteraction> linkerInteractions;
+			linkerInteractions = itLinker->getBaseInteractions();
+			interactions.insert(linkerInteractions.begin(), linkerInteractions.end());
+			if(itLinker->getEnd().isValid())
+			{
+				BasePair basePair = itLinker->getEnd().getPair();
+				BaseInteraction interact(
+					basePair.first, basePair.fResId, 
+					basePair.second, basePair.rResId);
+				linkerInteractions.insert(interact);
+			}
+		}
+		return interactions;
+	}
+	
+	std::set<mccore::ResId> Loop::getResIds() const
+	{
+		std::set<mccore::ResId> resids;
+		std::vector<Linker>::const_iterator it;
+		for(it = mLinkers.begin(); it != mLinkers.end(); ++ it)
+		{
+			resids.insert(it->getResidues().begin(), it->getResidues().end());
+			if(it->getEnd().isValid())
+			{
+				BasePair basePair = it->getEnd().getPair();
+				resids.insert(basePair.fResId);
+				resids.insert(basePair.rResId);
+			}
+		}
+		return resids;
+	}
 }

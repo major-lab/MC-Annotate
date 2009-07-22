@@ -155,10 +155,6 @@ namespace annotate
 				std::swap(mStart, mEnd);
 			}
 		}
-		else
-		{
-			// TODO : Add an exception here, the linker is invalid
-		}
 	}
 	
 	void Linker::reverse()
@@ -178,6 +174,36 @@ namespace annotate
 			bConnects = true;
 		}
 		return bConnects;
-		
+	}
+	
+	std::set<BaseInteraction> Linker::getBaseInteractions() const
+	{
+		std::set<BaseInteraction> interactions;
+		std::vector<mccore::ResId>::const_iterator itRes;
+		for(itRes = mResidues.begin(); itRes != mResidues.end(); ++itRes)
+		{
+			std::vector<mccore::ResId>::const_iterator itNextRes = itRes;
+			itNextRes ++;
+			if(itNextRes != mResidues.end())
+			{
+				// TODO : Interactions shouldn't use 0 labels, we need to get 
+				// the real adjacency interactions in the linkers
+				BaseInteraction inter(0, *itRes, 0, *itNextRes);
+				interactions.insert(inter);
+			}			
+		}
+		if(mStart.isValid())
+		{
+			BasePair bp = mStart.getPair();
+			BaseInteraction inter(bp.first, bp.fResId, bp.second, bp.rResId);
+			interactions.insert(inter);
+		}
+		if(mEnd.isValid())
+		{
+			BasePair bp = mEnd.getPair();
+			BaseInteraction inter(bp.first, bp.fResId, bp.second, bp.rResId);
+			interactions.insert(inter);
+		}
+		return interactions;
 	}
 };

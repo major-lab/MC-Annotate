@@ -355,7 +355,22 @@ namespace annotate
 			oss << "}, ";
 		}
 		oss << aLoop.describe();
-	}	
+	}
+	
+	std::vector< Loop > AnnotationLoops::getLoops(
+		const std::string& aDescription) const
+	{
+		std::vector< Loop > loops;
+		std::vector< Loop >::const_iterator it;
+		for(it = mLoops.begin(); it != mLoops.end(); ++ it)
+		{
+			if(0 == aDescription.compare(it->describe()))
+			{
+				loops.push_back(*it);
+			}
+		}
+		return loops;
+	}
 	
 	std::string AnnotationLoops::output() const
 	{

@@ -53,13 +53,12 @@ namespace annotate
 			for(; it != pAInteractions->getPairs().end(); ++ it)
 			{
 				bool bAdjacent = false;
-				bAdjacent = areAdjacent(
-					(*it).fResId, 
-					(*it).rResId, 
-					associationMap);
+				bAdjacent = areAdjacent(it->fResId, it->rResId, associationMap);
 					
 				if(!bAdjacent)
 				{
+					bool bSameLoop = false;
+					bSameLoop = areSameLoop(aModel, it->fResId, it->rResId);
 					mPairs.insert(*it);
 				}
 			}
@@ -97,6 +96,34 @@ namespace annotate
 		}
 		
 		return bAdjacent;
+	}
+	
+	bool AnnotationTertiaryPairs::areSameLoop(
+		const AnnotateModel& aModel,
+		const mccore::ResId& aResId1, 
+		const mccore::ResId& aResId2) const
+	{
+		bool bSameLoop = false;
+		
+		const AnnotationLoops* pAnnotLoops = 
+			aModel.getAnnotation<AnnotationLoops>();
+			
+		if(NULL != pAnnotLoops)
+		{
+			std::vector< Loop >::const_iterator it;
+			for(it = pAnnotLoops->getLoops().begin(); 
+				it != pAnnotLoops->getLoops().end() && !bSameLoop; 
+				++ it)
+			{
+				std::set<mccore::ResId> resids = it->getResIds();
+				if(	resids.end() != resids.find(aResId1) 
+					&& resids.end() != resids.find(aResId2))
+				{
+					bSameLoop = true;
+				}
+			}
+		}		
+		return bSameLoop;
 	}
 	
 	void AnnotationTertiaryPairs::addStemsAssociations(

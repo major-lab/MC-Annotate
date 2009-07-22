@@ -1,9 +1,10 @@
 #include "AnnotationTertiaryCycles.h"
 #include "AnnotationCycles.h"
+#include "AnnotationInteractions.h"
+#include "AnnotationLoops.h"
 #include "AnnotationResSecondaryStructures.h"
 #include "AnnotationTertiaryPairs.h"
 #include "AnnotationTertiaryStacks.h"
-#include "AnnotationInteractions.h"
 #include "AnnotateModel.h"
 #include "AlgorithmExtra.h"
 #include <sstream>
@@ -17,6 +18,7 @@ namespace annotate
 	AnnotationTertiaryCycles::AnnotationTertiaryCycles(unsigned int auiMaxCycleSize)
 	{
 		addRequirement<AnnotationCycles>();
+		addRequirement<AnnotationLoops>();
 		addRequirement<AnnotationTertiaryPairs>();
 		addRequirement<AnnotationTertiaryStacks>();
 		addRequirement<AnnotationResSecondaryStructures>();
@@ -40,25 +42,44 @@ namespace annotate
 		
 		const AnnotationCycles* pAnnCycles = 
 			aModel.getAnnotation<AnnotationCycles>();
-		const AnnotationTertiaryPairs* pAnnTertiaryPairs = 
-			aModel.getAnnotation<AnnotationTertiaryPairs>();
-		const AnnotationTertiaryStacks* pAnnTertiaryStacks = 
-			aModel.getAnnotation<AnnotationTertiaryStacks>();
 		
-		if(NULL != pAnnCycles && NULL != pAnnTertiaryPairs && NULL != pAnnTertiaryStacks)
+		if(	NULL != pAnnCycles)
 		{
-			std::set<BaseInteraction> cyclePairs;
 			std::list<Cycle> cycles;
-			std::set<Cycle>::const_iterator itSet = pAnnCycles->getCycles().begin();
-			for(; itSet != pAnnCycles->getCycles().end(); ++itSet)
+			cycles.insert(
+				cycles.begin(), 
+				pAnnCycles->getCycles().begin(), 
+				pAnnCycles->getCycles().end());
+			
+			// From all the cycles, keep only those that are non-adjacent
+			filterOutAdjacentStructures(aModel, cycles);
+			
+			// Filter out the cycles that are part of a loop
+			filterOutLoops(aModel, cycles);
+			
+			// Keep the remaining loops as tertiary
+			mCycles.insert(cycles.begin(), cycles.end());
+		}
+		updateConnections(aModel);
+	}
+	
+	void AnnotationTertiaryCycles::filterOutAdjacentStructures(
+		const AnnotateModel& aModel, 
+		std::list<Cycle>& aCycles) const
+	{
+		const AnnotationTertiaryPairs* pAnnTPairs = NULL;
+		const AnnotationTertiaryStacks* pAnnTStacks = NULL;
+		pAnnTPairs = aModel.getAnnotation<AnnotationTertiaryPairs>();
+		pAnnTStacks = aModel.getAnnotation<AnnotationTertiaryStacks>();
+		
+		if(NULL != pAnnTPairs && NULL != pAnnTStacks)
+		{
+			// From all the cycles, keep only those that are non-adjacent
+			std::set<BaseInteraction> cyclePairs;
+			std::list<Cycle>::iterator it = aCycles.begin();
+			while(it != aCycles.end())
 			{
-				cycles.push_back(*itSet);
-			}
-			bool bTertiary = false;
-			std::list<Cycle>::iterator it = cycles.begin();
-			while(it != cycles.end())
-			{
-				bTertiary = false;
+				bool bTertiary = false;
 				unsigned int uiSize = it->getResidues().size();
 				if((0 == muiMaxCycleSize || uiSize < muiMaxCycleSize) 
 					&& it->isSingleChain())
@@ -68,12 +89,12 @@ namespace annotate
 				
 					bTertiary = isTertiary(
 						cyclePairs, 
-						pAnnTertiaryPairs->getPairs());
+						pAnnTPairs->getPairs());
 					if(!bTertiary)
 					{
 						bTertiary = isTertiary(
 							cyclePairs, 
-							pAnnTertiaryStacks->getStacks());
+							pAnnTStacks->getStacks());
 					}
 					cyclePairs.clear();
 				}
@@ -84,12 +105,47 @@ namespace annotate
 				}
 				else
 				{
-					it = cycles.erase(it);
+					it = aCycles.erase(it);
 				}
 			}
-			mCycles.insert(cycles.begin(), cycles.end());
 		}
-		updateConnections(aModel);
+	}
+	
+	void AnnotationTertiaryCycles::filterOutLoops(
+		const AnnotateModel& aModel, 
+		std::list<Cycle>& aCycles) const
+	{
+		const AnnotationLoops* pAnnLoops = 
+			aModel.getAnnotation<AnnotationLoops>();
+		if(NULL != pAnnLoops)
+		{
+			std::vector<Loop> loops = pAnnLoops->getLoops();
+			std::list<Cycle>::iterator it = aCycles.begin();
+			while(it != aCycles.end())
+			{
+				bool bLoopPart = false;
+				std::vector<Loop>::const_iterator itLoop;
+				for(itLoop = loops.begin(); 
+					itLoop != loops.end() && !bLoopPart; 
+					++itLoop)
+				{
+					std::set<BaseInteraction> interactions = 
+						it->getBaseInteractions();
+					unsigned int uiDiffSize = SetDifference(
+						interactions, 
+						itLoop->getBaseInteractions()).size();
+					bLoopPart = (0 == uiDiffSize);
+				}
+				if(bLoopPart)
+				{
+					it = aCycles.erase(it);
+				}
+				else
+				{
+					++ it;
+				}		
+			}
+		}
 	}
 	
 	void AnnotationTertiaryCycles::updateConnections(const AnnotateModel& aModel)

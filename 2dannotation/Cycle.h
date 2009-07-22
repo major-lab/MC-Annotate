@@ -38,6 +38,15 @@ namespace annotate
 		std::string getSequence() const;
 		unsigned int getNbStrands() const {return mProfile.size();}
 		
+		/**
+		 * @brief getBaseInteractions forming the cycle.
+		 * @details BaseInteractions are unspecialized interactions between 
+		 * residues.  This effectively return only one interaction between any 
+		 * pair of interacting residues.  The interactions are unqualified, ( no 
+		 * pairing, stacking, adjacency, etc... ).
+		 */
+		std::set<BaseInteraction> getBaseInteractions() const;
+		
 	private:
 		std::string mName;
 		std::string mModelName;

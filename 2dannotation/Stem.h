@@ -100,6 +100,15 @@ namespace annotate
     	 */
     	bool pseudoKnots( const Stem& aStem ) const;
     	
+    	/**
+		 * @brief getBaseInteractions forming the stem.
+		 * @details BaseInteractions are unspecialized interactions between 
+		 * residues.  This effectively return only one interaction between any 
+		 * pair of interacting residues.  The interactions are unqualified, ( no 
+		 * pairing, stacking, adjacency, etc... ).
+		 */
+		std::set<BaseInteraction> getBaseInteractions() const;
+    	
     	std::vector<const Stem*> pseudoKnots( 
     		std::vector<const Stem*>& aStems ) const;
     	
@@ -149,7 +158,8 @@ namespace annotate
 		
 		// METHODS --------------------------------------------------------------
 		int getDirection() const;
-		mccore::ResId nextId() const;
+		mccore::ResId nextId() const throw(mccore::NoSuchElementException);
+		BasePair getPair() const throw(mccore::NoSuchElementException);
 		mccore::ResId getResidue() const 
 		{ 
 			return mpStem->getResidue(meConnection); 

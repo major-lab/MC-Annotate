@@ -33,6 +33,7 @@ namespace annotate
 		
 		// TODO : Make this a method of cycle
 		void getPairs(const Cycle& aCycle, std::set<BaseInteraction>& aPairs) const;
+		
 	private:
 		typedef std::list<std::list<mccore::ResId> > linkers_connect;
 		static std::string mstrAnnotationName;
@@ -52,6 +53,13 @@ namespace annotate
 		std::list< std::list<mccore::ResId> > updateLinkerConnections(
 			const AnnotateModel& aModel, 
 			const Cycle& aCycle) const;
+			
+		void filterOutAdjacentStructures(
+			const AnnotateModel& aModel, 
+			std::list<Cycle>& aCycles) const;
+		void filterOutLoops(
+			const AnnotateModel& aModel, 
+			std::list<Cycle>& aCycles) const;
 	};	
 }
 #endif /*_annotate_AnnotationTertiaryCycles_H_*/

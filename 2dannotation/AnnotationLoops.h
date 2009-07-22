@@ -16,12 +16,16 @@ namespace annotate
 		AnnotationLoops();
 		virtual ~AnnotationLoops();
 		
-		virtual void update(const AnnotateModel& aModel);		
-		virtual std::string output() const;
-		
+		// ACCESS ---------------------------------------------------------------
 		const std::vector< Loop >& getLoops() const;
 		static const std::string& AnnotationName() {return mstrAnnotationName;}
 		virtual const std::string& annotationName() {return AnnotationName();}
+		std::vector< Loop > getLoops(const std::string& aDescription) const;
+		
+		// METHODS --------------------------------------------------------------
+		virtual void update(const AnnotateModel& aModel);		
+		virtual std::string output() const;
+		
 	private:
 		static std::string mstrAnnotationName;
 		std::vector< Loop > mLoops;

@@ -50,6 +50,20 @@ namespace annotate
 		std::string describe() const;
 		void reverse();
 		
+		/**
+		 * @brief getBaseInteractions forming the loop.
+		 * @details BaseInteractions are unspecialized interactions between 
+		 * residues.  This effectively return only one interaction between any 
+		 * pair of interacting residues.  The interactions are unqualified, ( no 
+		 * pairing, stacking, adjacency, etc... ).
+		 */
+		std::set<BaseInteraction> getBaseInteractions() const;
+		
+		/**
+		 * @brief Get the res ids of the perimeter of the loop.
+		 */
+		std::set<mccore::ResId> getResIds() const;
+		
 	protected:
 		std::vector<Linker> mLinkers;
 		

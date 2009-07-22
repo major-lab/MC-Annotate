@@ -174,4 +174,20 @@ namespace annotate
 		}
 		return oss.str();
 	}
+	
+	std::set<BaseInteraction> Cycle::getBaseInteractions() const
+	{
+		std::set<BaseInteraction> interactions;
+		interactions_set_iterator it;
+		// Get the set of resId to resId interactions, without qualification
+		for(it = mInteractions.begin(); it != mInteractions.end(); ++ it)
+		{
+			const BaseInteraction* pBaseInter = *it;
+			BaseInteraction inter(
+				pBaseInter->first, pBaseInter->fResId, 
+				pBaseInter->second, pBaseInter->rResId);
+			interactions.insert(inter);	
+		}		
+		return interactions;
+	}
 }

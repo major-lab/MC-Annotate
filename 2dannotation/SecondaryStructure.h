@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "BaseInteraction.h"
+
 namespace annotate
 {
 	class SecondaryStructure
@@ -21,6 +23,15 @@ namespace annotate
 
 		// METHODS --------------------------------------------------------------
 		virtual bool isAdjacent(const SecondaryStructure& aStruct) const = 0;
+		
+		/**
+		 * @brief getBaseInteractions forming the secondary structure.
+		 * @details BaseInteractions are unspecialized interactions between 
+		 * residues.  This effectively return only one interaction between any 
+		 * pair of interacting residues.  The interactions are unqualified, ( no 
+		 * pairing, stacking, adjacency, etc... ).
+		 */
+		virtual std::set<BaseInteraction> getBaseInteractions() const = 0;
 	protected:
 		std::string mName;
 	
