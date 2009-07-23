@@ -66,18 +66,30 @@ unsigned char gucRelationMask =
 ResIdSet residueSelection;
 const char* shortopts = "Vbc:s:z:x:n:e:f:hlr:vm:";
 
-struct stCycleInfoEntry
+class stCycleInfoEntry
 {
+public:
 	std::string strProfile;
 	std::string strResIds;
 	std::string strSequence;
+	
+	bool operator <(const stCycleInfoEntry& aRight) const
+	{
+		return strProfile < aRight.strProfile;
+	}
 };
 
-struct stCycleInformation
+class stCycleInformation
 {
+public:
 	std::string strSignature;
 	std::string strModel;
-	std::list<stCycleInfoEntry> connects;
+	std::vector<stCycleInfoEntry> connects;
+	
+	bool operator <(const stCycleInformation& aRight) const
+	{
+		return strSignature < aRight.strSignature;
+	}
 };
 
 void
@@ -444,7 +456,7 @@ std::string outputCycleInformation(const stCycleInformation& info)
 	oss << "\t" << info.strSignature << std::endl;
 	oss << "info:" << std::endl;
 	oss << "\t" << info.strModel << std::endl;
-	std::list<stCycleInfoEntry>::const_iterator it;
+	std::vector<stCycleInfoEntry>::const_iterator it;
 	for(it = info.connects.begin(); it != info.connects.end(); ++it)
 	{
 		oss << "\t" << it->strProfile << "\t : ";;
@@ -459,6 +471,8 @@ stCycleInformation cycleInformation(
 	const annotate::Cycle& aCycle,
 	const annotate::AnnotationTertiaryCycles& annot)
 {
+	std::vector<stCycleInfoEntry> cyclesEntries;
+	std::vector<stCycleInfoEntry> linkerEntries;
 	stCycleInformation info;
 	info.strModel = aCycle.modelName();
 	info.strSignature = cycleProfile(aCycle) + " = ";
@@ -478,13 +492,9 @@ stCycleInformation cycleInformation(
 		entry.strProfile = cycleProfile(*it);
 		entry.strResIds = cycleResidues(*it);
 		entry.strSequence = it->getSequence();
-		if(it != connections.begin())
-		{
-			info.strSignature += " + ";
-		}
-		info.strSignature += entry.strProfile;
-		info.connects.push_back(entry);	
+		cyclesEntries.push_back(entry);	
 	}
+	
 	
 	std::list< std::list<mccore::ResId> > linkersConnect = annot.getLinkerConnections(aCycle);
 	std::list< std::list<mccore::ResId> >::const_iterator linkIt;
@@ -496,21 +506,100 @@ stCycleInformation cycleInformation(
 		entry.strProfile = linkerProfile(*linkIt);
 		entry.strResIds = linkerResidues(*linkIt);
 		entry.strSequence = linkerSequence(aModel, *linkIt);
-		if(linkIt != linkersConnect.begin() || 0 < connections.size())
+		linkerEntries.push_back(entry);
+	}
+	
+	std::sort(cyclesEntries.begin(), cyclesEntries.end());
+	std::sort(linkerEntries.begin(), linkerEntries.end());
+	info.connects.insert(info.connects.end(), cyclesEntries.begin(), cyclesEntries.end());
+	info.connects.insert(info.connects.end(), linkerEntries.begin(), linkerEntries.end());
+	
+	std::vector<stCycleInfoEntry>::iterator entryIt = info.connects.begin();
+	if(entryIt != info.connects.end())
+	{
+		entryIt ++;
+		while(entryIt != info.connects.end())
 		{
-			info.strSignature += " + ";
+			info.strSignature += entryIt->strProfile;
+			++ entryIt;
+			if(entryIt != info.connects.end())
+			{
+				info.strSignature += " + ";
+			}
 		}
-		info.strSignature += entry.strProfile;
-		info.connects.push_back(entry);
 	}
 
 	return info;
 }
 
+void filterCycleInfo(std::vector<stCycleInformation>& cycleInfos)
+{
+	std::vector<stCycleInformation>::iterator it = cycleInfos.begin();
+	while(it != cycleInfos.end())
+	{
+		size_t posEqual;
+		
+		// Check for = sign
+		std::string strSignature = it->strSignature;
+		posEqual = strSignature.find_first_of('=');
+		
+		if(posEqual == strSignature.npos)
+		{
+			it = cycleInfos.erase(it);
+		}
+		else
+		{
+			size_t posPlus = strSignature.find_first_of('+');
+			size_t posPlus2 = strSignature.find_last_of('+');
+			if(posPlus == strSignature.npos || posPlus != posPlus2)
+			{
+				it = cycleInfos.erase(it);
+			}
+			else
+			{
+				++it;
+			}
+		}
+	}
+}
+
+std::map<std::string, unsigned int> countSignatures(std::vector<stCycleInformation>& cycleInfos)
+{
+	std::map<std::string, unsigned int> summary;
+	unsigned int uiCount = 0;
+	std::string strKey;
+	std::sort(cycleInfos.begin(), cycleInfos.end());
+	std::vector<stCycleInformation>::const_iterator it;
+	for(it = cycleInfos.begin(); it != cycleInfos.end(); ++ it)
+	{
+		if(it == cycleInfos.begin())
+		{
+			strKey = it->strSignature;
+			uiCount = 0;
+		}
+		
+		if(it->strSignature == strKey)
+		{
+			uiCount ++;
+		}
+		else
+		{
+			summary.insert(std::pair<std::string, unsigned int>(strKey, uiCount));
+			strKey = it->strSignature;
+			uiCount = 1;
+		}
+	}
+	if(0 < uiCount)
+	{
+		summary.insert(std::pair<std::string, unsigned int>(strKey, uiCount));
+	}
+	return summary;
+}
+
 int
 main (int argc, char *argv[])
 {
-	std::list<stCycleInformation> cyclesInformations;
+	std::vector<stCycleInformation> cyclesInformations;
 	read_options (argc, argv);
 
 	while (optind < argc)
@@ -592,8 +681,10 @@ main (int argc, char *argv[])
 		++optind;
 	}
 	
+	filterCycleInfo(cyclesInformations);
 	mccore::gOut (0) << "------------------------------------------------------------" << std::endl;
-	std::list<stCycleInformation>::const_iterator itInfo;
+	
+	std::vector<stCycleInformation>::const_iterator itInfo;
 	for(itInfo = cyclesInformations.begin(); 
 		itInfo != cyclesInformations.end(); 
 		++ itInfo)
@@ -602,6 +693,18 @@ main (int argc, char *argv[])
 		mccore::gOut(0) << outputCycleInformation(*itInfo);
 		mccore::gOut(0) << std::endl;
 	}
+	
+	std::map<std::string, unsigned int> summary = countSignatures(cyclesInformations);
+	std::map<std::string, unsigned int>::const_iterator itSum;
+	mccore::gOut (0) << "------------------------------------------------------------" << std::endl;
+	mccore::gOut (0) << "Summary" << std::endl;
+	mccore::gOut (0) << "------------------------------------------------------------" << std::endl;
+	for(itSum = summary.begin(); itSum != summary.end(); ++itSum)
+	{
+		mccore::gOut(0) << itSum->second << "\t:\t" << itSum->first << std::endl;
+	}
+	mccore::gOut (0) << "------------------------------------------------------------" << std::endl;
+	
 	
 	return EXIT_SUCCESS;	
 }
