@@ -14,6 +14,10 @@ namespace annotate
 	public:		
 		// LIFECYCLE ------------------------------------------------------------
 		Cycle(const mccore::GraphModel& aModel, unsigned char aucRelationMask);
+		Cycle(
+			const mccore::GraphModel& aModel, 
+			const std::set<mccore::ResId>& aResIds,
+			unsigned char aucRelationMask);
 		
 		virtual ~Cycle();
 		

@@ -135,10 +135,10 @@ namespace annotate
 		}
 		
 		// Find the chains in the pdb file
-		gOut (3) << "Computing chains ..." << std::endl;
-		findChains();
+		// gOut (3) << "Computing chains ..." << std::endl;
+		// findChains();
 	}
-	 	
+	/*
 	void 
 	AnnotateModel::findChains()
 	{
@@ -190,7 +190,7 @@ namespace annotate
 			}
 			gOut (0) << endl;
 		}		
-	}
+	}*/
 
   
   void
@@ -216,8 +216,8 @@ namespace annotate
   {
     gOut (0) << "Residue conformations -------------------------------------------" << endl;
     dumpConformations ();
-	gOut (0) << "Chains ----------------------------------------------------------" << endl;
-	dumpChains();
+	// gOut (0) << "Chains ----------------------------------------------------------" << endl;
+	// dumpChains();
 	
 	// Compute all the requested annotations
 	std::vector<Annotation*>::const_iterator it = annotations.begin();

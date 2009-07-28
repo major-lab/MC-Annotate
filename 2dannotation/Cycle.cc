@@ -18,6 +18,24 @@ namespace annotate
 		update();
 	}
 	
+	Cycle::Cycle(
+		const mccore::GraphModel& aModel, 
+		const std::set<mccore::ResId>& aResIds,
+		unsigned char aucRelationMask)
+	{
+		// Create a cycle from a set of base interactions
+		mucRelationMask = aucRelationMask;
+		mModel.clear();
+		
+		std::set<mccore::ResId>::const_iterator itRes;
+		for(itRes = aResIds.begin(); itRes != aResIds.end(); ++ itRes)
+		{
+			GraphModel::const_iterator itResidue = aModel.find(*itRes);
+			mModel.insert(*itResidue);
+		}		
+		update();
+	} 
+	
 	Cycle::~Cycle()
 	{
 		mInteractions.clear();
@@ -50,11 +68,6 @@ namespace annotate
 			
 			// TODO: Assert that this is not NULL
 			interactions = mInteractionsAnnotation.getInteractions(refId, resId);
-			
-			if(0 == interactions.size())
-			{
-				gOut (0) << "No interaction found between " << resId << " and " << refId << std::endl;
-			}
 			mInteractions.insert(interactions.begin(), interactions.end());
 			mResidues.push_back(refId);
 		}

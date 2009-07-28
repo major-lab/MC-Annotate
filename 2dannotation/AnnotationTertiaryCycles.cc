@@ -45,17 +45,23 @@ namespace annotate
 		
 		if(	NULL != pAnnCycles)
 		{
+			// Copy all the cycles from the annotation of cycles
 			std::list<Cycle> cycles;
 			cycles.insert(
 				cycles.begin(), 
 				pAnnCycles->getCycles().begin(), 
 				pAnnCycles->getCycles().end());
+				
+			// Create cycles for the loops
+			updateCycleLoops(aModel);
 			
-			// From all the cycles, keep only those that are non-adjacent
+			// From the list of potential tertiary cycles, 
+			// keep only those with tertiary interactions
 			filterOutAdjacentStructures(aModel, cycles);
 			
-			// Filter out the cycles that are part of a loop
-			filterOutLoops(aModel, cycles);
+			// From the list of potential tertiary cycles, 
+			// remove those that are subparts of a loop
+			filterOutLoops(cycles);
 			
 			// Keep the remaining loops as tertiary
 			mCycles.insert(cycles.begin(), cycles.end());
@@ -112,38 +118,52 @@ namespace annotate
 	}
 	
 	void AnnotationTertiaryCycles::filterOutLoops(
-		const AnnotateModel& aModel, 
 		std::list<Cycle>& aCycles) const
+	{		
+		std::list<Cycle>::iterator it = aCycles.begin();
+					
+		while(it != aCycles.end())
+		{
+			bool bLoopPart = false;
+			std::set<Cycle>::const_iterator itLoop;
+			for(itLoop = mLoops.begin(); 
+				itLoop != mLoops.end() && !bLoopPart; 
+				++itLoop)
+			{
+				std::set<BaseInteraction> interactions = 
+					it->getBaseInteractions();
+				unsigned int uiDiffSize = SetDifference(
+					interactions, 
+					itLoop->getBaseInteractions()).size();
+				bLoopPart = (0 == uiDiffSize);
+			}
+			if(bLoopPart)
+			{
+				it = aCycles.erase(it);
+			}
+			else
+			{
+				++ it;
+			}		
+		}
+	}
+	
+	void AnnotationTertiaryCycles::updateCycleLoops(const AnnotateModel& aModel)
 	{
+		mLoops.clear();
+		
 		const AnnotationLoops* pAnnLoops = 
 			aModel.getAnnotation<AnnotationLoops>();
+			
 		if(NULL != pAnnLoops)
 		{
+			unsigned char ucRelMask = aModel.relationMask();
 			std::vector<Loop> loops = pAnnLoops->getLoops();
-			std::list<Cycle>::iterator it = aCycles.begin();
-			while(it != aCycles.end())
+			
+			std::vector<Loop>::const_iterator itLoop;
+			for(itLoop = loops.begin(); itLoop != loops.end(); ++ itLoop)
 			{
-				bool bLoopPart = false;
-				std::vector<Loop>::const_iterator itLoop;
-				for(itLoop = loops.begin(); 
-					itLoop != loops.end() && !bLoopPart; 
-					++itLoop)
-				{
-					std::set<BaseInteraction> interactions = 
-						it->getBaseInteractions();
-					unsigned int uiDiffSize = SetDifference(
-						interactions, 
-						itLoop->getBaseInteractions()).size();
-					bLoopPart = (0 == uiDiffSize);
-				}
-				if(bLoopPart)
-				{
-					it = aCycles.erase(it);
-				}
-				else
-				{
-					++ it;
-				}		
+				mLoops.insert(Cycle(aModel, itLoop->getResIds(), ucRelMask));
 			}
 		}
 	}
@@ -155,22 +175,38 @@ namespace annotate
 		
 		if(NULL != pACycles)
 		{
+			std::list<Cycle> cycles;
+			
+				
 			std::set<Cycle> adjacents;
 			adjacents = SetDifference<Cycle>(pACycles->getCycles(), mCycles);
+			cycles.insert(cycles.begin(), adjacents.begin(), adjacents.end());
+			filterOutLoops(cycles);
 			std::set<Cycle>::const_iterator it;
 			for(it = mCycles.begin(); it != mCycles.end(); ++ it)
 			{
 				std::set<Cycle> connections;
-				std::set<Cycle>::const_iterator adjIt;
-				for(adjIt = adjacents.begin(); 
-					adjIt != adjacents.end(); 
-					++adjIt)
+				
+				// Add the 2D cycles associated
+				std::list<Cycle>::const_iterator adjIt;
+				for(adjIt = cycles.begin(); adjIt != cycles.end(); ++adjIt)
 				{
 					if(it->shareInteractions(*adjIt))
 					{
 						connections.insert(*adjIt);
 					}
 				}
+				
+				// Add the loops cycles
+				std::set<Cycle>::const_iterator itCycle;
+				for(itCycle = mLoops.begin(); itCycle != mLoops.end(); ++itCycle)
+				{
+					if(it->shareInteractions(*itCycle))
+					{
+						connections.insert(*itCycle);
+					}
+				}
+								
 				mConnects.insert(std::pair<Cycle, std::set<Cycle> >(*it, connections));
 				std::list< std::list<mccore::ResId> > linkConnects = updateLinkerConnections(aModel, *it);
 				mConnectsLinkers.insert(std::pair<Cycle, linkers_connect>(*it, linkConnects));
@@ -207,15 +243,13 @@ namespace annotate
 					if(NULL != pLoop && 0 == pLoop->describe().compare("open"))
 					{
 						// This is an open loop
-						if(0 == strand.size() || (pLoop == pPrevLoop))
-						{
-							strand.push_back(*it);
-						}
-						else
+						if(0 != strand.size() && (pLoop != pPrevLoop))
 						{
 							connections.push_back(strand);
-							strand.clear();
+							strand.clear();							
 						}
+						strand.push_back(*it);
+						pPrevLoop = pLoop;
 					}
 				}
 			}

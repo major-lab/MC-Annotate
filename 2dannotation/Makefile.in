@@ -51,13 +51,13 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
 PROGSOURCES = MC-Annotate.cc
 
-SOURCES = AnnotateModel.cc Annotation.cc AnnotationCycles.cc \
-	AnnotationInteractions.cc AnnotationLinkers.cc AnnotationLoops.cc \
-	AnnotationResSecondaryStructures.cc AnnotationStems.cc \
+SOURCES = AnnotateModel.cc Annotation.cc AnnotationChains.cc \
+	AnnotationCycles.cc AnnotationInteractions.cc AnnotationLinkers.cc \
+	AnnotationLoops.cc AnnotationResSecondaryStructures.cc AnnotationStems.cc \
 	AnnotationTertiaryCycles.cc AnnotationTertiaryPairs.cc \
 	AnnotationTertiaryStacks.cc AnnotationTertiaryStructures.cc BaseLink.cc \
 	BasePair.cc BaseStack.cc Cycle.cc Linker.cc Loop.cc Stem.cc \
-	TertiaryStructure.cc 
+	StemConnection.cc TertiaryStructure.cc 
 
 ALLSOURCES = $(SOURCES) $(PROGSOURCES)
 

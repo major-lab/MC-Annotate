@@ -3,6 +3,7 @@
 
 #include "SecondaryStructure.h"
 #include "Stem.h"
+#include "StemConnection.h"
 #include <vector>
 
 namespace annotate

@@ -135,59 +135,6 @@ namespace annotate
 		std::set< mccore::ResId > mResIds;
     	 
 	};
-	
-	class StemConnection 
-	{
-	public:
-		// LIFECYCLE ------------------------------------------------------------
-		StemConnection() 
-		{
-			mpStem = NULL; 
-			meConnection = Stem::eUNDEFINED_CONNECTION;
-		}
-		
-		StemConnection(const Stem& aStem, const Stem::enConnection& aeConnect)
-		{
-			mpStem = &aStem;
-			meConnection = aeConnect;
-		}
-		
-		// ACCESS ---------------------------------------------------------------
-		const Stem& getStem() const {return *mpStem;}
-		const Stem::enConnection getConnection() const { return meConnection; }
-		
-		// METHODS --------------------------------------------------------------
-		int getDirection() const;
-		mccore::ResId nextId() const throw(mccore::NoSuchElementException);
-		BasePair getPair() const throw(mccore::NoSuchElementException);
-		mccore::ResId getResidue() const 
-		{ 
-			return mpStem->getResidue(meConnection); 
-		}
-		
-		bool isValid() const 
-		{ 
-			return (NULL != mpStem && meConnection != Stem::eUNDEFINED_CONNECTION);
-		}
-		
-		/**
-		 * @brief Verify the two connections refers to a both residues of the 
-		 * same end of a stem.
-    	 * @return true if they form the pair at the end of a stem.
-    	 */
-		bool connects(const StemConnection& aConnection) const;
-		
-		// OPERATOR -------------------------------------------------------------
-		bool operator== (const StemConnection &other) const 
-		{
-			bool bEqual = (mpStem == other.mpStem) 
-				&& (meConnection == other.meConnection);
-			return bEqual;
-		}
-	private:
-		const Stem* mpStem;
-		Stem::enConnection meConnection;		
-	};
 }
 
 #endif /*_annotate_Stem_H_*/

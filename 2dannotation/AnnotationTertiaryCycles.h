@@ -37,6 +37,7 @@ namespace annotate
 	private:
 		typedef std::list<std::list<mccore::ResId> > linkers_connect;
 		static std::string mstrAnnotationName;
+		std::set< Cycle > mLoops;
 		std::set< Cycle > mCycles;
 		std::map< Cycle, std::set <Cycle> > mConnects;
 		std::map< Cycle, linkers_connect> mConnectsLinkers;
@@ -48,7 +49,8 @@ namespace annotate
 		bool isTertiary(
 			const std::set<BaseInteraction>& aCyclePairs, 
 			const std::set<BaseStack>& a3DStacks) const;
-			
+		
+		void updateCycleLoops(const AnnotateModel& aModel);
 		void updateConnections(const AnnotateModel& aModel);
 		std::list< std::list<mccore::ResId> > updateLinkerConnections(
 			const AnnotateModel& aModel, 
@@ -57,9 +59,7 @@ namespace annotate
 		void filterOutAdjacentStructures(
 			const AnnotateModel& aModel, 
 			std::list<Cycle>& aCycles) const;
-		void filterOutLoops(
-			const AnnotateModel& aModel, 
-			std::list<Cycle>& aCycles) const;
+		void filterOutLoops(std::list<Cycle>& aCycles) const;
 	};	
 }
 #endif /*_annotate_AnnotationTertiaryCycles_H_*/

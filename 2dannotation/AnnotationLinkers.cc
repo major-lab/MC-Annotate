@@ -256,17 +256,6 @@ namespace annotate
 		for(it = mLinkers.begin(); it != mLinkers.end(); ++it)
 		{
 			oss << "Linker " << i << " : " << outputLinker(*it) << std::endl;
-			/*
-			if(0 < it->getResidues().size())
-			{
-				oss << it->getResidues().front();
-				oss << "-"; 
-				oss << it->getResidues().back();
-			}else
-			{
-				oss << "no residues";
-			}
-			oss << std::endl;*/
 			++ i;
 		}
 		return oss.str();

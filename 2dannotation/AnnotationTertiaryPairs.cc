@@ -52,14 +52,22 @@ namespace annotate
 			std::vector<BasePair>::const_iterator it = pAInteractions->getPairs().begin();
 			for(; it != pAInteractions->getPairs().end(); ++ it)
 			{
-				bool bAdjacent = false;
-				bAdjacent = areAdjacent(it->fResId, it->rResId, associationMap);
-					
-				if(!bAdjacent)
+				// Filter out pairs between different chains
+				if(it->fResId.getChainId() == it->rResId.getChainId())
 				{
-					bool bSameLoop = false;
-					bSameLoop = areSameLoop(aModel, it->fResId, it->rResId);
-					mPairs.insert(*it);
+					// Filter out adjacent pairs
+					bool bAdjacent = false;
+					bAdjacent = areAdjacent(it->fResId, it->rResId, associationMap);
+					if(!bAdjacent)
+					{
+						// Filter out pairs inside a loop
+						bool bSameLoop = false;
+						bSameLoop = areSameLoop(aModel, it->fResId, it->rResId);
+						if(!bSameLoop)
+						{
+							mPairs.insert(*it);
+						}
+					}
 				}
 			}
 		}

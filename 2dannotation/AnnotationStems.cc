@@ -51,7 +51,6 @@ namespace annotate
 		const Stem& aStem)
 	{
 		std::ostringstream oss;
-		oss << "[" << aModel.name() << "] ";
     	mccore::ResId r1 = aStem.basePairs().front().fResId;
     	mccore::ResId r2 = aStem.basePairs().back().fResId;
     	mccore::ResId r3= aStem.basePairs().front().rResId;
@@ -104,7 +103,6 @@ namespace annotate
 		return bIsWatsonCrick;
 	}
 	
-	// TODO : Modify this to use interaction annotation
 	std::set< BasePair > AnnotationStems::getWWBasePairs(
 		const AnnotateModel& aModel) const
 	{
@@ -289,6 +287,9 @@ namespace annotate
 		std::set< BasePair > potentials;
 		potentials = getWWBasePairs(aModel);
 		
+		// Filter out multi-chain pairs
+		potentials = filterOutMultiChainsPairs(potentials);
+				
 		// Create all the potential stems
 		std::set< BasePair >::const_iterator it = potentials.begin();
 		for( ; it != potentials.end(); ++ it)
@@ -342,6 +343,22 @@ namespace annotate
 		{
 			aStems.push_back(*itS);
 		}
+	}
+	
+	std::set< BasePair > AnnotationStems::filterOutMultiChainsPairs(
+		std::set< BasePair >& aPairs) const
+	{
+		std::set< BasePair > filteredSet;
+		for(std::set<BasePair>::const_iterator it = aPairs.begin(); 
+			aPairs.end() != it; 
+			++ it)
+		{
+			if(it->fResId.getChainId() == it->rResId.getChainId())
+			{
+				filteredSet.insert(*it);
+			}
+		}
+		return filteredSet;
 	}
 	
 	void AnnotationStems::removeInvalids(std::vector<Stem>& aStems) const

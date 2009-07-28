@@ -34,6 +34,7 @@
 #include "mccore/Version.h"
 
 #include "AnnotateModel.h"
+#include "AnnotationChains.h"
 #include "AnnotationCycles.h"
 #include "AnnotationInteractions.h"
 #include "AnnotationLinkers.h"
@@ -438,10 +439,6 @@ std::string linkerSequence(
 	std::list<mccore::ResId>::const_iterator it;
 	for(it = aResidues.begin(); it != aResidues.end(); ++ it)
 	{
-		if(it != aResidues.begin())
-		{
-			oss << ", ";
-		}
 		mccore::GraphModel::const_iterator itRes = aModel.find(*it);
 		oss << mccore::Pdbstream::stringifyResidueType (itRes->getType());
 	}
@@ -622,6 +619,7 @@ main (int argc, char *argv[])
 					AnnotateModel &am = (AnnotateModel&) *molIt;
 					am.name(getFilePrefix(filename));
 					AnnotationInteractions annInteractions;
+					AnnotationChains annChains;
 					AnnotationStems annStems;
 					AnnotationLinkers annLinkers;
 					AnnotationLoops annLoops;
@@ -633,6 +631,7 @@ main (int argc, char *argv[])
 					AnnotationTertiaryStructures annTertiaryStructures;
 		  
 		  			am.addAnnotation(annInteractions);
+		  			am.addAnnotation(annChains);
 					am.addAnnotation(annStems);
 					am.addAnnotation(annLinkers);
 					am.addAnnotation(annLoops);
@@ -681,7 +680,7 @@ main (int argc, char *argv[])
 		++optind;
 	}
 	
-	filterCycleInfo(cyclesInformations);
+	// filterCycleInfo(cyclesInformations);
 	mccore::gOut (0) << "------------------------------------------------------------" << std::endl;
 	
 	std::vector<stCycleInformation>::const_iterator itInfo;

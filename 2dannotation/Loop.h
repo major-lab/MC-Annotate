@@ -33,13 +33,18 @@ namespace annotate
 		
 		bool isAdjacent(const SecondaryStructure& aStruct) const;
 		bool contains(const mccore::ResId& aResId) const;
+				
+		/**
+		 * @brief Verify that the loop is closed.
+		 * @details The loop is considered closed if both ends connects.
+		 */
+		bool closed() const;
 		
 		/**
-		 * @brief Verify that the loop is complete.
-		 * @details The loop is considered complete if both ends connects, or 
-		 * if both ends are open.
+		 * @brief Verify that the loop is opened.
+		 * @details The loop is considered opened if both ends are opened.
 		 */
-		bool complete() const;
+		bool opened() const;
 				
 		/**
     	 * @brief Insure that the 5' end of the loop is the first position of 

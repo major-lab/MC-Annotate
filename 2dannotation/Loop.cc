@@ -232,26 +232,29 @@ namespace annotate
 		return bConnects;		
 	}
 	
-	bool Loop::complete() const
+	bool Loop::closed() const
 	{
-		bool bComplete = false;
+		bool bClosed = false;
 		
 		if(0 < mLinkers.size())
 		{
-			if(mLinkers.front().connects(mLinkers.back()))
-			{
-				// Complete loop
-				bComplete = true;
-			}
-			else
-			{
-				// Check for open loop completeness
-				bool bStartConnected = mLinkers.front().getStart().isValid();
-				bool bEndConnected = mLinkers.back().getEnd().isValid();
-				bComplete = (!bStartConnected && !bEndConnected);
-			}
+			bClosed = mLinkers.front().connects(mLinkers.back());
 		}
-		return bComplete;		
+		
+		return bClosed;		
+	}
+	
+	bool Loop::opened() const
+	{
+		bool bOpened = false;
+		if(0 < mLinkers.size())
+		{
+			// Check for open loop completeness
+			bool bStartConnected = mLinkers.front().getStart().isValid();
+			bool bEndConnected = mLinkers.back().getEnd().isValid();
+			bOpened = (!bStartConnected && !bEndConnected);
+		}
+		return bOpened;
 	}
 	
 	std::set<BaseInteraction> Loop::getBaseInteractions() const

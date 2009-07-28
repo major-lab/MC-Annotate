@@ -155,7 +155,7 @@ namespace annotate
      */
      unsigned char mucRelationMask;
 
-    std::vector< std::vector< const Residue * > > chains;
+    // std::vector< std::vector< const Residue * > > chains;
 
     // TODO : Cycle annotation is affecting self, const correctness work needs to be done.
     mccore::Molecule mCyclesMolecule;
@@ -248,8 +248,8 @@ namespace annotate
    
   public:
  
- 	void findChains();
- 	void dumpChains () const;
+ 	// void findChains();
+ 	// void dumpChains () const;
     void dumpConformations () const;
 
     // I/O  -----------------------------------------------------------------

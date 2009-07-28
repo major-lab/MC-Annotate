@@ -43,6 +43,8 @@ namespace annotate
 			std::vector<Stem>& aStems) const;
 		void removeInvalids(std::vector<Stem>& aStems) const;
 		void removeOverlaps(std::vector<Stem>& aStems) const;
+		std::set<BasePair> filterOutMultiChainsPairs(
+			std::set<BasePair>& aPairs) const;
 		
 		std::string stemName(const AnnotateModel& aModel, const Stem& aStem);
 	};
