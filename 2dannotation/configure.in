@@ -126,4 +126,6 @@ AC_SUBST(LINKOPTIONS)
 AC_SUBST(LIBALLFLAGSTART)
 AC_SUBST(LIBALLFLAGSTOP)
 
+AC_CONFIG_FILES([mcsc2resids/Makefile])
+
 AC_OUTPUT( Makefile, echo timestamp > stamp-h )

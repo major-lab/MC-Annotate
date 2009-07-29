@@ -560,7 +560,8 @@ void filterCycleInfo(std::vector<stCycleInformation>& cycleInfos)
 	}
 }
 
-std::map<std::string, unsigned int> countSignatures(std::vector<stCycleInformation>& cycleInfos)
+std::map<std::string, unsigned int> countSignatures(
+	std::vector<stCycleInformation>& cycleInfos)
 {
 	std::map<std::string, unsigned int> summary;
 	unsigned int uiCount = 0;
@@ -680,7 +681,7 @@ main (int argc, char *argv[])
 		++optind;
 	}
 	
-	// filterCycleInfo(cyclesInformations);
+	filterCycleInfo(cyclesInformations);
 	mccore::gOut (0) << "------------------------------------------------------------" << std::endl;
 	
 	std::vector<stCycleInformation>::const_iterator itInfo;

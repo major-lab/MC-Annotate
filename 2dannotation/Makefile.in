@@ -18,6 +18,7 @@ prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
 datadir = @datadir@
+datarootdir = @datarootdir@
 includedir = @includedir@
 libdir = @libdir@
 
@@ -36,7 +37,6 @@ AR = @AR@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
-
 
 .SUFFIXES:
 
@@ -69,9 +69,9 @@ DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(ALLSOURCES) $(HEADERS) \
 config.guess config.h.in config.sub configure configure.in install-sh \
 mkinstalldirs stamp-h.in
 
-SUBDIRS =
+SUBDIRS = mcsc2resids
 
-RELEASESUBDIRS =
+RELEASESUBDIRS = $($SUBDIRS)
 
 PROGRAM = $(PROGSOURCES:%.cc=%)
 

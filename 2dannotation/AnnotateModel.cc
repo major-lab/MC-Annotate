@@ -29,31 +29,29 @@
 
 namespace annotate
 {  
-  AbstractModel* 
-  AnnotateModelFM::createModel () const
-  {
-    return new AnnotateModel (residueSelection, environment, rFM);
-  }
+	mccore::AbstractModel* AnnotateModelFM::createModel () const
+	{
+		return new AnnotateModel (residueSelection, environment, rFM);
+	}
 
 
-  AbstractModel*
-  AnnotateModelFM::createModel (const AbstractModel &model) const
-  {
-    return new AnnotateModel (model, residueSelection, environment, rFM);
-  }
+	mccore::AbstractModel* AnnotateModelFM::createModel(
+		const mccore::AbstractModel &model) const
+	{
+		return new AnnotateModel (model, residueSelection, environment, rFM);
+	}
   
 
-  oBinstream& 
-  AnnotateModelFM::write (oBinstream& obs) const
-  {
-    return obs;
-  }
+	mccore::oBinstream& AnnotateModelFM::write (mccore::oBinstream& obs) const
+	{
+		return obs;
+	}
   
 	AnnotateModel::AnnotateModel (
-  		const ResIdSet &rs, 
+  		const mccore::ResIdSet &rs, 
   		unsigned int env, 
-  		const ResidueFactoryMethod *fm)
-  	: GraphModel (fm),
+  		const mccore::ResidueFactoryMethod *fm)
+  	: mccore::GraphModel (fm),
 		residueSelection (rs),
 		environment (env)
     {
@@ -61,11 +59,11 @@ namespace annotate
     }
     
     AnnotateModel::AnnotateModel (
-    	const AbstractModel &right, 
-    	const ResIdSet &rs, 
+    	const mccore::AbstractModel &right, 
+    	const mccore::ResIdSet &rs, 
     	unsigned int env, 
-    	const ResidueFactoryMethod *fm)
-    : GraphModel (right, fm),
+    	const mccore::ResidueFactoryMethod *fm)
+    : mccore::GraphModel (right, fm),
 		residueSelection (rs),
 		environment (env)
     {
@@ -113,139 +111,73 @@ namespace annotate
 	}
 
 
-	void
-	AnnotateModel::annotate (unsigned char aspb)
+	void AnnotateModel::annotate (unsigned char aspb)
 	{
 		mucRelationMask = aspb;
 		
-		gOut (3) << "Computing basic annotation ..." << std::endl;
+		mccore::gOut(3) << "Computing basic annotation ..." << std::endl;
 		GraphModel::annotate (aspb);
     
 		// TODO : This should be moved into AnnotationCycle, but some const 
 		// correctness work needs to be done in mccore.
-		gOut (3) << "Computing minimum cycle bases union ..." << std::endl;
+		mccore::gOut(3) << "Computing minimum cycle bases union ..." << std::endl;
 		unionMinimumCycleBases(mCyclesMolecule);
 
 		// Compute all the requested annotations
 		std::vector<Annotation*>::const_iterator it = annotations.begin();
 		for(;it != annotations.end(); ++it)
 		{
-			gOut (3) << "Computing " << (*it)->annotationName() << " ..." << std::endl;
+			mccore::gOut(3) << "Computing " << (*it)->annotationName();
+			mccore::gOut(3) << " ..." << std::endl;
 			(*it)->update(*this);
 		}
-		
-		// Find the chains in the pdb file
-		// gOut (3) << "Computing chains ..." << std::endl;
-		// findChains();
 	}
-	/*
-	void 
-	AnnotateModel::findChains()
+  
+	void AnnotateModel::dumpConformations () const
 	{
 		const_iterator i;
-    	std::vector< const Residue *> current;
     
 		for (i = begin (); i != end (); ++i)
-		{			
-			const Residue *res = &(*i);
-			if(0 < current.size())
-			{
-				if(current.back()->getResId().getChainId() == res->getResId().getChainId())
-				{
-					current.push_back(res);
-				}
-				else
-				{
-					chains.push_back(current);
-					current.clear();
-				}
-			}
-			else
-			{
-				current.push_back(res);
-			}
-		}
-		if(0 < current.size())
 		{
-			chains.push_back(current);
+			mccore::gOut(0) << i->getResId () << " : ";
+			mccore::gOut(0) << mccore::Pdbstream::stringifyResidueType (i->getType ());
+			if (i->getType ()->isNucleicAcid ())
+			{
+				mccore::gOut(0) << " " << i->getPucker();
+				mccore::gOut(0) << " " << i->getGlycosyl();
+			}
+			mccore::gOut(0) << std::endl;
 		}
 	}
 
-	void 
-	AnnotateModel::dumpChains () const
+	ostream&
+	AnnotateModel::output (ostream &os) const
 	{
-		std::vector< std::vector< const Residue * > >::const_iterator it;
-		for(it = chains.begin(); it != chains.end(); ++ it)
-		{
-			gOut (0) << "Chain " << it->front()->getResId().getChainId() << " : ";
-			std::vector< const Residue * >::const_iterator itRes;
-			for(itRes = it->begin(); itRes != it->end(); )
-			{
-				gOut (0) << Pdbstream::stringifyResidueType ((*itRes)->getType ());
-				++ itRes;
-				if(itRes != it->end())
-				{
-					gOut (0) << "-";
-				}
-			}
-			gOut (0) << endl;
-		}		
-	}*/
-
-  
-  void
-  AnnotateModel::dumpConformations () const
-  {
-    const_iterator i;
-    
-    for (i = begin (); i != end (); ++i)
-      {
-	gOut(0) << i->getResId ()
-		<< " : " << Pdbstream::stringifyResidueType (i->getType ());
-	if (i->getType ()->isNucleicAcid ())
-	  {
-	    gOut (0) << " " << i->getPucker ()
-		     << " " << i->getGlycosyl ();
-	  }
-	gOut (0) << endl;
-      }
-  }
-
-  ostream&
-  AnnotateModel::output (ostream &os) const
-  {
-    gOut (0) << "Residue conformations -------------------------------------------" << endl;
-    dumpConformations ();
-	// gOut (0) << "Chains ----------------------------------------------------------" << endl;
-	// dumpChains();
+		mccore::gOut(0) << "Residue conformations -------------------------------------------" << endl;
+		dumpConformations ();
 	
-	// Compute all the requested annotations
-	std::vector<Annotation*>::const_iterator it = annotations.begin();
-	for(;it != annotations.end(); ++it)
-	{
-		std::string strAnnotationName = (*it)->annotationName();
-		strAnnotationName.append(" ");
-		strAnnotationName.append(65 - strAnnotationName.size(), '-');
-		gOut (0) << strAnnotationName << endl;
-		std::string strOutput = (*it)->output();
-		gOut (0) << strOutput;
+		// Compute all the requested annotations
+		std::vector<Annotation*>::const_iterator it = annotations.begin();
+		for(;it != annotations.end(); ++it)
+		{
+			std::string strAnnotationName = (*it)->annotationName();
+			strAnnotationName.append(" ");
+			strAnnotationName.append(65 - strAnnotationName.size(), '-');
+			mccore::gOut(0) << strAnnotationName << std::endl;
+			mccore::gOut(0) << (*it)->output();
+		}	
+		return os;
 	}
-		
-    return os;
-  }
 
-
-  iPdbstream&
-  AnnotateModel::input (iPdbstream &is)
-  {
-    return GraphModel::input (is);
-  }
+	mccore::iPdbstream& AnnotateModel::input (mccore::iPdbstream &is)
+	{
+		return GraphModel::input (is);
+	}
   
-  iBinstream&
-  AnnotateModel::input (iBinstream &is)
-  {
-    return GraphModel::input (is);
-  }
+	mccore::iBinstream& AnnotateModel::input (mccore::iBinstream &is)
+	{
+		return GraphModel::input (is);
+	}
 }
 
 namespace std
@@ -256,9 +188,8 @@ namespace std
    * @param r the residue.
    * @return the used output stream.
    */
-  ostream& 
-  operator<< (ostream &os, const annotate::AnnotateModel &am)
-  {
-    return am.output (os);
-  }  
+	ostream& operator<< (ostream &os, const annotate::AnnotateModel &am)
+	{
+		return am.output (os);
+	}
 }

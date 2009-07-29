@@ -29,9 +29,6 @@
 #include "mccore/Residue.h"
 #include "mccore/ResidueType.h"
 
-using namespace mccore;
-using namespace std;
-
 namespace mccore
 {
   class iBinstream;
@@ -56,12 +53,12 @@ namespace annotate
    * @author Martin Larose (<a href="larosem@iro.umontreal.ca">larosem@iro.umontreal.ca</a>)
    * @version $Id: AnnotateModel.h 58 2006-11-15 21:09:19Z larosem $
    */
-  class AnnotateModelFM : public ModelFactoryMethod
+  class AnnotateModelFM : public mccore::ModelFactoryMethod
   {
     /**
      * A ResIdSet of residues to annotate.
      */
-    ResIdSet residueSelection;
+    mccore::ResIdSet residueSelection;
 
     /**
      * The number of relation layers around the residue selection to
@@ -80,25 +77,28 @@ namespace annotate
      * annotate.
      * @param fm the residue factory method.
      */
-    AnnotateModelFM (const ResIdSet &rs, unsigned int env, const ResidueFactoryMethod *fm = 0)
-      : ModelFactoryMethod (fm),
-	residueSelection (rs),
-	environment (env)
+    AnnotateModelFM (
+    	const mccore::ResIdSet &rs, 
+    	unsigned int env, 
+    	const mccore::ResidueFactoryMethod *fm = 0)
+	: mccore::ModelFactoryMethod (fm),
+		residueSelection (rs),
+		environment (env)
     { }
 
     /**
      * Initializes the object with the right content.
      * @param right the object to copy.
      */
-    AnnotateModelFM (const ModelFM &right) : ModelFactoryMethod (right) { }
+    AnnotateModelFM (const mccore::ModelFM &right) : mccore::ModelFactoryMethod (right) { }
 
     /**
      * Clones the object.
      * @return the copy of the object.
      */
-    virtual ModelFactoryMethod* clone () const
+    virtual mccore::ModelFactoryMethod* clone () const
     {
-      return (ModelFactoryMethod*) new AnnotateModelFM (*this);
+      return (mccore::ModelFactoryMethod*) new AnnotateModelFM (*this);
     }
   
     /**
@@ -116,7 +116,7 @@ namespace annotate
      * Creates a new model of Model type.
      * @return the newly created empty model.
      */
-    virtual AbstractModel* createModel () const;
+    virtual mccore::AbstractModel* createModel () const;
 
     /**
      * Creates the model initialized with right.  This is like a copy
@@ -124,7 +124,7 @@ namespace annotate
      * @param right the model to copy.
      * @return the newly created copied model.
      */
-    virtual AbstractModel* createModel (const AbstractModel &model) const;
+    virtual mccore::AbstractModel* createModel (const mccore::AbstractModel &model) const;
 
     // I/O  -----------------------------------------------------------------
 
@@ -133,7 +133,7 @@ namespace annotate
      * @param obs the output stream.
      * @return the written stream.
      */
-    virtual oBinstream& write (oBinstream& obs) const;
+    virtual mccore::oBinstream& write (mccore::oBinstream& obs) const;
 
   };
   
@@ -143,24 +143,22 @@ namespace annotate
    * @author 
    * @version 
    */
-  class AnnotateModel : public GraphModel
+  class AnnotateModel : public mccore::GraphModel
   {
     /**
      * The model name.
      */
-    string mName;
+    std::string mName;
     
     /**
      * The relation mask used for the annotation
      */
      unsigned char mucRelationMask;
 
-    // std::vector< std::vector< const Residue * > > chains;
-
     // TODO : Cycle annotation is affecting self, const correctness work needs to be done.
     mccore::Molecule mCyclesMolecule;
 
-    ResIdSet residueSelection;
+    mccore::ResIdSet residueSelection;
 
     unsigned int environment;
     
@@ -180,9 +178,9 @@ namespace annotate
      * residues (default is @ref ExtendedResidueFM).
      */
     AnnotateModel (
-    	const ResIdSet &rs, 
+    	const mccore::ResIdSet &rs, 
     	unsigned int env, 
-    	const ResidueFactoryMethod *fm = 0);
+    	const mccore::ResidueFactoryMethod *fm = 0);
     
     /**
      * Initializes the object with the right's content (deep copy).
@@ -194,10 +192,10 @@ namespace annotate
      * residues (default is @ref ExtendedResidueFM).
      */
     AnnotateModel (
-    	const AbstractModel &right, 
-    	const ResIdSet &rs, 
+    	const mccore::AbstractModel &right, 
+    	const mccore::ResIdSet &rs, 
     	unsigned int env, 
-    	const ResidueFactoryMethod *fm = 0);
+    	const mccore::ResidueFactoryMethod *fm = 0);
 
     /**
      * Destroys the object.
@@ -230,18 +228,22 @@ namespace annotate
     /**
      * Builds the graph of relations, find strands and helices.
      */
-    void annotate (unsigned char aspb = Relation::adjacent_mask|Relation::pairing_mask|Relation::stacking_mask|Relation::backbone_mask);
+    void annotate (unsigned char aspb = 
+    	mccore::Relation::adjacent_mask
+    	|mccore::Relation::pairing_mask
+    	|mccore::Relation::stacking_mask
+    	|mccore::Relation::backbone_mask);
     
     void addAnnotation(Annotation& aAnnotation);
     
   private :
   
-    bool isPairing (const Relation *r)
+    bool isPairing (const mccore::Relation *r)
     {
-      return r->is (PropertyType::pPairing);
+      return r->is (mccore::PropertyType::pPairing);
     }
 
-    bool isPairing (Residue *i, Residue *j)
+    bool isPairing (mccore::Residue *i, mccore::Residue *j)
     {
       return areConnected (i, j) && isPairing (getEdge (i, j));
     }
@@ -266,14 +268,14 @@ namespace annotate
      * @param is the pdb data stream.
      * @return the consumed pdb stream.
      */
-    virtual iPdbstream& input (iPdbstream &is);
+    virtual mccore::iPdbstream& input (mccore::iPdbstream &is);
   
     /**
      * Reads the model from a binary input stream.
      * @param is the binary data stream.
      * @return the consumed binary stream.
      */
-    virtual iBinstream& input (iBinstream &iss);
+    virtual mccore::iBinstream& input (mccore::iBinstream &iss);
 
   };
 }

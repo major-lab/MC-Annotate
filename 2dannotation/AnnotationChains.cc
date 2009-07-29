@@ -30,7 +30,7 @@ namespace annotate
 		clear();
 		
 		chain_content chain;
-		GraphModel::const_iterator it = aModel.begin();
+		mccore::GraphModel::const_iterator it = aModel.begin();
 		char cPrevChain = it->getResId().getChainId();
 		for(;it != aModel.end(); ++ it)
 		{

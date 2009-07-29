@@ -199,7 +199,7 @@ namespace annotate
 		const AnnotationStems* pAnnotStems = aModel.getAnnotation<AnnotationStems>();
 		
 		std::vector<stResidueInfo> chainInfo;
-		GraphModel::const_iterator it = aModel.begin();
+		mccore::GraphModel::const_iterator it = aModel.begin();
 		char cPrevChain = it->getResId().getChainId();
 		for(;it != aModel.end(); ++ it)
 		{
