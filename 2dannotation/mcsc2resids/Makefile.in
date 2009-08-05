@@ -49,15 +49,14 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
 PROGRAM = mcsc2resids
 
-PARENTSRC = ../AnnotateModel.cc ../Annotation.cc ../AnnotationCycles.cc \
-	../AnnotationInteractions.cc ../Cycle.cc
-	
-SOURCES = $(PARENTSRC)
+SOURCES = $(PROGRAM).cc
 
-HEADERS = $(SOURCES:.cc=.h) 
+HEADERS = $(SOURCES:.cc=.h)
 #View.h
 
-OBJECTS = $(SOURCES:.cc=.o) $(PROGRAM).o
+OBJECTS = $(SOURCES:.cc=.o)
+
+LOCALLIBS = ../libmcannotate.a
 
 DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(SOURCES) $(HEADERS) \
 config.guess config.h.in config.sub configure configure.in install-sh \
@@ -75,7 +74,7 @@ all: $(PROGRAM) TAGS
 -include $(SOURCES:%.cc=%.d)
 
 $(PROGRAM): $(OBJECTS)
-	$(LD) $(LINKOPTIONS) -o $@ $^ $(LDFLAGS) $(LIBS)
+	$(LD) $(LINKOPTIONS) -o $@ $^ $(LDFLAGS) $(LOCALLIBS) $(LIBS)
 
 TAGS: $(SOURCES) $(HEADERS)
 	@ etags $^

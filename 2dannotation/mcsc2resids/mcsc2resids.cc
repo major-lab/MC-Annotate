@@ -5,10 +5,14 @@
 // Author           : Marc-Frédérick Blanchet
 // Created On       : Wed Jul 29 10:35:00 2009
 
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+
+#include "mcsc2resids.h"
+#include "AnnotateModel.h"
+#include "AnnotationCycles.h"
+
 #include "mccore/Binstream.h"
 #include "mccore/Messagestream.h"
 #include "mccore/Molecule.h"
@@ -19,15 +23,14 @@
 #ifdef HAVE_LIBRNAMLC__
 #include "mccore/RnamlReader.h"
 #endif
-
 #include "mccore/Version.h"
-#include "AnnotateModel.h"
-#include "AnnotationCycles.h"
+
+#include <set>
+#include <string>
 
 bool binary = false;
 bool oneModel = false;
 unsigned int environment = 0;
-unsigned int modelNumber = 0;  // 1 based vector identifier, 0 means all
 unsigned char gucRelationMask = 
 	mccore::Relation::adjacent_mask
 	| mccore::Relation::pairing_mask 
@@ -48,21 +51,20 @@ void version ()
 void usage ()
 {
 	mccore::gOut (0) << "usage: " << PACKAGE
-		<< " [-bhlvV] [-f <model number>] [-m <relation mask>] <structure file> ..."
-		<< endl;
+		<< " [-bhlvV] [-m <relation mask>] <structure file> ..."
+		<< std::endl;
 }
 
 void help ()
 {
 	mccore::gOut (0)
-		<< "This program annotate structures (and more)." << endl
-		<< "  -b                read binary files instead of pdb files" << endl
-		<< "  -m <mask>         annotation mask string: any combination of 'A' (adjacent), 'S' (stacking), 'P' (pairing) and 'B' (backbone). (default: all)" << endl
-		<< "  -f model number   model to print" << endl
-		<< "  -h                print this help" << endl
-		<< "  -l                be more verbose (log)" << endl
-		<< "  -v                be verbose" << endl
-		<< "  -V                print the software version info" << endl;    
+		<< "This program read cycle structures and return the corresponding residue ids." << std::endl
+		<< "  -b                read binary files instead of pdb files" << std::endl
+		<< "  -m <mask>         annotation mask string: any combination of 'A' (adjacent), 'S' (stacking), 'P' (pairing) and 'B' (backbone). (default: all)" << std::endl
+		<< "  -h                print this help" << std::endl
+		<< "  -l                be more verbose (log)" << std::endl
+		<< "  -v                be verbose" << std::endl
+		<< "  -V                print the software version info" << std::endl;    
 }
 
 
@@ -81,20 +83,6 @@ void read_options (int argc, char* argv[])
 		case 'b':
 			binary = true;
 			break; 
-		case 'f':
-		{
-			long int tmp;
-
-			tmp = strtol (optarg, 0, 10);
-			if (ERANGE == errno	|| EINVAL == errno || 0 > tmp)
-			{
-				mccore::gErr (0) << PACKAGE << ": invalid model value." << std::endl;
-				exit (EXIT_FAILURE);
-			}
-			modelNumber = tmp;
-			oneModel = true;
-			break;
-		}
 		case 'h':
 			usage ();
 			help ();
@@ -142,7 +130,7 @@ void read_options (int argc, char* argv[])
 }
 
 
-mccore::Molecule* loadFile (const string &filename)
+mccore::Molecule* loadFile (const std::string &filename)
 {
 	mccore::Molecule *molecule;
 	mccore::ResidueFM rFM;
@@ -190,6 +178,28 @@ mccore::Molecule* loadFile (const string &filename)
 	return molecule;
 }
 
+unsigned int getModelIndex(const std::string& aFileName)
+{
+	unsigned int uiModel = 0;
+	std::string::size_type index;
+	std::string filename = aFileName;
+	if (std::string::npos != (index = filename.rfind ("/")))
+    {
+		filename.erase (0, index + 1);
+    }
+	if (string::npos != (index = filename.find (".")))
+    { 
+		filename.erase (index, filename.size ());
+    }
+    if(std::string::npos != (index = filename.rfind("_")))
+    {
+    	std::string strModel = filename.substr(index + 1);
+    	uiModel = strtol (strModel.c_str(), 0, 10);   	
+    }
+    
+	return uiModel;
+}
+
 std::string getFilePrefix(const std::string& aFileName)
 {
 	std::string::size_type index;
@@ -203,6 +213,29 @@ std::string getFilePrefix(const std::string& aFileName)
 		filename.erase (index, filename.size ());
     }
 	return filename;
+}
+
+std::string getPdbFileName(const std::string& aFileName)
+{
+	std::string::size_type index;
+	std::string filename = getFilePrefix(aFileName);
+    if(std::string::npos != (index = filename.find("_")))
+    {
+    	filename.erase(index, filename.size());	
+    }
+	return filename;
+}
+
+annotate::Cycle mergeCycles(const std::set<annotate::Cycle>& aCycles)
+{
+	std::set< annotate::Cycle >::const_iterator it = aCycles.begin();
+	annotate::Cycle cycle(*it);
+	it ++;
+	for(;it != aCycles.end(); ++it)
+	{
+		cycle = cycle.merge(*it);
+	}
+	return cycle;	
 }
 
 int main (int argc, char *argv[])
@@ -220,25 +253,33 @@ int main (int argc, char *argv[])
 		{
 			for (molIt = molecule->begin (); molecule->end () != molIt; ++molIt)
 			{
-				if (0 != modelNumber)
-				{
-					--modelNumber;
-				}
-				else
-				{
-					annotate::AnnotateModel &am = (annotate::AnnotateModel&) *molIt;
-					am.name(getFilePrefix(filename));
-					annotate::AnnotationCycles annCycles(0);
-					am.addAnnotation(annCycles);														
-					mccore::gOut (0) << filename << std::endl;
-					am.annotate (gucRelationMask);
-					mccore::gOut(0) << am;
+				
+				annotate::AnnotateModel &am = (annotate::AnnotateModel&) *molIt;
+				am.name(getFilePrefix(filename));
 					
-					if (oneModel)
+				annotate::AnnotationInteractions annInteractions;
+				annotate::AnnotationCycles annCycles(0);
+				am.addAnnotation(annInteractions);
+				am.addAnnotation(annCycles);
+				am.annotate (gucRelationMask);
+				mccore::gOut(0) << getPdbFileName(filename) << " : ";
+				mccore::gOut(0) << getModelIndex(filename) << " : ";
+				if(0 < annCycles.getCycles().size())
+				{
+					annotate::Cycle cycle = mergeCycles(annCycles.getCycles());
+					std::list<mccore::ResId>::const_iterator itRes;
+					for(itRes = cycle.getResidues().begin(); 
+						itRes != cycle.getResidues().end(); 
+						++ itRes)
 					{
-						break;
+						if(itRes != cycle.getResidues().begin())
+						{
+							mccore::gOut(0) << "-";
+						}
+						mccore::gOut(0) << *itRes;
 					}
 				}
+				mccore::gOut(0) << std::endl;				
 			}
 			delete molecule;
 		}
