@@ -53,14 +53,35 @@ namespace annotate
 		 * pair of interacting residues.  The interactions are unqualified, ( no 
 		 * pairing, stacking, adjacency, etc... ).
 		 */
-		std::set<BaseInteraction> getBaseInteractions() const;
+		std::set<BaseInteraction> getBaseInteractions() const
+			throw(mccore::FatalIntLibException);
 		
 	protected:
+		typedef std::pair<mccore::GraphModel::label, mccore::ResId> res_info;
 		std::vector<mccore::ResId> mResidues;
 		StemConnection mStart;
 		StemConnection mEnd;
 		
 		void clear();
+		
+		BaseInteraction getBaseInteractionWithConnection(
+			const StemConnection& aConnection) const 
+			throw(mccore::FatalIntLibException);
+	
+		BaseInteraction getBaseInteractionBetweenConnections() const 
+			throw(mccore::FatalIntLibException);
+			
+		res_info getResInfo(const StemConnection& aConnection) const 
+			throw(mccore::NoSuchElementException);
+			
+		void appendInteractionWithConnection(
+			std::set<BaseInteraction>& aInteractionSet,
+			const StemConnection& aConnection) const 
+			throw(mccore::FatalIntLibException);
+			
+		void appendInteractionBetweenConnections(
+			std::set<BaseInteraction>& aInteractionSet) const 
+			throw(mccore::FatalIntLibException);
 	};
 }
 

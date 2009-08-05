@@ -154,16 +154,21 @@ namespace annotate
 		
 		const AnnotationLoops* pAnnLoops = 
 			aModel.getAnnotation<AnnotationLoops>();
-			
+		
 		if(NULL != pAnnLoops)
 		{
 			unsigned char ucRelMask = aModel.relationMask();
 			std::vector<Loop> loops = pAnnLoops->getLoops();
-			
 			std::vector<Loop>::const_iterator itLoop;
 			for(itLoop = loops.begin(); itLoop != loops.end(); ++ itLoop)
 			{
-				mLoops.insert(Cycle(aModel, itLoop->getResIds(), ucRelMask));
+				std::set<BaseInteraction> interactions = itLoop->getBaseInteractions();
+				// A cycle requires at least 3 interactions
+				if(2 < interactions.size()) 
+				{
+					Cycle cycle(aModel, interactions, ucRelMask);
+					mLoops.insert(cycle);
+				}
 			}
 		}
 	}
@@ -269,7 +274,7 @@ namespace annotate
 		for (itCycle = mCycles.begin(); mCycles.end() != itCycle; ++itCycle)
 	    {
 	    	oss << itCycle->name() << std::endl;
-	    }	  	
+	    }
 		return oss.str();
 	}
 	

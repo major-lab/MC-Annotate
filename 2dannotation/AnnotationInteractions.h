@@ -2,6 +2,7 @@
 #define _annotate_AnnotationInteractions_H_
 
 #include "Annotation.h"
+#include "AlgorithmExtra.h"
 #include "BaseInteraction.h"
 #include "BasePair.h"
 #include "BaseStack.h"
@@ -13,18 +14,6 @@
 namespace annotate
 {
 	class AnnotateModel;
-	
-	class LessBaseInteractionPtr
-	{
-	public:
-  		bool operator() (
-  			const BaseInteraction* lhs, 
-  			const BaseInteraction* rhs) const
-  		{
-  			return (lhs->fResId < rhs->fResId
-			  || (lhs->fResId == rhs->fResId && lhs->rResId < rhs->rResId));
-  		}
-	};
 	
 	class AnnotationInteractions : public Annotation
 	{
@@ -47,12 +36,16 @@ namespace annotate
 			const mccore::ResId ref, 
 			const mccore::ResId res) const;
 		
+		// NOTE : Return value should use smart pointers	
+		std::list<const BaseInteraction*> getInteractions(
+			const std::set<mccore::ResId>& aResIds) const;
+		
 		static const std::string& AnnotationName() {return mstrAnnotationName;}
 		virtual const std::string& annotationName() {return AnnotationName();}
 		
 	private:
 		static std::string mstrAnnotationName;
-		typedef std::multiset< BaseInteraction*, LessBaseInteractionPtr> interaction_multiset;
+		typedef std::multiset< BaseInteraction*, less_ptr<BaseInteraction> > interaction_multiset;
 		typedef interaction_multiset::const_iterator interaction_multiset_const_it;
 		const mccore::GraphModel* mpModel; // Note : This should be a smart ptr
 		std::vector< BasePair > mPairs;

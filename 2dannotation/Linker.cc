@@ -1,5 +1,7 @@
 #include "Linker.h"
 
+#include <cassert>
+
 namespace annotate 
 {
 	Linker::Linker()
@@ -176,10 +178,13 @@ namespace annotate
 		return bConnects;
 	}
 	
-	std::set<BaseInteraction> Linker::getBaseInteractions() const
+	std::set<BaseInteraction> Linker::getBaseInteractions() const 
+	throw(mccore::FatalIntLibException)
 	{
 		std::set<BaseInteraction> interactions;
 		std::vector<mccore::ResId>::const_iterator itRes;
+		
+		// Get the interactions between the residues of the linkers
 		for(itRes = mResidues.begin(); itRes != mResidues.end(); ++itRes)
 		{
 			std::vector<mccore::ResId>::const_iterator itNextRes = itRes;
@@ -192,18 +197,110 @@ namespace annotate
 				interactions.insert(inter);
 			}			
 		}
-		if(mStart.isValid())
+		
+		if(0 == mResidues.size())
 		{
-			BasePair bp = mStart.getPair();
-			BaseInteraction inter(bp.first, bp.fResId, bp.second, bp.rResId);
-			interactions.insert(inter);
-		}
-		if(mEnd.isValid())
+			appendInteractionBetweenConnections(interactions);			
+		}else
 		{
-			BasePair bp = mEnd.getPair();
-			BaseInteraction inter(bp.first, bp.fResId, bp.second, bp.rResId);
-			interactions.insert(inter);
+			appendInteractionWithConnection(interactions, mStart);
+			appendInteractionWithConnection(interactions, mEnd);
 		}
+		
 		return interactions;
 	}
+	
+	void Linker::appendInteractionWithConnection(
+		std::set<BaseInteraction>& aInteractionSet,
+		const StemConnection& aConnection) const 
+		throw(mccore::FatalIntLibException)
+	{
+		if(aConnection.isValid())
+		{			
+			// Add the interaction with the base pair
+			aInteractionSet.insert(getBaseInteractionWithConnection(aConnection));
+		}
+	}
+	
+	void Linker::appendInteractionBetweenConnections(
+			std::set<BaseInteraction>& aInteractionSet) const 
+			throw(mccore::FatalIntLibException)
+	{
+		if(mStart.isValid() && mEnd.isValid())
+		{
+			// Interaction is bewteen connections
+			aInteractionSet.insert(getBaseInteractionBetweenConnections());
+		}else
+		{
+			std::string strMsg("Linker::getBaseInteractions - Empty open linker");
+			throw mccore::FatalIntLibException(strMsg, __FILE__, __LINE__);
+		}
+	}
+	
+	BaseInteraction Linker::getBaseInteractionWithConnection(
+		const StemConnection& aConnection) const 
+		throw(mccore::FatalIntLibException)
+	{
+		assert(aConnection.isValid());
+		assert(0 < mResidues.size());
+		
+		// TODO : Interactions shouldn't use 0 labels, we need to get 
+		// the real adjacency interactions in the linkers<
+		res_info startResInfo = getResInfo(aConnection);
+		res_info endResInfo;
+		endResInfo.first = 0;
+		
+		if(startResInfo.second < std::min(mResidues.front(), mResidues.back()))
+		{
+			// Connection is 5'
+			endResInfo.second = std::min(mResidues.front(), mResidues.back());
+		}
+		else
+		{
+			// Connection is 3'
+			endResInfo.second = std::max(mResidues.front(), mResidues.back());
+		}
+		
+		return BaseInteraction(
+			startResInfo.first, startResInfo.second, 
+			endResInfo.first, endResInfo.second);
+	}
+	
+	BaseInteraction Linker::getBaseInteractionBetweenConnections() const 
+		throw(mccore::FatalIntLibException)
+	{
+		// Assertions
+		assert(mStart.isValid() && mEnd.isValid());
+		
+		res_info startResInfo = getResInfo(mStart);
+		res_info endResInfo = getResInfo(mEnd);
+
+		return BaseInteraction(
+			startResInfo.first, 
+			startResInfo.second, 
+			endResInfo.first, 
+			endResInfo.second);		
+	}
+	
+	Linker::res_info Linker::getResInfo(const StemConnection& aConnection) const 
+		throw(mccore::NoSuchElementException)
+	{
+		std::pair<mccore::GraphModel::label, mccore::ResId> info;
+		BasePair bp = aConnection.getPair();
+		if(bp.fResId == aConnection.getResidue())
+		{
+			info.first = bp.first;
+			info.second = bp.fResId;
+		}else if(bp.rResId == aConnection.getResidue())
+		{
+			info.first = bp.second;
+			info.second = bp.rResId;
+		}else
+		{
+			std::string strMsg("Linker::getResInfo - Residue is not part of the connection");
+			throw mccore::NoSuchElementException(strMsg, __FILE__, __LINE__);
+		}
+		return info;
+	}
+	
 };

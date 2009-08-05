@@ -26,6 +26,9 @@ namespace annotate
 		virtual void update(const AnnotateModel& aModel);		
 		virtual std::string output() const;
 		
+		// Output methods
+		std::string outputLoop(const Loop& aLoop) const;
+		
 	private:
 		static std::string mstrAnnotationName;
 		std::vector< Loop > mLoops;
@@ -36,8 +39,7 @@ namespace annotate
 			std::list<Loop>& aLoops) const;
 		bool loopSelfComplete(const Loop& aLoop) const;
 			
-		// Output methods
-		std::string outputLoop(const Loop& aLoop) const;
+		
 	};
 }
 

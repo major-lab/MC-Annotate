@@ -32,6 +32,21 @@ namespace annotate
 	
 		return setInter;
 	};
+	
+	//----------------------------------------------------------------------
+	template < class T >
+	std::set< T > SetSymmetricDifference( const std::set< T > & set1, const std::set< T > & set2 )
+	{
+		std::set< T > setSymDiff;
+		std::insert_iterator< std::set< T > > iter( setSymDiff, setSymDiff.begin() );
+	
+		std::set_symmetric_difference( set1.begin(), set1.end(),
+	          set2.begin(), set2.end(),
+	          iter );
+	
+		return setSymDiff;
+	};
+	
 		
 	//----------------------------------------------------------------------
 	template < class T >

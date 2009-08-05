@@ -1,40 +1,65 @@
 #include "Cycle.h"
+#include "AnnotateModel.h"
 #include "mccore/AbstractModel.h"
 #include "mccore/Pdbstream.h"
 
-// TODO : Remove this ( DEBUGGING )
-#include "mccore/Messagestream.h"
-
 #include <sstream>
+#include <cassert>
 
 namespace annotate
 {	
 	Cycle::Cycle(const mccore::GraphModel& aModel, unsigned char aucRelationMask)
 	: mName("")
 	{
+		// Create from a cycle model
 		mucRelationMask = aucRelationMask;
 		mModel = aModel;
 		
-		update();
+		mModel.annotate(mucRelationMask);
+
+		// Verify what we have for residues
+		std::set<mccore::ResId> residues;
+		GraphModel::const_iterator it;
+		for(it = mModel.begin(); it != mModel.end(); ++it)
+		{
+			residues.insert(it->getResId());
+		}
+		
+		// Get the interactions forming the cycle
+		AnnotationInteractions annInteractions;
+		annInteractions.update(mModel);
+		std::list<const BaseInteraction*> interactions;
+		interactions = annInteractions.getInteractions(residues);		
+		setInteractions(interactions);
+		
+		mResidues = getOrderedResidues(mInteractions);
+		
+		updateProfile();
 	}
 	
 	Cycle::Cycle(
-		const mccore::GraphModel& aModel, 
-		const std::set<mccore::ResId>& aResIds,
+		const AnnotateModel& aModel, 
+		const std::set<BaseInteraction>& aInteractions,
 		unsigned char aucRelationMask)
 	{
-		// Create a cycle from a set of base interactions
-		mucRelationMask = aucRelationMask;
-		mModel.clear();
+		assert(0 < aInteractions.size());
 		
-		std::set<mccore::ResId>::const_iterator itRes;
-		for(itRes = aResIds.begin(); itRes != aResIds.end(); ++ itRes)
+		// Create a cycle from a set of interactions from another model
+		mucRelationMask = aucRelationMask;
+		
+		mInteractions = aInteractions;
+		mResidues = getOrderedResidues(mInteractions);
+		
+		// Insert the residues in the model
+		std::list<mccore::ResId>::const_iterator it;
+		for(it = mResidues.begin(); it != mResidues.end(); ++it)
 		{
-			GraphModel::const_iterator itResidue = aModel.find(*itRes);
-			mModel.insert(*itResidue);
-		}		
-		update();
-	} 
+			mccore::GraphModel::const_iterator itRes = aModel.find(*it);
+			mModel.insert(*itRes);
+		}
+		
+		updateProfile();
+	}
 	
 	Cycle::~Cycle()
 	{
@@ -47,53 +72,97 @@ namespace annotate
 		return mModel;
 	}
 	
-	void Cycle::update()
+	mccore::ResId Cycle::getMinResId(const interactions_set& aInteractions) const
+		throw(mccore::NoSuchElementException)
 	{
-		mModel.annotate(mucRelationMask);
-			
-		// Get the interactions and residues
-		mInteractionsAnnotation.update(mModel);
-		AbstractModel::const_iterator it;
-		std::list<const BaseInteraction*> interactions;
-		for(it = mModel.begin(); it != mModel.end(); ++it)
+		mccore::ResId minResId;
+		if(0 < aInteractions.size())
 		{
-			AbstractModel::const_iterator itNext = it;
-			itNext ++;
-			if(itNext == mModel.end())
+			interactions_set::const_iterator it = aInteractions.begin();
+			minResId = std::min(it->fResId, it->rResId);
+			for(; it != aInteractions.end(); ++ it)
 			{
-				itNext = mModel.begin();
+				if(it->fResId < minResId)
+				{
+					minResId = it->fResId;
+				}
+				if(it->rResId < minResId)
+				{
+					minResId = it->rResId;
+				}
 			}
-			mccore::ResId refId = it->getResId();
-			mccore::ResId resId = itNext->getResId();			
-			
-			// TODO: Assert that this is not NULL
-			interactions = mInteractionsAnnotation.getInteractions(refId, resId);
-			mInteractions.insert(interactions.begin(), interactions.end());
-			mResidues.push_back(refId);
+		}
+		else
+		{
+			std::string strMsg("Cycle::getMinResId - Interaction set empty");
+			throw mccore::NoSuchElementException(strMsg, __FILE__, __LINE__);
+		}
+		return minResId;
+	}
+	
+	std::list<mccore::ResId> Cycle::getOrderedResidues(
+		const interactions_set& aInteractions) const
+	{
+		std::list<mccore::ResId> resids;
+		interactions_set interactions = aInteractions;
+		mccore::ResId resId = getMinResId(interactions);
+		
+		// Get all the residues ids from the interactions
+		unsigned int iSize = interactions.size();
+		while(0 < iSize)
+		{
+			interactions_set::const_iterator it;
+			for(it = interactions.begin(); it != interactions.end(); ++ it)
+			{
+				if(resId == it->fResId)
+				{
+					resids.push_back(resId);
+					resId = it->rResId;
+					interactions.erase(it);
+					break;					
+				}
+				else if(resId == it->rResId)
+				{
+					resids.push_back(resId);
+					resId = it->fResId;
+					interactions.erase(it);
+					break;
+				}
+			}
+			assert(interactions.size() < iSize);
+			iSize = interactions.size();
 		}
 		
-		updateProfile();
+		// Reorder as necessary
+		std::list<mccore::ResId>::const_iterator it = resids.begin();
+		it ++;
+		if(resids.back() < *it)
+		{
+			resids.reverse();
+			resids.push_front(resids.back());
+			resids.pop_back();
+		}
+		return resids;
+	}
+	
+	void Cycle::setInteractions(const std::list<const BaseInteraction*>& aInteractions)
+	{
+		mInteractions.clear();
+		std::list<const BaseInteraction*>::const_iterator it;
+		for(it = aInteractions.begin(); it != aInteractions.end(); ++ it)
+		{
+			const BaseInteraction* pInter = *it;			
+			BaseInteraction interact(
+				pInter->first, 
+				pInter->fResId, 
+				pInter->second, 
+				pInter->rResId);
+			mInteractions.insert(interact);
+		}
 	}
 	
 	void Cycle::updateProfile()
-	{
-		std::list<mccore::ResId>::iterator itMin;
-		std::list<mccore::ResId>::iterator itNext;
-		itMin = std::min_element(mResidues.begin(), mResidues.end());
-		std::rotate(mResidues.begin(), itMin, mResidues.end());
-		itMin = mResidues.begin();
-		itNext = itMin;
-		itNext ++;
-		
-		// Insure first relation is increasing
-		if(mResidues.back() < (*itNext))
-		{
-			std::reverse(mResidues.begin(), mResidues.end());
-			mResidues.push_front(mResidues.back());
-			mResidues.pop_back();
-		}
-		
-		// Now the cycle is in order, starting with the 5' base
+	{				
 		// Compute the profile
 		int i = 0;
 		// Adds the structure
@@ -139,14 +208,11 @@ namespace annotate
 		interactions_set_iterator last2 = aCycle.mInteractions.end();	
 		while (first1!=last1 && first2!=last2 && !bShare)
   		{
-  			const BaseInteraction* pLeft = *first1;
-  			const BaseInteraction* pRight = *first2;
-  			
-			if (*pLeft<*pRight)
+			if (*first1<*first2)
 			{
 				 ++first1;
 			}
-			else if (*pRight<*pLeft)
+			else if (*first2<*first1)
 			{
 				 ++first2;
 			}
@@ -177,30 +243,51 @@ namespace annotate
 	}
 	
 	std::string Cycle::getSequence() const
+		throw(mccore::NoSuchElementException)
 	{
 		std::ostringstream oss;
 		std::list<mccore::ResId>::const_iterator it;
 		for(it = mResidues.begin(); it != mResidues.end(); ++ it)
 		{
 			mccore::GraphModel::const_iterator itRes = mModel.find(*it);
+			assert(itRes != mModel.end()); // Cycle is invalid
 			oss << mccore::Pdbstream::stringifyResidueType (itRes->getType());
 		}
 		return oss.str();
 	}
 	
-	std::set<BaseInteraction> Cycle::getBaseInteractions() const
+	void Cycle::insertResiduesInModel(
+		const GraphModel& aModel, 
+		const std::list<mccore::ResId>& aResidues)
 	{
-		std::set<BaseInteraction> interactions;
-		interactions_set_iterator it;
-		// Get the set of resId to resId interactions, without qualification
-		for(it = mInteractions.begin(); it != mInteractions.end(); ++ it)
+		// Insert the residues in the model
+		std::list<mccore::ResId>::const_iterator it;
+		for(it = aResidues.begin(); it != aResidues.end(); ++it)
 		{
-			const BaseInteraction* pBaseInter = *it;
-			BaseInteraction inter(
-				pBaseInter->first, pBaseInter->fResId, 
-				pBaseInter->second, pBaseInter->rResId);
-			interactions.insert(inter);	
-		}		
-		return interactions;
+			mccore::GraphModel::const_iterator itRes = aModel.find(*it);
+			mModel.insert(*itRes);
+		}
+	}
+	
+	Cycle Cycle::merge(const Cycle& aCycle) const
+	{
+		// Create a cycle
+		Cycle mergeResult;
+		
+		// Keep the same relation mask
+		mergeResult.mucRelationMask = mucRelationMask;
+		
+		// Keep the symmetric difference of the interactions of both cycles
+		mergeResult.mInteractions = SetSymmetricDifference(
+			getBaseInteractions(), 
+			aCycle.getBaseInteractions());
+		
+		// Set the residues from the interactions
+		mergeResult.mResidues = getOrderedResidues(mergeResult.mInteractions);
+
+		// Update the profile		
+		mergeResult.updateProfile();
+		
+		return mergeResult;
 	}
 }

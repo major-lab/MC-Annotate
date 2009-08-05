@@ -266,13 +266,21 @@ namespace annotate
 			std::set<BaseInteraction> linkerInteractions;
 			linkerInteractions = itLinker->getBaseInteractions();
 			interactions.insert(linkerInteractions.begin(), linkerInteractions.end());
+			if(itLinker->getStart().isValid())
+			{
+				BasePair basePair = itLinker->getStart().getPair();
+				BaseInteraction interact(
+					basePair.first, basePair.fResId, 
+					basePair.second, basePair.rResId);
+				interactions.insert(interact);
+			}
 			if(itLinker->getEnd().isValid())
 			{
 				BasePair basePair = itLinker->getEnd().getPair();
 				BaseInteraction interact(
 					basePair.first, basePair.fResId, 
 					basePair.second, basePair.rResId);
-				linkerInteractions.insert(interact);
+				interactions.insert(interact);
 			}
 		}
 		return interactions;
@@ -285,6 +293,12 @@ namespace annotate
 		for(it = mLinkers.begin(); it != mLinkers.end(); ++ it)
 		{
 			resids.insert(it->getResidues().begin(), it->getResidues().end());
+			if(it->getStart().isValid())
+			{
+				BasePair basePair = it->getStart().getPair();
+				resids.insert(basePair.fResId);
+				resids.insert(basePair.rResId);
+			}
 			if(it->getEnd().isValid())
 			{
 				BasePair basePair = it->getEnd().getPair();

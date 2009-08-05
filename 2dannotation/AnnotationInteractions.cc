@@ -27,7 +27,7 @@ namespace annotate
 		mLinks.clear();
     	mMarks.clear();
     	
-    	std::multiset< BaseInteraction*, LessBaseInteractionPtr>::const_iterator it;
+    	std::multiset< BaseInteraction*, less_ptr<BaseInteraction> >::const_iterator it;
     	for(it = mInteractions.begin(); it != mInteractions.end(); ++ it)
     	{
     		*it;
@@ -62,7 +62,7 @@ namespace annotate
 					mPairs.push_back(*pInteraction);
 					mInteractions.insert(pInteraction);
 				}
-				if ((*eit)->is (PropertyType::pAdjacent5p))
+				if ((*eit)->is (PropertyType::pAdjacent))
 				{
 					BaseLink* pInteraction = new BaseLink(refLabel, refId, resLabel, resId);
 					mLinks.push_back(*pInteraction);
@@ -178,7 +178,7 @@ namespace annotate
 			const mccore::ResId res) const
 	{
 		std::list<const BaseInteraction*> interactions;
-		std::multiset< BaseInteraction*, LessBaseInteractionPtr>::const_iterator it;
+		std::multiset< BaseInteraction*, less_ptr<BaseInteraction> >::const_iterator it;
 		BaseInteraction key(0, std::min(ref, res), 0, std::max(ref, res)); // Dummy interaction for search
 		// TODO : Return a list of interactions
 		std::pair<interaction_multiset_const_it, interaction_multiset_const_it> range;
@@ -186,6 +186,23 @@ namespace annotate
 		for(it = range.first; it != range.second; ++it)
 		{
 			interactions.push_back(*it);
+		}
+		return interactions;
+	}
+	
+	std::list<const BaseInteraction*> AnnotationInteractions::getInteractions(
+			const std::set<mccore::ResId>& aResIds) const
+	{
+		std::list<const BaseInteraction*> interactions;
+		std::multiset< BaseInteraction*, less_ptr<BaseInteraction> >::const_iterator it;
+		it = mInteractions.begin();
+		for(it = mInteractions.begin(); it != mInteractions.end(); ++ it)
+		{
+			if(	(aResIds.find((*it)->fResId) != aResIds.end()) 
+				&& (aResIds.find((*it)->rResId) != aResIds.end()))
+			{
+				interactions.push_back(*it);
+			}
 		}
 		return interactions;
 	}

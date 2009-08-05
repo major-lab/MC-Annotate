@@ -15,8 +15,8 @@ namespace annotate
 		// LIFECYCLE ------------------------------------------------------------
 		Cycle(const mccore::GraphModel& aModel, unsigned char aucRelationMask);
 		Cycle(
-			const mccore::GraphModel& aModel, 
-			const std::set<mccore::ResId>& aResIds,
+			const AnnotateModel& aModel, 
+			const std::set<BaseInteraction>& aInteractions,
 			unsigned char aucRelationMask);
 		
 		virtual ~Cycle();
@@ -33,41 +33,54 @@ namespace annotate
 		
 		const std::vector<unsigned int>& profile() const {return mProfile;}
 		
+		const std::set<BaseInteraction>& getBaseInteractions() const 
+		{
+			return mInteractions;
+		}
+		
 		// OPERATORS ------------------------------------------------------------
 		bool operator <(const Cycle& aCycle) const;
 		
 		// METHODS --------------------------------------------------------------
 		bool shareInteractions(const Cycle& aCycle) const;
 		bool isSingleChain() const;
-		std::string getSequence() const;
+		std::string getSequence() const 
+			throw(mccore::NoSuchElementException);
 		unsigned int getNbStrands() const {return mProfile.size();}
 		
 		/**
-		 * @brief getBaseInteractions forming the cycle.
-		 * @details BaseInteractions are unspecialized interactions between 
-		 * residues.  This effectively return only one interaction between any 
-		 * pair of interacting residues.  The interactions are unqualified, ( no 
-		 * pairing, stacking, adjacency, etc... ).
+		 * @brief merge cycle with this one.
+		 * @details Create a cycle containing the union of the residues from 
+		 * both cycles, but the disjunction of the interactions.
+		 * @return result of the merge.
 		 */
-		std::set<BaseInteraction> getBaseInteractions() const;
+		Cycle merge(const Cycle& aCycle) const;
 		
 	private:
+		Cycle() {}
 		std::string mName;
 		std::string mModelName;
 				
-		typedef std::set<const BaseInteraction*, less_ptr<const BaseInteraction> > interactions_set;
+		typedef std::set<BaseInteraction> interactions_set;
 		typedef interactions_set::const_iterator interactions_set_iterator;
 		
 		unsigned char mucRelationMask;
 		mccore::GraphModel mModel;
-		AnnotationInteractions mInteractionsAnnotation;
 		interactions_set mInteractions;
 		std::vector<unsigned int> mProfile;
 		std::list<mccore::ResId> mResidues;
 		
-		void update();
 		void updateProfile();
 		void clear();
+		void setInteractions(
+			const std::list<const BaseInteraction*>& aInteractions);
+		mccore::ResId getMinResId(const interactions_set& aInteractions) const
+			throw(mccore::NoSuchElementException);
+		std::list<mccore::ResId> getOrderedResidues(
+			const interactions_set& aInteractions) const;
+		void insertResiduesInModel(
+			const GraphModel& aModel, 
+			const std::list<mccore::ResId>& aResidues);
 	};
 }
 

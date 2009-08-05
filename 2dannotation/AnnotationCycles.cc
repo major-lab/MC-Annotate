@@ -10,6 +10,7 @@ namespace annotate
 	AnnotationCycles::AnnotationCycles(unsigned int auiMaxCycleSize)
 	{
 		muiMaxCycleSize = auiMaxCycleSize;
+		addRequirement<AnnotationInteractions>();
 	}
 	
 	AnnotationCycles::~AnnotationCycles()
@@ -42,7 +43,7 @@ namespace annotate
 					cycle.name(name);
 					cycle.modelName(aModel.name());
 					mCycles.insert(cycle);
-				}				
+				}
 			}
 		}
 	}

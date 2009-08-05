@@ -473,14 +473,11 @@ stCycleInformation cycleInformation(
 	stCycleInformation info;
 	info.strModel = aCycle.modelName();
 	info.strSignature = cycleProfile(aCycle) + " = ";
-	
 	stCycleInfoEntry cycleEntry;
 	cycleEntry.strProfile = cycleProfile(aCycle);
 	cycleEntry.strResIds = cycleResidues(aCycle);
 	cycleEntry.strSequence = aCycle.getSequence();
-	
 	info.connects.push_back(cycleEntry);
-
 	std::set<Cycle> connections = annot.getConnections(aCycle);
 	std::set<Cycle>::const_iterator it;
 	for(it = connections.begin(); it != connections.end(); ++it)
@@ -489,10 +486,8 @@ stCycleInformation cycleInformation(
 		entry.strProfile = cycleProfile(*it);
 		entry.strResIds = cycleResidues(*it);
 		entry.strSequence = it->getSequence();
-		cyclesEntries.push_back(entry);	
+		cyclesEntries.push_back(entry);
 	}
-	
-	
 	std::list< std::list<mccore::ResId> > linkersConnect = annot.getLinkerConnections(aCycle);
 	std::list< std::list<mccore::ResId> >::const_iterator linkIt;
 	for(linkIt = linkersConnect.begin();
@@ -510,7 +505,6 @@ stCycleInformation cycleInformation(
 	std::sort(linkerEntries.begin(), linkerEntries.end());
 	info.connects.insert(info.connects.end(), cyclesEntries.begin(), cyclesEntries.end());
 	info.connects.insert(info.connects.end(), linkerEntries.begin(), linkerEntries.end());
-	
 	std::vector<stCycleInfoEntry>::iterator entryIt = info.connects.begin();
 	if(entryIt != info.connects.end())
 	{
@@ -525,7 +519,6 @@ stCycleInformation cycleInformation(
 			}
 		}
 	}
-
 	return info;
 }
 
@@ -641,7 +634,7 @@ main (int argc, char *argv[])
 					am.addAnnotation(annResSecondaryStructures);
 					am.addAnnotation(annCycles);
 					am.addAnnotation(annTertiaryCycles);
-					am.addAnnotation(annTertiaryStructures);
+					// am.addAnnotation(annTertiaryStructures);
 					
 					gOut (0) << "Annotating Model ------------------------------------------------" << endl;										
 					gOut (0) << filename << std::endl;
@@ -657,16 +650,17 @@ main (int argc, char *argv[])
 					{
 						dumpStructuresFiles(getFilePrefix(filename), annTertiaryStructures);
 					}
-										
-					for(std::set<Cycle>::const_iterator itCycle = annTertiaryCycles.getCycles().begin();
+					
+					std::set<Cycle>::const_iterator itCycle;
+					for(itCycle = annTertiaryCycles.getCycles().begin();
 						itCycle != annTertiaryCycles.getCycles().end();
 						++ itCycle)
 					{
 						if(	guiMax3DCycleStrands == 0 
 							|| (itCycle->getNbStrands() <= guiMax3DCycleStrands))
 						{
-							cyclesInformations.push_back(
-								cycleInformation(am, *itCycle, annTertiaryCycles));
+							stCycleInformation info = cycleInformation(am, *itCycle, annTertiaryCycles);
+							cyclesInformations.push_back(info);
 						}
 					}
 					
@@ -681,8 +675,9 @@ main (int argc, char *argv[])
 		++optind;
 	}
 	
-	filterCycleInfo(cyclesInformations);
+
 	mccore::gOut (0) << "------------------------------------------------------------" << std::endl;
+	// filterCycleInfo(cyclesInformations);
 	
 	std::vector<stCycleInformation>::const_iterator itInfo;
 	for(itInfo = cyclesInformations.begin(); 

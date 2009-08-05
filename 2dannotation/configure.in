@@ -25,7 +25,7 @@ AC_PROG_CXX
 AC_CANONICAL_HOST
 
 AC_PROG_INSTALL
-
+AC_PATH_PROG(AR,ar)
 AC_ARG_WITH(condor,
     [  --with-condor[=PATH]    enable condor compilation],
     if eval "test \"`echo $with_condor`\" = yes"; then
@@ -69,6 +69,8 @@ if eval "test -z \"`echo $GXX`\""; then # not gnu compiler
 	    AC_MSG_RESULT([no]))
 	LIBALLFLAGSTART="-all"
 	LIBALLFLAGSTOP="-notall"
+	ARXX="$CXX"
+	AROPTIONS="-ar -o"
 	;;
     *-sun-*)
 	CXXFLAGS="$CXXFLAGS -xO2"
@@ -100,6 +102,8 @@ if eval "test -z \"`echo $GXX`\""; then # not gnu compiler
 	    AC_MSG_RESULT([no]))
 	LIBALLFLAGSTART="-z allextract"
 	LIBALLFLAGSTOP="-z defaultextract"
+	ARXX="$CXX"
+	AROPTIONS="-xar -o"
 	;;
     esac;
 elif eval "test \"`echo $GXX`\" = yes"; then     # gnu compiler
@@ -114,7 +118,9 @@ elif eval "test \"`echo $GXX`\" = yes"; then     # gnu compiler
 	LDNAMEPARAM="-Wl,-soname,"
 	LINKOPTIONS=""
 	LIBALLFLAGSTART="-Wl,-whole-archive"
-	LIBALLFLAGSTOP="-Wl,-no-whole-archive";
+	LIBALLFLAGSTOP="-Wl,-no-whole-archive"
+	ARXX="$AR"
+	AROPTIONS="crs";
 fi
 
 AC_SUBST(PACKAGE)
@@ -125,6 +131,8 @@ AC_SUBST(LDNAMEPARAM)
 AC_SUBST(LINKOPTIONS)
 AC_SUBST(LIBALLFLAGSTART)
 AC_SUBST(LIBALLFLAGSTOP)
+AC_SUBST(ARXX)
+AC_SUBST(AROPTIONS)
 
 AC_CONFIG_FILES([mcsc2resids/Makefile])
 

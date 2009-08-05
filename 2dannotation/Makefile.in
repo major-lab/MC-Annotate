@@ -33,6 +33,8 @@ LINKOPTIONS = @LINKOPTIONS@
 LIBS = @LIBS@
 
 AR = @AR@
+ARXX=@ARXX@
+AROPTIONS=@AROPTIONS@
 
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -63,7 +65,11 @@ ALLSOURCES = $(SOURCES) $(PROGSOURCES)
 
 HEADERS = $(SOURCES:%.cc=%.h)
 
-OBJECTS = $(ALLSOURCES:%.cc=%.o)
+PROGOBJECTS = $(PROGSOURCES:%.cc=%.o)
+
+LIBOBJECTS = $(SOURCES:%.cc=%.o)
+
+ALLOBJECTS = $(ALLSOURCES:%.cc=%.o)
 
 DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(ALLSOURCES) $(HEADERS) \
 config.guess config.h.in config.sub configure configure.in install-sh \
@@ -75,6 +81,7 @@ RELEASESUBDIRS = $($SUBDIRS)
 
 PROGRAM = $(PROGSOURCES:%.cc=%)
 
+LIBRARY = libmcannotate
 
 all: $(PROGRAM) TAGS
 	@ for subdir in $(SUBDIRS); do \
@@ -90,12 +97,15 @@ condor: $(PROGRAM)-condor TAGS
 	@ for subdir in $(SUBDIRS); do \
 	   (cd $$subdir && $(MAKE) $@) || exit 1; \
 	  done
+	  
+$(LIBRARY).a: $(LIBOBJECTS)
+	$(ARXX) $(AROPTIONS) $@  $^
 
-$(PROGRAM) $(PROGRAM)-static: $(OBJECTS)
-	$(LD) $(LINKOPTIONS) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
+$(PROGRAM) $(PROGRAM)-static: $(LIBRARY).a $(PROGOBJECTS)
+	$(LD) $(LINKOPTIONS) -o $@ $(PROGOBJECTS) $(LIBRARY).a $(LDFLAGS) $(LIBS)
 
-$(PROGRAM)-condor: $(OBJECTS)
-	$(LDCC) $(LD) $(LINKOPTIONS) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
+$(PROGRAM)-condor: $(LIBRARY).a $(PROGOBJECTS)
+	$(LDCC) $(LD) $(LINKOPTIONS) -o $@ $(PROGOBJECTS) $(LIBRARY).a $(LDFLAGS) $(LIBS)
 
 TAGS: $(ALLSOURCES) $(HEADERS)
 	@ etags $^
@@ -138,7 +148,7 @@ mostlyclean-local:
 clean: clean-recursive clean-local
 
 clean-local: mostlyclean-local
-	@ $(RM) $(PROGRAM) $(PROGRAM)-static $(PROGRAM)-condor $(OBJECTS) *.d TAGS
+	@ $(RM) $(PROGRAM) $(PROGRAM)-static $(PROGRAM)-condor $(ALLOBJECTS) *.d TAGS
 	@- rm -rf ii_files
 
 distclean: distclean-recursive distclean-local
