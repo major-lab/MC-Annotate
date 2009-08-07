@@ -58,7 +58,8 @@ SOURCES = AnnotateModel.cc Annotation.cc AnnotationChains.cc \
 	AnnotationLoops.cc AnnotationResSecondaryStructures.cc AnnotationStems.cc \
 	AnnotationTertiaryCycles.cc AnnotationTertiaryPairs.cc \
 	AnnotationTertiaryStacks.cc AnnotationTertiaryStructures.cc BaseLink.cc \
-	BasePair.cc BaseStack.cc Cycle.cc Linker.cc Loop.cc Stem.cc \
+	BasePair.cc BaseStack.cc Cycle.cc GraphIsoUllman.cc \
+	IsomorphismContextPerfectMatch.cc Linker.cc Loop.cc Stem.cc \
 	StemConnection.cc TertiaryStructure.cc 
 
 ALLSOURCES = $(SOURCES) $(PROGSOURCES)
@@ -75,7 +76,7 @@ DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(ALLSOURCES) $(HEADERS) \
 config.guess config.h.in config.sub configure configure.in install-sh \
 mkinstalldirs stamp-h.in
 
-SUBDIRS = mcsc2resids
+SUBDIRS = mcsc2resids mcnaip
 
 RELEASESUBDIRS = $($SUBDIRS)
 

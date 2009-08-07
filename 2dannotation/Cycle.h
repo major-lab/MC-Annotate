@@ -48,14 +48,6 @@ namespace annotate
 			throw(mccore::NoSuchElementException);
 		unsigned int getNbStrands() const {return mProfile.size();}
 		
-		/**
-		 * @brief merge cycle with this one.
-		 * @details Create a cycle containing the union of the residues from 
-		 * both cycles, but the disjunction of the interactions.
-		 * @return result of the merge.
-		 */
-		Cycle merge(const Cycle& aCycle) const;
-		
 	private:
 		Cycle() {}
 		std::string mName;
@@ -78,9 +70,6 @@ namespace annotate
 			throw(mccore::NoSuchElementException);
 		std::list<mccore::ResId> getOrderedResidues(
 			const interactions_set& aInteractions) const;
-		void insertResiduesInModel(
-			const GraphModel& aModel, 
-			const std::list<mccore::ResId>& aResidues);
 	};
 }
 

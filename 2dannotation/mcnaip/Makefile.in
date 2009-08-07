@@ -1,0 +1,180 @@
+#                            -*- Mode: Makefile -*-
+# Makefile.in
+# Copyright © 2009 Laboratoire de Biologie Informatique et Théorique.
+#                  Université de Montréal
+# Author           : Marc-Frédérick Blanchet
+# Created On       : Wed Jul 29 14:57:00 2009
+# $Revision: 1.1.1 $
+# $Id: Makefile.in 1.1.1 2009-07-29 14:57:00 blanchmf $
+
+
+PACKAGE = @PACKAGE@
+VERSION = @VERSION@
+
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+@SET_MAKE@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+datadir = @datadir@
+datarootdir = @datarootdir@
+includedir = @includedir@
+libdir = @libdir@
+
+CXX = @CXX@
+CXXFLAGS = @CXXFLAGS@
+DEPFLAGS = @DEPFLAGS@
+DEFS = @DEFS@
+LD = @CXX@
+LINKOPTIONS = @LINKOPTIONS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+
+INSTALL = @INSTALL@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+
+.SUFFIXES:
+
+%.d: %.cc
+	@ $(SHELL) -ec '$(CXX) $(DEPFLAGS) $(CXXFLAGS) $(DEFS) -I. -I.. -I$(srcdir) $< \
+	    | sed '\''s/\($*\)\.o[ :]*/\1.o $@ : /g'\'' > $@; \
+	      [ -s $@ ] || rm -f $@'
+
+%.o: %.cc
+	$(CXX) $(CXXFLAGS) $(DEFS) -I. -I.. -I$(srcdir) -c $<
+
+PROGRAM = mcnaip
+
+SOURCES = $(PROGRAM).cc
+
+HEADERS = $(SOURCES:.cc=.h)
+#View.h
+
+OBJECTS = $(SOURCES:.cc=.o)
+
+LOCALLIBS = ../libmcannotate.a
+
+DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(SOURCES) $(HEADERS) \
+config.guess config.h.in config.sub configure configure.in install-sh \
+mkinstalldirs $(PROGRAM).cc
+
+SUBDIRS =
+
+RELEASESUBDIRS =
+
+all: $(PROGRAM) TAGS
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+
+-include $(SOURCES:%.cc=%.d)
+
+$(PROGRAM): $(OBJECTS)
+	$(LD) $(LINKOPTIONS) -o $@ $^ $(LDFLAGS) $(LOCALLIBS) $(LIBS)
+
+TAGS: $(SOURCES) $(HEADERS)
+	@ etags $^
+
+doc: html texi docbook
+
+
+html: $(HEADERS)
+	@ kdoc -f html -d html -p --strip-h-path -lmccore -z $^
+
+texi: $(HEADERS)
+	@ kdoc -f texinfo -d texi -p --strip-h-path -lmccore $^
+
+docbook: $(HEADERS)
+	@ kdoc -f docbook -d docbook -p --strip-h-path -lmccore $^
+
+
+
+install: $(PROGRAM)
+	@ echo Installing $(PROGRAM) in $(bindir)
+	@ $(srcdir)/mkinstalldirs $(bindir)
+	@ $(RM) $(bindir)/$(PROGRAM)
+	@ $(INSTALL_PROGRAM) $(PROGRAM) $(bindir)/$(PROGRAM)-$(VERSION)
+	@ echo Creating symbolic link $(bindir)/$(PROGRAM)
+	@ ln -f -s $(bindir)/$(PROGRAM)-$(VERSION) $(bindir)/$(PROGRAM)
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+
+uninstall:
+	@ for subdir in $(SUBDIRS); do \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+	@ $(RM) $(bindir)/$(PROGRAM)-$(VERSION)
+	@ $(RM) $(bindir)/$(PROGRAM)
+
+
+
+mostlyclean: mostlyclean-recursive mostlyclean-local
+
+mostlyclean-local:
+	@ $(RM) *~
+
+clean: clean-recursive clean-local
+
+clean-local: mostlyclean-local
+	@ $(RM) $(OBJECTS) $(PROGRAM)
+	@ $(RM) *.d TAGS
+	@- rm -rf ii_files
+
+distclean: distclean-recursive distclean-local
+
+distclean-local: clean-local
+	@ $(RM) Makefile config.h config.log config.status
+
+topclean: topclean-recursive topclean-local
+
+topclean-local: distclean-local
+
+mostlyclean-recursive clean-recursive distclean-recursive topclean-recursive:
+	@ for subdir in $(SUBDIRS); do \
+	   target=`echo $@ | sed 's/-recursive//'`; \
+	   echo Making $$target in $$subdir; \
+	   (cd $$subdir && $(MAKE) $$target) || exit 1; \
+	  done
+
+
+dist:
+	@ $(RM) -r $(PACKAGE)-$(VERSION)
+	@ mkdir $(PACKAGE)-$(VERSION)
+	@ chmod 777 $(PACKAGE)-$(VERSION)
+	@ echo Copying distribution files
+	@ for file in $(DISTFILES); do \
+	   ln $(srcdir)/$$file $(PACKAGE)-$(VERSION) 2> /dev/null \
+	     || cp -p $(srcdir)/$$file $(PACKAGE)-$(VERSION); \
+	  done
+	@ for subdir in $(SUBDIRS); do \
+	   mkdir $(PACKAGE)-$(VERSION)/$$subdir; \
+	   chmod 777 $(PACKAGE)-$(VERSION)/$$subdir; \
+	   (cd $$subdir && $(MAKE) $@) || exit 1; \
+	  done
+	@ chmod -R a+r $(PACKAGE)-$(VERSION)
+	@ tar chof $(PACKAGE)-$(VERSION).tar $(PACKAGE)-$(VERSION)
+	@ gzip -9 $(PACKAGE)-$(VERSION).tar
+	@ $(RM) -r $(PACKAGE)-$(VERSION)
+
+
+configure: $(srcdir)/configure.in
+	@ cd $(srcdir) && autoconf
+
+config.h: $(srcdir)/config.h.in $(srcdir)/configure
+	@ ./config.status $@
+	@ touch config.h
+
+Makefile: $(srcdir)/Makefile.in ./config.status
+	@ ./config.status $@
+
+config.status: $(srcdir)/configure
+	@ ./config.status --recheck
+
+# Tell versions [3.59,3.63) of GNU make not to export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

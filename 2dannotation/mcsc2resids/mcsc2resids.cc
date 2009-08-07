@@ -25,6 +25,7 @@
 #endif
 #include "mccore/Version.h"
 
+#include <cassert>
 #include <set>
 #include <string>
 
@@ -36,7 +37,6 @@ unsigned char gucRelationMask =
 	| mccore::Relation::pairing_mask 
 	| mccore::Relation::stacking_mask 
 	| mccore::Relation::backbone_mask;
-mccore::ResIdSet residueSelection;
 const char* shortopts = "Vbf:hlvm:";
 
 void version ()
@@ -132,6 +132,7 @@ void read_options (int argc, char* argv[])
 
 mccore::Molecule* loadFile (const std::string &filename)
 {
+	mccore::ResIdSet residueSelection;
 	mccore::Molecule *molecule;
 	mccore::ResidueFM rFM;
 	annotate::AnnotateModelFM aFM (residueSelection, environment, &rFM);
@@ -200,6 +201,30 @@ unsigned int getModelIndex(const std::string& aFileName)
 	return uiModel;
 }
 
+std::string getModelProfile(const std::string& aFileName)
+{
+	std::string::size_type index;
+	std::string filename = aFileName;
+	if (std::string::npos != (index = filename.rfind ("/")))
+    {
+		filename.erase (0, index + 1);
+    }
+	if (string::npos != (index = filename.find (".")))
+    { 
+		filename.erase (index, filename.size ());
+    }
+    if(std::string::npos != (index = filename.find("_")))
+    {
+    	filename.erase (0, index + 1);
+    }
+    if(std::string::npos != (index = filename.find("_")))
+    {
+    	filename.erase (index, filename.size());
+    }
+    
+	return filename;
+}
+
 std::string getFilePrefix(const std::string& aFileName)
 {
 	std::string::size_type index;
@@ -226,16 +251,214 @@ std::string getPdbFileName(const std::string& aFileName)
 	return filename;
 }
 
-annotate::Cycle mergeCycles(const std::set<annotate::Cycle>& aCycles)
+std::vector<std::list<mccore::ResId> > getResProfile(
+	const annotate::AnnotateModel& aModel)
 {
-	std::set< annotate::Cycle >::const_iterator it = aCycles.begin();
-	annotate::Cycle cycle(*it);
-	it ++;
-	for(;it != aCycles.end(); ++it)
+	// Compute the profile
+	std::vector<std::list<mccore::ResId> > profile;
+	const annotate::AnnotationInteractions* pInteractions = 
+		aModel.getAnnotation<annotate::AnnotationInteractions>();
+	
+	// Adds the structure
+	std::list<mccore::ResId> strand;
+	GraphModel::const_iterator itPrev = aModel.end();
+	GraphModel::const_iterator it;
+	for(it = aModel.begin(); it != aModel.end(); ++ it)
 	{
-		cycle = cycle.merge(*it);
+		if(	it == aModel.begin() 
+			|| pInteractions->areContiguous(
+				itPrev->getResId(), 
+				it->getResId()))
+		{
+			strand.push_back(it->getResId());
+		}
+		else
+		{
+			profile.push_back(strand);
+			strand.clear();
+			strand.push_back(it->getResId());
+		}
+		itPrev = it;
 	}
-	return cycle;	
+	profile.push_back(strand);
+	strand.clear();
+	return profile;
+}
+
+std::list<unsigned int> getProfile(const annotate::AnnotateModel& aModel)
+{
+	// Compute the profile
+	std::list<unsigned int> profile;
+	std::vector<std::list<mccore::ResId> > resProfile = getResProfile(aModel);
+	
+	std::vector<std::list<mccore::ResId> >::const_iterator itStrand;
+	for(itStrand = resProfile.begin(); 
+		itStrand != resProfile.end(); 
+		++ itStrand)
+	{
+		profile.push_back(itStrand->size());
+	}
+	return profile;
+}
+
+std::list<unsigned int> getExpectedProfile(const std::string& astrProfile)
+{
+	std::list<unsigned int> profile;
+	std::string::const_iterator it;
+	for(it = astrProfile.begin(); it != astrProfile.end(); ++ it)
+	{
+		std::string strNumber(1, *it);
+		profile.push_back(atol (strNumber.c_str()));
+	}	
+	return profile;
+}
+
+/** 
+ * @brief Creates a cycle from the annotate model, and using provided profile.
+ * @details It is necessary to provide the profile as the same residues may 
+ * form different cycles depending on what interactions constitute them.
+ */
+annotate::Cycle getCycle(
+	const annotate::AnnotateModel& aModel, 
+	const std::list<unsigned int>& aExpectedProfile)
+{
+	std::vector<std::vector<mccore::ResId> > strands;
+
+	// Try and make a cycle from the given information
+	GraphModel::const_iterator itResidue = aModel.begin();
+	std::list<unsigned int>::const_iterator itStrand;
+	for(itStrand = aExpectedProfile.begin(); 
+		itStrand != aExpectedProfile.end(); 
+		++ itStrand)
+	{
+		std::vector<mccore::ResId> strand;
+		for(unsigned int iRes = 0; iRes < *itStrand; ++ iRes)
+		{
+			strand.push_back(itResidue->getResId());
+			++ itResidue;
+		}
+		strands.push_back(strand);
+		strand.clear();
+	}
+
+	return createCycleFromStrands(aModel, strands);	
+}
+
+annotate::Cycle createCycleFromStrands(
+	const annotate::AnnotateModel& aModel, 
+	std::vector<std::vector<mccore::ResId> > aStrands)
+{
+	// Try and make a cycle from the given information
+	const annotate::AnnotationInteractions* pInteractions = 
+		aModel.getAnnotation<annotate::AnnotationInteractions>();
+	
+	std::set<annotate::BaseInteraction> interactions;
+	std::vector<std::vector<mccore::ResId> >::const_iterator itStrand;
+	
+	// Connects adjacency
+	for(itStrand = aStrands.begin(); itStrand != aStrands.end(); ++ itStrand)
+	{
+		std::vector<mccore::ResId>::const_iterator itRes;
+		std::vector<mccore::ResId>::const_iterator itPrevRes = itStrand->end();
+		for(itRes = itStrand->begin(); itRes != itStrand->end(); ++ itRes)
+		{
+			if(itRes != itStrand->begin())
+			{
+				std::list<const annotate::BaseInteraction*> inters;
+				inters = pInteractions->getInteractions(*itPrevRes, *itRes);
+				
+				const annotate::BaseLink* pLink = findFirstBaseLink(inters);
+				
+				assert(NULL != pLink); 
+				annotate::BaseInteraction inter1(
+					pLink->first,
+					pLink->fResId, 
+					pLink->second,
+					pLink->rResId);
+				interactions.insert(inter1);
+			}
+			itPrevRes = itRes;
+		}
+	}
+	
+	// Connects the strands
+	if(1 == aStrands.size())
+	{
+		std::list<const annotate::BaseInteraction*> inters;
+		inters = pInteractions->getInteractions(
+			aStrands[0].front(), 
+			aStrands[0].back());
+			
+		const annotate::BasePair* pPair = findFirstBasePair(inters);
+		annotate::BaseInteraction inter1(
+					pPair->first,
+					pPair->fResId, 
+					pPair->second,
+					pPair->rResId);
+		interactions.insert(inter1);
+	}
+	else if(2 == aStrands.size())
+	{
+		std::list<const annotate::BaseInteraction*> inters;
+		inters = pInteractions->getInteractions(
+			aStrands[0].front(), 
+			aStrands[1].back());
+			
+		const annotate::BasePair* pPair = findFirstBasePair(inters);
+		assert(NULL != pPair);
+		annotate::BaseInteraction inter1(
+					pPair->first,
+					pPair->fResId, 
+					pPair->second,
+					pPair->rResId);
+					
+		inters = pInteractions->getInteractions(
+			aStrands[0].back(), 
+			aStrands[1].front());
+			
+		pPair = findFirstBasePair(inters);
+		assert(NULL != pPair);
+		annotate::BaseInteraction inter2(
+			pPair->first, 	pPair->fResId, 
+			pPair->second,	pPair->rResId);
+		
+		interactions.insert(inter1);
+		interactions.insert(inter2);
+		
+	} else
+	{
+		mccore::gOut(0) << "1 or 2 strands cycle supported" << std::endl;
+		assert(false);
+	}
+	return annotate::Cycle(aModel, interactions, gucRelationMask);	
+}
+
+const annotate::BaseLink* findFirstBaseLink(
+	std::list<const annotate::BaseInteraction*>& aInteractions)
+{
+	const annotate::BaseLink* pFound = NULL;
+	std::list<const annotate::BaseInteraction*>::const_iterator it;
+	for(it = aInteractions.begin(); 
+		it != aInteractions.end() && NULL == pFound; 
+		++ it)
+	{
+		pFound = dynamic_cast<const annotate::BaseLink*>(*it);
+	}
+	return pFound;
+}
+
+const annotate::BasePair* findFirstBasePair(
+	std::list<const annotate::BaseInteraction*>& aInteractions)
+{
+	const annotate::BasePair* pFound = NULL;
+	std::list<const annotate::BaseInteraction*>::const_iterator it;
+	for(it = aInteractions.begin(); 
+		it != aInteractions.end() && NULL == pFound; 
+		++ it)
+	{
+		pFound = dynamic_cast<const annotate::BasePair*>(*it);
+	}
+	return pFound;
 }
 
 int main (int argc, char *argv[])
@@ -262,24 +485,55 @@ int main (int argc, char *argv[])
 				am.addAnnotation(annInteractions);
 				am.addAnnotation(annCycles);
 				am.annotate (gucRelationMask);
+				
+				std::list<unsigned int> profile = getProfile(am);
+				mccore::gOut(0) << std::endl;
+				if(2 < profile.size())
+				{
+					mccore::gOut(0) << "Maximum of 2 strand supported" << std::endl;
+					exit(0);
+				}
+				
 				mccore::gOut(0) << getPdbFileName(filename) << " : ";
 				mccore::gOut(0) << getModelIndex(filename) << " : ";
-				if(0 < annCycles.getCycles().size())
+				std::list<unsigned int>::const_iterator itProfile;
+				for(itProfile = profile.begin(); 
+					itProfile != profile.end(); 
+					++ itProfile)
 				{
-					annotate::Cycle cycle = mergeCycles(annCycles.getCycles());
-					std::list<mccore::ResId>::const_iterator itRes;
-					for(itRes = cycle.getResidues().begin(); 
-						itRes != cycle.getResidues().end(); 
-						++ itRes)
-					{
-						if(itRes != cycle.getResidues().begin())
-						{
-							mccore::gOut(0) << "-";
-						}
-						mccore::gOut(0) << *itRes;
-					}
+					mccore::gOut(0) << *itProfile;
 				}
-				mccore::gOut(0) << std::endl;				
+				mccore::gOut(0) << " : ";
+				
+				std::string strFileProfile = getModelProfile(filename);
+				
+				mccore::gOut(0) << strFileProfile << "\t: ";
+				std::list<unsigned int> fileProfile = 
+					getExpectedProfile(strFileProfile);
+				
+				annotate::Cycle cycle = getCycle(am, fileProfile);
+				mccore::gOut(0) << " cp ";
+				std::vector<unsigned int>::const_iterator itCProf;
+				for(itCProf = cycle.profile().begin(); 
+					itCProf != cycle.profile().end(); 
+					++ itCProf)
+				{
+					mccore::gOut(0) << *itCProf;
+				}
+				mccore::gOut(0) << " : ";
+				
+				std::list<mccore::ResId>::const_iterator itRes;
+				for(itRes = cycle.getResidues().begin(); 
+					itRes != cycle.getResidues().end(); 
+					++ itRes)
+				{
+					if(itRes != cycle.getResidues().begin())
+					{
+						mccore::gOut(0) << "-";
+					}
+					mccore::gOut(0) << *itRes;
+				}
+				mccore::gOut(0) << std::endl;
 			}
 			delete molecule;
 		}

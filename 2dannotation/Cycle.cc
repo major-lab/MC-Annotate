@@ -255,39 +255,4 @@ namespace annotate
 		}
 		return oss.str();
 	}
-	
-	void Cycle::insertResiduesInModel(
-		const GraphModel& aModel, 
-		const std::list<mccore::ResId>& aResidues)
-	{
-		// Insert the residues in the model
-		std::list<mccore::ResId>::const_iterator it;
-		for(it = aResidues.begin(); it != aResidues.end(); ++it)
-		{
-			mccore::GraphModel::const_iterator itRes = aModel.find(*it);
-			mModel.insert(*itRes);
-		}
-	}
-	
-	Cycle Cycle::merge(const Cycle& aCycle) const
-	{
-		// Create a cycle
-		Cycle mergeResult;
-		
-		// Keep the same relation mask
-		mergeResult.mucRelationMask = mucRelationMask;
-		
-		// Keep the symmetric difference of the interactions of both cycles
-		mergeResult.mInteractions = SetSymmetricDifference(
-			getBaseInteractions(), 
-			aCycle.getBaseInteractions());
-		
-		// Set the residues from the interactions
-		mergeResult.mResidues = getOrderedResidues(mergeResult.mInteractions);
-
-		// Update the profile		
-		mergeResult.updateProfile();
-		
-		return mergeResult;
-	}
 }

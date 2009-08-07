@@ -18,18 +18,25 @@ namespace annotate
 	class AnnotationInteractions : public Annotation
 	{
 	public:
+		// LIFECYCLE -----------------------------------------------------------
 		AnnotationInteractions();
 		virtual ~AnnotationInteractions();
+		
+		// ACCESS --------------------------------------------------------------		
+		const std::vector< BasePair >& getPairs() const {return mPairs;}
+		const std::vector< BaseStack >& getStacks() const {return mStacks;}
+		const std::vector< BaseLink >& getLinks() const {return mLinks;}
+		
+		static const std::string& AnnotationName() {return mstrAnnotationName;}
+		virtual const std::string& annotationName() {return AnnotationName();}
+		
+		// METHODS -------------------------------------------------------------
 		
 		// This annotation doesn't depends on any other
 		void update(const mccore::GraphModel& aModel);
 		
 		virtual void update(const AnnotateModel& aModel);		
 		virtual std::string output() const;
-		
-		const std::vector< BasePair >& getPairs() const {return mPairs;}
-		const std::vector< BaseStack >& getStacks() const {return mStacks;}
-		const std::vector< BaseLink >& getLinks() const {return mLinks;}
 		
 		// NOTE : Return value should use smart pointers
 		std::list<const BaseInteraction*> getInteractions(
@@ -40,8 +47,12 @@ namespace annotate
 		std::list<const BaseInteraction*> getInteractions(
 			const std::set<mccore::ResId>& aResIds) const;
 		
-		static const std::string& AnnotationName() {return mstrAnnotationName;}
-		virtual const std::string& annotationName() {return AnnotationName();}
+		/**
+		 * @brief Checks if two residues have a link relation between them
+		 */
+		bool areContiguous(
+			const mccore::ResId ref, 
+			const mccore::ResId res) const;
 		
 	private:
 		static std::string mstrAnnotationName;

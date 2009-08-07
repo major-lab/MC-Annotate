@@ -206,4 +206,23 @@ namespace annotate
 		}
 		return interactions;
 	}
+	
+	bool AnnotationInteractions::areContiguous(
+			const mccore::ResId ref, 
+			const mccore::ResId res) const
+	{
+		bool bContiguous = false;
+		std::list<const BaseInteraction*> interactions = 
+			getInteractions(ref, res);
+		
+		std::list<const BaseInteraction*>::const_iterator it;
+		for(it = interactions.begin(); 
+			it != interactions.end() && !bContiguous; 
+			++it)
+		{
+			const BaseLink* pLink = dynamic_cast<const BaseLink*>(*it);
+			bContiguous = (NULL != pLink);
+		}
+		return bContiguous;
+	}
 }
