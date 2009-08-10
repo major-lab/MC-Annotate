@@ -23,6 +23,7 @@
 #endif
 #include "mccore/Version.h"
 
+#include <algorithm>
 #include <cassert>
 #include <set>
 #include <string>
@@ -30,7 +31,20 @@
 
 bool binary = false;
 bool oneModel = false;
-const char* shortopts = "Vbf:hlv";
+const char* shortopts = "Vbhlv";
+
+typedef std::list<const mccore::Residue*> residue_strand; 
+typedef std::vector<residue_strand > residue_profile;
+
+struct stCycleInfo
+{
+	std::string strFile;
+	std::string strModelId;
+	std::string strFileProfile;
+	std::string strProfile;
+	std::string strResIds;
+	std::string strNucleotides;
+};
 
 void version ()
 {
@@ -148,9 +162,9 @@ mccore::Molecule* loadFile (const std::string &filename)
 	return molecule;
 }
 
-unsigned int getModelIndex(const std::string& aFileName)
+std::string getModelIndex(const std::string& aFileName)
 {
-	unsigned int uiModel = 0;
+	std::string strModel;
 	std::string::size_type index;
 	std::string filename = aFileName;
 	if (std::string::npos != (index = filename.rfind ("/")))
@@ -163,11 +177,10 @@ unsigned int getModelIndex(const std::string& aFileName)
     }
     if(std::string::npos != (index = filename.rfind("_")))
     {
-    	std::string strModel = filename.substr(index + 1);
-    	uiModel = strtol (strModel.c_str(), 0, 10);   	
+    	strModel = filename.substr(index + 1);	
     }
     
-	return uiModel;
+	return strModel;
 }
 
 std::string getModelProfile(const std::string& aFileName)
@@ -220,20 +233,20 @@ std::string getPdbFileName(const std::string& aFileName)
 	return filename;
 }
 
-std::vector<std::list<mccore::ResId> > getResProfile(
+residue_profile getResProfile(
 	const mccore::GraphModel& aModel,
 	std::list<unsigned int>& aProfile)
 {
 	// Compute the profile
-	std::vector<std::list<mccore::ResId> > profile;
+	residue_profile profile;
 	std::list<unsigned int>::const_iterator itProf;
 	mccore::GraphModel::const_iterator itRes = aModel.begin();
 	for(itProf = aProfile.begin(); itProf != aProfile.end(); ++ itProf)
 	{
-		std::list<mccore::ResId> strand; 
+		residue_strand strand; 
 		for(unsigned int iRes = 0; iRes < *itProf; ++ iRes)
 		{
-			strand.push_back(itRes->getResId());
+			strand.push_back(&(*itRes));
 			++ itRes;
 		}
 		profile.push_back(strand);
@@ -242,10 +255,9 @@ std::vector<std::list<mccore::ResId> > getResProfile(
 	return profile;
 }
 
-std::vector< std::list<mccore::ResId> > orderProfile(
-	const std::vector< std::list<mccore::ResId> >& aProfile)
+residue_profile orderProfile(const residue_profile& aProfile)
 {
-	std::vector< std::list<mccore::ResId> > profile;
+	residue_profile profile;
 	if(1 == aProfile.size())
 	{
 		// Loop, nothing to do
@@ -253,15 +265,15 @@ std::vector< std::list<mccore::ResId> > orderProfile(
 	}
 	else if(2 == aProfile.size())
 	{
-		if(aProfile[0].front() < aProfile[1].front())
+		if(aProfile[1].front() < aProfile[0].front())
 		{
-			// Already in order
-			profile = aProfile;
+			profile.push_back(aProfile[1]);
+			profile.push_back(aProfile[0]);
 		}
 		else
 		{
-			profile.push_back(aProfile[1]);
-			profile.push_back(aProfile[0]);			
+			// Already in order
+			profile = aProfile;
 		}
 	}else
 	{
@@ -283,10 +295,10 @@ std::list<unsigned int> getExpectedProfile(const std::string& astrProfile)
 	return profile;
 }
 
-std::string getProfileString(std::vector<std::list<mccore::ResId> >& aProfile)
+std::string getProfileString(residue_profile& aProfile)
 {
 	std::ostringstream oss;
-	std::vector<std::list<mccore::ResId> >::const_iterator it;
+	residue_profile::const_iterator it;
 	for(it = aProfile.begin(); it != aProfile.end(); ++ it)
 	{
 		oss << it->size();
@@ -294,24 +306,48 @@ std::string getProfileString(std::vector<std::list<mccore::ResId> >& aProfile)
 	return oss.str();
 }
 
-std::string getResiduesString(std::vector<std::list<mccore::ResId> >& aProfile)
+std::string getResiduesString(residue_profile& aProfile)
 {
 	std::ostringstream oss;
-	std::vector<std::list<mccore::ResId> >::const_iterator it;
+	residue_profile::const_iterator it;
 	for(it = aProfile.begin(); it != aProfile.end(); ++ it)
 	{
 		if(it != aProfile.begin())
 		{
 			oss << "-";
 		}
-		std::list<mccore::ResId>::const_iterator itRes;
+		residue_strand::const_iterator itRes;
 		for(itRes = it->begin(); itRes != it->end(); ++ itRes)
 		{
 			if(itRes != it->begin())
 			{
 				oss << "-";
 			}
-			oss << *itRes;
+			oss << (*itRes)->getResId();
+		}
+	}
+	
+	return oss.str();
+}
+
+std::string getNucleotideString(residue_profile& aProfile)
+{
+	std::ostringstream oss;
+	residue_profile::const_iterator it;
+	for(it = aProfile.begin(); it != aProfile.end(); ++ it)
+	{
+		if(it != aProfile.begin())
+		{
+			oss << "-";
+		}
+		residue_strand::const_iterator itRes;
+		for(itRes = it->begin(); itRes != it->end(); ++ itRes)
+		{
+			if(itRes != it->begin())
+			{
+				oss << "-";
+			}
+			oss << mccore::Pdbstream::stringifyResidueType((*itRes)->getType());
 		}
 	}
 	
@@ -320,6 +356,10 @@ std::string getResiduesString(std::vector<std::list<mccore::ResId> >& aProfile)
 
 int main (int argc, char *argv[])
 {
+	std::vector<std::size_t> colSizes;
+	colSizes.resize(6, 0);
+	std::list<stCycleInfo> infos;
+	
 	read_options (argc, argv);
 
 	while (optind < argc)
@@ -335,26 +375,51 @@ int main (int argc, char *argv[])
 			{
 				mccore::GraphModel &am = (mccore::GraphModel&) *molIt;
 				
-				mccore::gOut(0) << getPdbFileName(filename) << " : ";
-				mccore::gOut(0) << getModelIndex(filename) << "\t: ";
 				std::string strFileProfile = getModelProfile(filename);
 				std::list<unsigned int> expectedProfile = getExpectedProfile(strFileProfile);
-				std::vector<std::list<mccore::ResId> > resProfile = getResProfile(am, expectedProfile);
+				residue_profile resProfile = getResProfile(am, expectedProfile);
 				resProfile = orderProfile(resProfile);
 				
-				mccore::gOut(0) << strFileProfile << "\t: ";
-				
-				// Output the real profile
-				mccore::gOut(0) << getProfileString(resProfile) << "\t: ";
-				
-				// Output the residues
-				mccore::gOut(0) << getResiduesString(resProfile);
-				
-				mccore::gOut(0) << std::endl;
+				stCycleInfo info;
+				info.strFile = getPdbFileName(filename);
+				colSizes[0] = std::max(info.strFile.size(), colSizes[0]);
+				info.strModelId = getModelIndex(filename);
+				colSizes[1] = std::max(info.strModelId.size(), colSizes[1]);
+				info.strFileProfile = getModelProfile(filename);
+				colSizes[2] = std::max(info.strFileProfile.size(), colSizes[2]);
+				info.strProfile =  getProfileString(resProfile);
+				colSizes[3] = std::max(info.strProfile.size(), colSizes[3]);
+				info.strResIds = getResiduesString(resProfile);
+				colSizes[4] = std::max(info.strResIds.size(), colSizes[4]);
+				info.strNucleotides = getNucleotideString(resProfile);
+				colSizes[5] = std::max(info.strNucleotides.size(), colSizes[5]);
+				infos.push_back(info);
 			}
 			delete molecule;
 		}
 		++optind;
 	}
+	
+	std::list<stCycleInfo>::iterator infoIt;
+	for(infoIt = infos.begin(); infoIt != infos.end(); ++infoIt)
+	{
+		infoIt->strFile.resize(colSizes[0], ' ');
+		infoIt->strModelId.resize(colSizes[1], ' ');
+		infoIt->strFileProfile.resize(colSizes[2], ' ');
+		infoIt->strProfile.resize(colSizes[3], ' ');
+		infoIt->strResIds.resize(colSizes[4], ' ');
+		infoIt->strNucleotides.resize(colSizes[5], ' ');
+	}
+	for(infoIt = infos.begin(); infoIt != infos.end(); ++infoIt)
+	{
+		mccore::gOut(0) << infoIt->strFile << " : ";
+		mccore::gOut(0) << infoIt->strModelId << " : ";
+		mccore::gOut(0) << infoIt->strFileProfile << " : ";
+		mccore::gOut(0) << infoIt->strProfile << " : ";
+		mccore::gOut(0) << infoIt->strResIds << " : ";
+		mccore::gOut(0) << infoIt->strNucleotides;
+		mccore::gOut(0) << std::endl;
+	}
+	
 	return EXIT_SUCCESS;	
 }
