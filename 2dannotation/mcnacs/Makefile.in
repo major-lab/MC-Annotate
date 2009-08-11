@@ -49,8 +49,8 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
 PROGRAM = mcnacs
 
-SOURCES = $(PROGRAM).cc CycleInfo.cc InteractionInfo.cc ModelInfo.cc \
-	NACycleInfo.cc
+SOURCES = $(PROGRAM).cc CycleInfo.cc Interaction.cc InteractionInfo.cc \
+	ModelInfo.cc NACycleInfo.cc
 
 HEADERS = $(SOURCES:.cc=.h)
 #View.h
