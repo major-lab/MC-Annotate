@@ -64,14 +64,9 @@ int CycleInfo::compareStrand(
 			leftIt != aLeft.end() && rightIt != aRight.end(); 
 			++leftIt, ++rightIt)
 		{
-			if(*leftIt < *rightIt)
+			iCompare = leftIt->compare(*rightIt);
+			if(iCompare != 0)
 			{
-				iCompare = -1;
-				break;
-			}
-			else if(*leftIt < *rightIt)
-			{
-				iCompare = 1;
 				break;
 			}
 		}

@@ -14,7 +14,7 @@ bool ModelInfo::operator <(const ModelInfo& aRight) const
 
 bool ModelInfo::operator ==(const ModelInfo& aRight) const
 {
-	return ((muiModel < aRight.muiModel) && (mstrPDBFile == aRight.mstrPDBFile));
+	return ((muiModel == aRight.muiModel) && (mstrPDBFile == aRight.mstrPDBFile));
 }
 
 bool ModelInfo::operator !=(const ModelInfo& aRight) const

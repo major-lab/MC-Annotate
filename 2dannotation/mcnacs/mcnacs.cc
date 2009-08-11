@@ -10,25 +10,30 @@
 #endif
 
 #include "mcnacs.h"
+
+#include "../AlgorithmExtra.h"
+
+#include "CycleInfo.h"
+#include "InteractionInfo.h"
+#include "ModelInfo.h"
+
 #include <algorithm>
+#include <cassert>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <list>
 #include <map>
+#include <set>
+#include <sstream>
 #include <string>
-
-#include "CycleInfo.h"
-#include "InteractionInfo.h"
-#include "ModelInfo.h"
 
 std::string gstrCyclesFile;
 std::string gstrPairsFile;
 const char* shortopts = "Vhp:c:";
 
 typedef std::multimap<ModelInfo, InteractionInfo>::const_iterator inter_map_iterator;
-typedef std::multimap<ModelInfo, CycleInfo>::const_iterator cycle_map_iterator;
-
+typedef std::set<CycleInfo>::const_iterator cycle_set_iterator;
 
 void version ()
 {
@@ -89,6 +94,22 @@ void read_options (int argc, char* argv[])
 			exit (EXIT_FAILURE);
 		}
 	}
+}
+
+std::string cycleResiduesString(const CycleInfo& aCycle)
+{
+	std::ostringstream oss;
+	std::vector<std::string> residues = aCycle.getResidues();
+	std::vector<std::string>::const_iterator it = residues.begin();
+	for(it = residues.begin(); it != residues.end(); ++ it)
+	{
+		if(it != residues.begin())
+		{
+			oss << "-";
+		}
+		oss << *it;
+	}
+	return oss.str();
 }
 
 void cleanString(std::string& aString, const char& aChar)
@@ -204,10 +225,11 @@ std::vector<std::vector<std::string> > getStrandResidues(
 	return strandResidues;
 }
 
-std::multimap<ModelInfo, CycleInfo> readCyclesFile(const std::string& aFile)
+std::set<CycleInfo> readCyclesFile(const std::string& aFile)
 {
+	unsigned int i = 1;
 	std::ifstream infile;
-	std::multimap<ModelInfo, CycleInfo> infos;
+	std::set<CycleInfo> infos;
 	infile.open (aFile.c_str(), std::ifstream::in);
 	std::string strLine;
 	
@@ -241,7 +263,9 @@ std::multimap<ModelInfo, CycleInfo> readCyclesFile(const std::string& aFile)
 		CycleInfo::residue_profile resProfile;
 		resProfile = getStrandResidues(strResIds, prof); 
 		CycleInfo cInfo(strPDBFile, uiModel, resProfile);
-		infos.insert(std::pair<ModelInfo, CycleInfo>(cInfo.getModelInfo(), cInfo));
+		infos.insert(cInfo);
+		assert(infos.size() == i);
+		++ i;
 	}
 	
 	infile.close();
@@ -249,12 +273,12 @@ std::multimap<ModelInfo, CycleInfo> readCyclesFile(const std::string& aFile)
 	return infos;
 }
 
-void displayCycleInfos(const std::multimap<ModelInfo, CycleInfo>& aCycleInfos)
+void displayCycleInfos(const std::set<CycleInfo>& aCycleInfos)
 {
-	std::multimap<ModelInfo, CycleInfo>::const_iterator it = aCycleInfos.begin();
+	std::set<CycleInfo>::const_iterator it = aCycleInfos.begin();
 	for(it = aCycleInfos.begin(); it != aCycleInfos.end(); ++ it)
 	{
-		const CycleInfo* pInfo = &(it->second);
+		const CycleInfo* pInfo = &(*it);
 		std::cout	<< pInfo->getPDBFile() << ":"
 					<< pInfo->getModel() << ":";
 		
@@ -309,20 +333,20 @@ std::list<ModelInfo> getModels(
 	return models;
 }
 
-std::multimap<ModelInfo, CycleInfo> getNonAdjacentCycleFromModel(
+std::set<CycleInfo> getNonAdjacentCycleFromModel(
 	const std::pair<inter_map_iterator, inter_map_iterator>& interactionRange,
-	const std::pair<cycle_map_iterator, cycle_map_iterator>& cycleRange)
+	const std::pair<cycle_set_iterator, cycle_set_iterator>& cycleRange)
 {
-	std::multimap<ModelInfo, CycleInfo> oNACycles;
+	std::set<CycleInfo> oNACycles;
 	inter_map_iterator interIt;
-	cycle_map_iterator cycleIt;
+	cycle_set_iterator cycleIt;
 	for(interIt = interactionRange.first; 
 		interIt != interactionRange.second; 
 		++ interIt) 
 	{
 		for(cycleIt = cycleRange.first; cycleIt != cycleRange.second; ++cycleIt)
 		{
-			if(cycleIt->second.contains(interIt->second))
+			if(cycleIt->contains(interIt->second))
 			{
 				oNACycles.insert(*cycleIt);				
 			}
@@ -331,11 +355,28 @@ std::multimap<ModelInfo, CycleInfo> getNonAdjacentCycleFromModel(
 	return oNACycles;
 }
 
-std::multimap<ModelInfo, CycleInfo> getNonAdjacentCycle(
-	const std::multimap<ModelInfo, InteractionInfo>& aInteractions,
-	const std::multimap<ModelInfo, CycleInfo>& aCycles)
+std::pair<cycle_set_iterator, cycle_set_iterator> getModelRange(const std::set<CycleInfo>& aCycles, const ModelInfo& aModelInfo)
 {
-	std::multimap<ModelInfo, CycleInfo> oNACycles;
+	std::pair<cycle_set_iterator, cycle_set_iterator> range(aCycles.end(), aCycles.end());
+	cycle_set_iterator it = aCycles.begin();
+	while(it != aCycles.end() && it->getModelInfo() < aModelInfo)
+	{
+		++ it;
+	}
+	range.first = it;
+	while(it != aCycles.end() && !(aModelInfo < it->getModelInfo()))
+	{
+		++ it;
+	}
+	range.second = it;
+	return range;
+} 
+
+std::set<CycleInfo> getNonAdjacentCycle(
+	const std::multimap<ModelInfo, InteractionInfo>& aInteractions,
+	const std::set<CycleInfo>& aCycles)
+{
+	std::set<CycleInfo> oNACycles;
 	
 	std::list<ModelInfo> models = getModels(aInteractions);
 	
@@ -343,29 +384,50 @@ std::multimap<ModelInfo, CycleInfo> getNonAdjacentCycle(
 	for(itModel = models.begin(); itModel != models.end(); ++itModel)
 	{
 		std::pair<inter_map_iterator, inter_map_iterator> interRange;
-		std::pair<cycle_map_iterator, cycle_map_iterator> cycleRange;
+		std::pair<cycle_set_iterator, cycle_set_iterator> cycleRange;
 		
 		interRange = aInteractions.equal_range(*itModel);
-		cycleRange = aCycles.equal_range(*itModel);
+		cycleRange = getModelRange(aCycles, *itModel);
 		
-		std::multimap<ModelInfo, CycleInfo> oModelCycle;
+		std::set<CycleInfo> oModelCycle;
 		oModelCycle = getNonAdjacentCycleFromModel(interRange, cycleRange);
 		
 		oNACycles.insert(oModelCycle.begin(), oModelCycle.end());		
 	}
 	return oNACycles;
 }
+
+std::set<CycleInfo> removeCycles(
+	std::multimap<ModelInfo, CycleInfo>& aCycles, 
+	const std::multimap<ModelInfo, CycleInfo>& aToRemove)
+{
+	std::set<CycleInfo> cycles;
+	std::multimap<ModelInfo, CycleInfo>::const_iterator it;
+	for(it = aCycles.begin(); it != aCycles.end(); ++ it)
+	{
+		cycles.insert(it->second);
+	}
 	
+	std::set<CycleInfo> cyclesToRemove;
+	for(it = aToRemove.begin(); it != aToRemove.end(); ++ it)
+	{
+		cyclesToRemove.insert(it->second);
+	}
+	
+	return annotate::SetDifference(cycles, cyclesToRemove);
+}
+
 int main (int argc, char *argv[])
 {
 	read_options (argc, argv);
 	
-	std::multimap<ModelInfo, InteractionInfo> Interactioninfos = readPairsFile(gstrPairsFile);
-	std::multimap<ModelInfo, CycleInfo> cycleInfos = readCyclesFile(gstrCyclesFile);
+	std::multimap<ModelInfo, InteractionInfo> interactionInfos = readPairsFile(gstrPairsFile);
+	std::set<CycleInfo> cycleInfos = readCyclesFile(gstrCyclesFile);
+	std::set<CycleInfo> cycleNAInfos = getNonAdjacentCycle(interactionInfos, cycleInfos);
 	
-	std::multimap<ModelInfo, CycleInfo> cycleNAInfos = getNonAdjacentCycle(
-		Interactioninfos, 
-		cycleInfos);
+	std::cout << "Number of interactions found : " << interactionInfos.size() << std::endl;
+	std::cout << "Number of cycle found : " << cycleInfos.size() << std::endl;
+	std::cout << "Number of non-adjacent cycle found : " << cycleNAInfos.size() << std::endl;
 	
 	displayCycleInfos(cycleNAInfos);
 	

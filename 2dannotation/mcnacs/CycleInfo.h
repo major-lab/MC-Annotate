@@ -16,7 +16,7 @@ public:
 	// LIFECYLE ----------------------------------------------------------------
 	CycleInfo(
 		const std::string& aFile, unsigned int auiModel, 
-		const std::vector<std::vector<std::string> >& aResidues) 
+		const residue_profile& aResidues) 
 	: mModelInfo(aFile, auiModel)
 	{
 		mResidues = aResidues;
