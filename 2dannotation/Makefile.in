@@ -76,7 +76,7 @@ DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(ALLSOURCES) $(HEADERS) \
 config.guess config.h.in config.sub configure configure.in install-sh \
 mkinstalldirs stamp-h.in
 
-SUBDIRS = mcsc2resids mcnaip mcnacs
+SUBDIRS = mcsc2resids mcnaip mcnacs mcssc
 
 RELEASESUBDIRS = $($SUBDIRS)
 
