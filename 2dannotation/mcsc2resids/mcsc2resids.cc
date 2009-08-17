@@ -183,6 +183,35 @@ std::string getModelIndex(const std::string& aFileName)
 	return strModel;
 }
 
+bool isProfileParallel(const std::string& aFileName)
+{
+	bool bParallel = false;
+	std::string::size_type index;
+	std::string filename = aFileName;
+	if (std::string::npos != (index = filename.rfind ("/")))
+    {
+		filename.erase (0, index + 1);
+    }
+	if (string::npos != (index = filename.find (".")))
+    { 
+		filename.erase (index, filename.size ());
+    }
+    if(std::string::npos != (index = filename.find("_")))
+    {
+    	filename.erase (0, index + 1);
+    }
+    if(std::string::npos != (index = filename.find("_")))
+    {
+    	filename.erase (index, filename.size());
+    }
+    if(std::string::npos != (index = filename.find("p")))
+    {
+    	bParallel = true;
+    }
+    
+	return bParallel;
+}
+
 std::string getModelProfile(const std::string& aFileName)
 {
 	std::string::size_type index;
@@ -200,6 +229,10 @@ std::string getModelProfile(const std::string& aFileName)
     	filename.erase (0, index + 1);
     }
     if(std::string::npos != (index = filename.find("_")))
+    {
+    	filename.erase (index, filename.size());
+    }
+    if(std::string::npos != (index = filename.find("p")))
     {
     	filename.erase (index, filename.size());
     }
@@ -354,6 +387,14 @@ std::string getNucleotideString(residue_profile& aProfile)
 	return oss.str();
 }
 
+void makeParallel(residue_profile& aProfile)
+{
+	if(2 == aProfile.size())
+	{
+		std::reverse(aProfile[1].begin(), aProfile[1].end());
+	}
+}
+
 int main (int argc, char *argv[])
 {
 	std::vector<std::size_t> colSizes;
@@ -378,6 +419,11 @@ int main (int argc, char *argv[])
 				std::string strFileProfile = getModelProfile(filename);
 				std::list<unsigned int> expectedProfile = getExpectedProfile(strFileProfile);
 				residue_profile resProfile = getResProfile(am, expectedProfile);
+				bool bIsParallel = isProfileParallel(filename);
+				if(bIsParallel)
+				{
+					makeParallel(resProfile);
+				}
 				resProfile = orderProfile(resProfile);
 				
 				stCycleInfo info;
