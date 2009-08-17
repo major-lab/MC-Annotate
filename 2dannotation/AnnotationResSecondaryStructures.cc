@@ -26,7 +26,7 @@ namespace annotate
 		mMapping.clear();
 	}
 		
-	void AnnotationResSecondaryStructures::update(const AnnotateModel& aModel)
+	void AnnotationResSecondaryStructures::update(AnnotateModel& aModel)
 	{
 		// This model contains no stems, there is only one open loop
 		const AnnotationLoops* pAnnotLoops = aModel.getAnnotation<AnnotationLoops>();

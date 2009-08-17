@@ -234,6 +234,11 @@ namespace annotate
     	|mccore::Relation::stacking_mask
     	|mccore::Relation::backbone_mask);
     
+    /**
+     * Computes the union of minimum cycle bases.
+     */
+    void computeUnionMinimumCycleBases();
+    
     void addAnnotation(Annotation& aAnnotation);
     
   private :

@@ -634,7 +634,7 @@ main (int argc, char *argv[])
 					am.addAnnotation(annResSecondaryStructures);
 					am.addAnnotation(annCycles);
 					am.addAnnotation(annTertiaryCycles);
-					// am.addAnnotation(annTertiaryStructures);
+					am.addAnnotation(annTertiaryStructures);
 					
 					gOut (0) << "Annotating Model ------------------------------------------------" << endl;										
 					gOut (0) << filename << std::endl;
@@ -675,9 +675,8 @@ main (int argc, char *argv[])
 		++optind;
 	}
 	
-
 	mccore::gOut (0) << "------------------------------------------------------------" << std::endl;
-	// filterCycleInfo(cyclesInformations);
+	filterCycleInfo(cyclesInformations);
 	
 	std::vector<stCycleInformation>::const_iterator itInfo;
 	for(itInfo = cyclesInformations.begin(); 
@@ -699,7 +698,6 @@ main (int argc, char *argv[])
 		mccore::gOut(0) << itSum->second << "\t:\t" << itSum->first << std::endl;
 	}
 	mccore::gOut (0) << "------------------------------------------------------------" << std::endl;
-	
 	
 	return EXIT_SUCCESS;	
 }

@@ -38,7 +38,7 @@ namespace annotate
 		mStructures.clear();
 	}
 	
-	void AnnotationTertiaryStructures::update(const AnnotateModel& aModel)
+	void AnnotationTertiaryStructures::update(AnnotateModel& aModel)
 	{
 		clear();
 				

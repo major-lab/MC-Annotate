@@ -36,7 +36,7 @@ namespace annotate
 		mConnects.clear();
 	}
 		
-	void AnnotationTertiaryCycles::update(const AnnotateModel& aModel)
+	void AnnotationTertiaryCycles::update(AnnotateModel& aModel)
 	{
 		clear();
 		

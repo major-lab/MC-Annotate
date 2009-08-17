@@ -34,7 +34,7 @@ namespace annotate
 		return mPairs;
 	}
 	
-	void AnnotationTertiaryPairs::update(const AnnotateModel& aModel)
+	void AnnotationTertiaryPairs::update(AnnotateModel& aModel)
 	{
 		struct_association_map associationMap;
 		

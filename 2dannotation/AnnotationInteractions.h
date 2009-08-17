@@ -35,7 +35,7 @@ namespace annotate
 		// This annotation doesn't depends on any other
 		void update(const mccore::GraphModel& aModel);
 		
-		virtual void update(const AnnotateModel& aModel);		
+		virtual void update(AnnotateModel& aModel);		
 		virtual std::string output() const;
 		
 		// NOTE : Return value should use smart pointers

@@ -17,7 +17,7 @@ namespace annotate
 		AnnotationTertiaryStructures();
 		virtual ~AnnotationTertiaryStructures();
 		
-		virtual void update(const AnnotateModel& aModel);		
+		virtual void update(AnnotateModel& aModel);		
 		virtual std::string output() const;
 		
 		static const std::string& AnnotationName() {return mstrAnnotationName;}

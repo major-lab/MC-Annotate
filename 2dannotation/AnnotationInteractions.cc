@@ -81,7 +81,7 @@ namespace annotate
     	std::sort (mLinks.begin (), mLinks.end ());
 	}
 	
-	void AnnotationInteractions::update(const AnnotateModel& aModel)
+	void AnnotationInteractions::update(AnnotateModel& aModel)
 	{
 		const mccore::GraphModel* pModel = &aModel;
 		update(*pModel);

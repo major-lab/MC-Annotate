@@ -23,9 +23,11 @@ namespace annotate
 		mCycles.clear();
 	}
 		
-	void AnnotationCycles::update(const AnnotateModel& aModel)
+	void AnnotationCycles::update(AnnotateModel& aModel)
 	{
 		clear();
+		
+		aModel.computeUnionMinimumCycleBases();
 		
 		if (! aModel.getCyclesMolecule().empty ())
 		{

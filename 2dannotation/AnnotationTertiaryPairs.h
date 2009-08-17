@@ -20,7 +20,7 @@ namespace annotate
 		AnnotationTertiaryPairs();
 		virtual ~AnnotationTertiaryPairs();
 		
-		virtual void update(const AnnotateModel& aModel);		
+		virtual void update(AnnotateModel& aModel);		
 		virtual std::string output() const;
 		
 		const std::set< BasePair >& getPairs() const;

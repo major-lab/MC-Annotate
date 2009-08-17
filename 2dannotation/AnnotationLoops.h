@@ -23,7 +23,7 @@ namespace annotate
 		std::vector< Loop > getLoops(const std::string& aDescription) const;
 		
 		// METHODS --------------------------------------------------------------
-		virtual void update(const AnnotateModel& aModel);		
+		virtual void update(AnnotateModel& aModel);		
 		virtual std::string output() const;
 		
 		// Output methods

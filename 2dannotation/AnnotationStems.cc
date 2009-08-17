@@ -20,7 +20,7 @@ namespace annotate
 		clear();
 	}
 		
-	void AnnotationStems::update(const AnnotateModel& aModel)
+	void AnnotationStems::update(AnnotateModel& aModel)
 	{
 		// Remove previous annotation if any		
 		clear();

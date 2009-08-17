@@ -25,7 +25,7 @@ namespace annotate
 		mChains.clear();
 	}
 		
-	void AnnotationChains::update(const AnnotateModel& aModel)
+	void AnnotationChains::update(AnnotateModel& aModel)
 	{
 		clear();
 		

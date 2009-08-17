@@ -16,7 +16,7 @@ namespace annotate
 		AnnotationTertiaryStacks();
 		virtual ~AnnotationTertiaryStacks();
 		
-		virtual void update(const AnnotateModel& aModel);		
+		virtual void update(AnnotateModel& aModel);		
 		virtual std::string output() const;
 				
 		const std::set< BaseStack >& getStacks() const;

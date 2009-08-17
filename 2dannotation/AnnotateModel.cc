@@ -118,11 +118,6 @@ namespace annotate
 		mccore::gOut(3) << "Computing basic annotation ..." << std::endl;
 		GraphModel::annotate (aspb);
     
-		// TODO : This should be moved into AnnotationCycle, but some const 
-		// correctness work needs to be done in mccore.
-		mccore::gOut(3) << "Computing minimum cycle bases union ..." << std::endl;
-		unionMinimumCycleBases(mCyclesMolecule);
-
 		// Compute all the requested annotations
 		std::vector<Annotation*>::const_iterator it = annotations.begin();
 		for(;it != annotations.end(); ++it)
@@ -131,6 +126,11 @@ namespace annotate
 			mccore::gOut(3) << " ..." << std::endl;
 			(*it)->update(*this);
 		}
+	}
+	
+	void AnnotateModel::computeUnionMinimumCycleBases()
+	{
+		unionMinimumCycleBases(mCyclesMolecule);
 	}
   
 	void AnnotateModel::dumpConformations () const

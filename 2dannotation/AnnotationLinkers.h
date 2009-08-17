@@ -16,7 +16,7 @@ namespace annotate
 		AnnotationLinkers();
 		virtual ~AnnotationLinkers();
 		
-		virtual void update(const AnnotateModel& aModel);		
+		virtual void update(AnnotateModel& aModel);		
 		virtual std::string output() const;
 		
 		const std::vector< Linker >& getLinkers() const;

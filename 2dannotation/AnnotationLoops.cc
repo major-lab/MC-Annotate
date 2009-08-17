@@ -29,7 +29,7 @@ namespace annotate
 		return mLoops;
 	}
 	
-	void AnnotationLoops::update(const AnnotateModel& aModel)
+	void AnnotationLoops::update(AnnotateModel& aModel)
 	{
 		const AnnotationLinkers* pAnnotLinkers = NULL;
 		pAnnotLinkers = aModel.getAnnotation<AnnotationLinkers>();

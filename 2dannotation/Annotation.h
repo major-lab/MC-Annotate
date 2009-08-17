@@ -18,7 +18,7 @@ namespace annotate
 		const std::set<std::string >& requires() const;
 		
 		// MUST IMPLEMENT
-		virtual void update(const AnnotateModel& aModel) = 0;		
+		virtual void update(AnnotateModel& aModel) = 0;		
 		virtual std::string output() const = 0;
 		virtual const std::string& annotationName() = 0;
 				

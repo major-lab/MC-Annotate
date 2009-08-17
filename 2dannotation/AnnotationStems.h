@@ -14,7 +14,7 @@ namespace annotate
 		AnnotationStems();
 		virtual ~AnnotationStems();
 		
-		virtual void update(const AnnotateModel& aModel);		
+		virtual void update(AnnotateModel& aModel);		
 		virtual std::string output() const;
 		
 		const std::vector< Stem >& getStems() const;

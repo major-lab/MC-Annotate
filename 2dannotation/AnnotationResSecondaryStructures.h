@@ -14,7 +14,7 @@ namespace annotate
 		AnnotationResSecondaryStructures();
 		virtual ~AnnotationResSecondaryStructures();
 		
-		virtual void update(const AnnotateModel& aModel);		
+		virtual void update(AnnotateModel& aModel);		
 		virtual std::string output() const;
 		
 		const std::map<mccore::ResId, const SecondaryStructure*>& getMapping() const 

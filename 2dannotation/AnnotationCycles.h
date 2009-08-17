@@ -14,7 +14,7 @@ namespace annotate
 		AnnotationCycles(unsigned int auiMaxCycleSize = 0);
 		virtual ~AnnotationCycles();
 		
-		virtual void update(const AnnotateModel& aModel);		
+		virtual void update(AnnotateModel& aModel);		
 		virtual std::string output() const;
 		
 		const std::set< Cycle >& getCycles() const;

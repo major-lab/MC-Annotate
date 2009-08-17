@@ -25,7 +25,7 @@ namespace annotate
 		mLinkers.clear();
 	}
 		
-	void AnnotationLinkers::update(const AnnotateModel& aModel)
+	void AnnotationLinkers::update(AnnotateModel& aModel)
 	{
 		clear();
 		

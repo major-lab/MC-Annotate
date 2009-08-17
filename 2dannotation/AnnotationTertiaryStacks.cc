@@ -36,7 +36,7 @@ namespace annotate
 	
 	// TODO : Secondary structure association should be outside of these to be 
 	// computed only once
-	void AnnotationTertiaryStacks::update(const AnnotateModel& aModel)
+	void AnnotationTertiaryStacks::update(AnnotateModel& aModel)
 	{
 		struct_association_map associationMap;
 		
