@@ -21,8 +21,15 @@ public:
 	const std::vector< std::set<CycleInfo> >& getConnections() const 
 	{return mConnections;}
 	
+	// OPERATOR ----------------------------------------------------------------
+	bool operator <(const NACycleInfo& aRight) const;
+	
 private:
 	std::vector< std::set<CycleInfo> > mConnections;
+	
+	int compareConnectionStrand(
+		const std::set<CycleInfo>& aConnection1, 
+		const std::set<CycleInfo>& aConnection2) const;
 };
 
 #endif /*_NACycleInfo_H_*/

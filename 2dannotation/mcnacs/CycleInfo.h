@@ -44,6 +44,20 @@ public:
 	bool isSubCycleOf(const CycleInfo& aCycleInfo) const;
 	bool isSubLoopOf(const CycleInfo& aCycleInfo) const;
 	bool isSub2StrandsCycle(const CycleInfo& aCycleInfo) const;
+	bool is2StrandsSubCycleOfLoop(const CycleInfo& aCycleInfo) const;
+	bool isLoopSubCycleOf2Strands(const CycleInfo& aCycleInfo) const;
+	
+	/**
+	 * @brief Verify if the given interactions are all covered by a single 
+	 * strand of this cycle.
+	 * @return true if there is a perfect match, false otherwise.
+	 */
+	bool hasStrandCoveringInteractions(
+		const std::set<Interaction>& aInteractions) const;
+		
+	bool strandCoversInteractions(
+		unsigned int uiStrand, 
+		const std::set<Interaction>& aInteractions) const;
 	
 	// OPERATOR ----------------------------------------------------------------
 	bool operator <(const CycleInfo& aRight) const;
