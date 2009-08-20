@@ -36,16 +36,13 @@
 
 #include "AnnotateModel.h"
 #include "AnnotationChains.h"
-#include "AnnotationCycles.h"
 #include "AnnotationInteractions.h"
 #include "AnnotationLinkers.h"
 #include "AnnotationLoops.h"
 #include "AnnotationResSecondaryStructures.h"
 #include "AnnotationStems.h"
-#include "AnnotationTertiaryCycles.h"
 #include "AnnotationTertiaryPairs.h"
 #include "AnnotationTertiaryStacks.h"
-#include "AnnotationTertiaryStructures.h"
 
 bool binary = false;
 unsigned int environment = 0;

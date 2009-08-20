@@ -55,6 +55,24 @@ namespace annotate
 				mLinkers.push_back(*itLinker);
 			}
 		}
+		
+		// Remove unconnected Linkers
+		removeUnconnectedLinkers();
+	}
+	
+	void AnnotationLinkers::removeUnconnectedLinkers()
+	{
+		std::vector<Linker>::iterator it = mLinkers.begin();
+		while(it != mLinkers.end())
+		{
+			if(!it->getStart().isValid() && !it->getEnd().isValid())
+			{
+				it = mLinkers.erase(it);
+			}else
+			{
+				++ it;
+			}
+		}
 	}
 	
 	void AnnotationLinkers::updateLinkers(std::set<Linker>& linkers) const
@@ -236,11 +254,11 @@ namespace annotate
 	std::string AnnotationLinkers::outputLinker(const Linker& aLinker) const
 	{
 		std::ostringstream oss;
-		if(0 < aLinker.getResidues().size())
+		if(0 < aLinker.residues().size())
 		{
-			oss << aLinker.getResidues().front();
+			oss << aLinker.residues().front();
 			oss << "-"; 
-			oss << aLinker.getResidues().back();
+			oss << aLinker.residues().back();
 		}else
 		{
 			oss << "no residues";

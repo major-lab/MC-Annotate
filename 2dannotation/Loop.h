@@ -2,21 +2,27 @@
 #define _annotate_Loop_H_
 
 #include "SecondaryStructure.h"
+#include "AlgorithmExtra.h"
 #include "Linker.h"
+#include "BaseLink.h"
+
+#include <memory>
 #include <vector>
+
 
 namespace annotate
 {	
 	class Loop : public SecondaryStructure
 	{
-	public:		
+	public:
+		typedef std::set<BaseInteraction*, less_ptr<BaseInteraction> > interactions_set;
 		Loop();
 		Loop(const Linker& aLinker);
 		Loop(const std::vector<Linker>& aLinkers);
 		virtual ~Loop();
 		
 		// ACCESS ---------------------------------------------------------------
-		const std::vector<Linker>& getLinkers() const;
+		const std::vector<Linker>& linkers() const {return mLinkers;}
 		
 		// OPERATORS ------------------------------------------------------------
 		bool operator ==(const Loop& other) const;
@@ -64,15 +70,28 @@ namespace annotate
 		 */
 		std::set<BaseInteraction> getBaseInteractions() const;
 		
+		
+		/**
+		 * @brief Get a pair of set containing the links and pairs describing 
+		 * the loop.
+		 */
+		std::pair<std::set<BaseLink>, std::set<BasePair> > getInteractions() const;
+		
 		/**
 		 * @brief Get the res ids of the perimeter of the loop.
 		 */
 		std::set<mccore::ResId> getResIds() const;
 		
+		bool checkIntegrity() const;
+		
 	protected:
 		std::vector<Linker> mLinkers;
 		
 		void clear();
+		
+		void getLinkerInteractions(
+			const Linker& aLinker, 
+			std::set<BaseLink>& aInteractions) const;
 		
 		/**
 		 * @brief Append other loops linkers to this loop, in particular orders.

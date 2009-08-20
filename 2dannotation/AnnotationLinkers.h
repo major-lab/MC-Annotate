@@ -39,6 +39,7 @@ namespace annotate
 			std::set<Linker>& linkers) const;
 	  	
 		void computeResidueInfos(const AnnotateModel& aModel);
+		void removeUnconnectedLinkers();
 		void updateLinkers(std::set<Linker>& linkers) const;
 		void updateChainLinkers(
 			const std::vector<stResidueInfo>& chainInfo, 

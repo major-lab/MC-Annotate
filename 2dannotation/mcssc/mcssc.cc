@@ -18,6 +18,7 @@
 #include <string>
 #include <sstream>
 #include <unistd.h>
+#include <cassert>
 
 #include "mccore/Binstream.h"
 #include "mccore/Exception.h"
@@ -40,6 +41,8 @@
 #include "AnnotationLinkers.h"
 #include "AnnotationLoops.h"
 #include "AnnotationStems.h"
+#include "BaseLink.h"
+#include "BasePair.h"
 #include "Cycle.h"
 
 bool binary = false;
@@ -223,22 +226,98 @@ std::string getPdbFileName(const std::string& aFileName)
 	return filename;
 }
 
-std::set<annotate::Cycle> computeStemCycles(const annotate::Stem& aStem)
+void clearInteractionsSet(annotate::Cycle::interactions_set& aSet)
+{
+	// Clean up the allocated memory
+	annotate::Cycle::interactions_set::iterator it;
+	for(it = aSet.begin(); it != aSet.end(); ++ it)
+	{
+		delete *it;	
+	}
+	aSet.clear();
+}
+
+std::set<annotate::Cycle> computeStemCycles(
+	const mccore::GraphModel& aModel, 
+	const annotate::Stem& aStem)
 {
 	std::set<annotate::Cycle> cycles;
 	
-	// TODO : Compute the cycles from the stem
-	
+	std::vector< annotate::BasePair >::const_iterator it;
+	std::vector< annotate::BasePair >::const_iterator itPrev;
+	for(it = aStem.basePairs().begin();	it != aStem.basePairs().end();	++ it)
+	{
+		if(it != aStem.basePairs().begin())
+		{
+			annotate::Cycle::interactions_set interactions;
+			
+			// First pair
+			interactions.insert(new annotate::BasePair(
+				itPrev->first, itPrev->fResId, 
+				itPrev->second, itPrev->rResId)); 
+				
+			interactions.insert(new annotate::BasePair(
+				it->first, it->fResId, 
+				it->second, it->rResId)); 
+				
+			interactions.insert(new annotate::BaseLink(
+				itPrev->first, itPrev->fResId, 
+				it->first, it->fResId));
+				
+			interactions.insert(new annotate::BaseLink(
+				it->second, it->rResId, 
+				itPrev->second, itPrev->rResId));
+			
+			// Insert the residues in the model
+			annotate::Cycle cycle(aModel, interactions, gucRelationMask);
+			
+			clearInteractionsSet(interactions);
+			
+			cycles.insert(cycle);
+		}
+		itPrev = it;
+	}
 	return cycles;
 }
 
-std::set<annotate::Cycle> computeLoopCycles(const annotate::Loop& aLoop)
+annotate::Cycle computeLoopCycle(
+	const annotate::AnnotateModel &aModel, 
+	const annotate::Loop& aLoop)
 {
-	std::set<annotate::Cycle> cycles;
+	assert(0 < aLoop.linkers().size());
+
+	std::vector< annotate::Linker >::const_iterator it;
 	
-	// TODO : Compute the cycles from the loop
+	annotate::Cycle::interactions_set interactions;
 	
-	return cycles;
+	std::pair<std::set<annotate::BaseLink>, std::set<annotate::BasePair> > interPair;
+	interPair = aLoop.getInteractions();
+	
+	std::set<annotate::BaseLink>::const_iterator itLink;
+	for(itLink = interPair.first.begin(); 
+		itLink != interPair.first.end(); 
+		++ itLink)
+	{
+		interactions.insert(new annotate::BaseLink(
+			itLink->first, itLink->fResId, 
+			itLink->second, itLink->rResId));
+	}
+	
+	std::set<annotate::BasePair>::const_iterator itPair;
+	for(itPair = interPair.second.begin(); 
+		itPair != interPair.second.end(); 
+		++ itPair)
+	{
+		interactions.insert(new annotate::BasePair(
+			itPair->first, itPair->fResId, 
+			itPair->second, itPair->rResId));
+	}
+	
+	// Insert the residues in the model
+	assert(0 < interactions.size());
+	annotate::Cycle cycle(aModel, interactions, gucRelationMask);
+	
+	return cycle;
 }
 
 std::set<annotate::Cycle> computeSecondaryStructureCycles(
@@ -256,7 +335,7 @@ std::set<annotate::Cycle> computeSecondaryStructureCycles(
 		itStem != pStems->getStems().end(); 
 		++ itStem)
 	{
-		std::set<annotate::Cycle> stemCycles = computeStemCycles(*itStem);
+		std::set<annotate::Cycle> stemCycles = computeStemCycles(aModel, *itStem);
 		cycles.insert(stemCycles.begin(), stemCycles.end());
 	}
 	
@@ -265,20 +344,72 @@ std::set<annotate::Cycle> computeSecondaryStructureCycles(
 		itLoop != pLoops->getLoops().end(); 
 		++ itLoop)
 	{
-		std::set<annotate::Cycle> loopCycles = computeLoopCycles(*itLoop);
-		cycles.insert(loopCycles.begin(), loopCycles.end());
+		annotate::Cycle cycle = computeLoopCycle(aModel, *itLoop);
+		cycles.insert(cycle);
 	}
 	
 	return cycles;
 }
 
+std::string cycleProfileStrandString(const annotate::Cycle& aCycle)
+{
+	std::ostringstream oss;
+	
+	// Describe the profile
+	std::vector<unsigned int>::const_iterator it = aCycle.profile().begin();
+	for(; it != aCycle.profile().end(); ++ it)
+	{
+		oss << *it;
+	}
+	return oss.str();
+}
+
+std::string cycleProfileString(const annotate::Cycle& aCycle)
+{
+	std::ostringstream oss;
+	
+	// Describe the profile
+	annotate::Cycle::enType eCycleType = aCycle.getType();
+	switch(eCycleType)
+	{
+		case annotate::Cycle::eLOOSE:
+			oss << aCycle.residues().size();
+			oss << "L";
+			break;
+		case annotate::Cycle::e2STRANDS_PARALLEL:
+			oss << cycleProfileStrandString(aCycle) << "p";
+			break;
+		case annotate::Cycle::eMULTIBRANCH:
+			oss << aCycle.residues().size();
+			oss << "M";
+			break;
+		default:
+			oss << cycleProfileStrandString(aCycle);
+			break;		
+	}
+	
+	return oss.str();
+}
+
 std::string cycleString(const annotate::Cycle& aCycle)
 {
-	std::string strCycle;
+	std::ostringstream oss;
 	
-	// Make the string describing the cycle
+	// Describe the profile
+	oss << cycleProfileString(aCycle) << " : ";
+	oss << cycleProfileString(aCycle) << " : ";
 	
-	return strCycle;
+	std::list<mccore::ResId>::const_iterator it;
+	for(it = aCycle.residues().begin(); it != aCycle.residues().end(); ++ it)
+	{
+		if(it != aCycle.residues().begin())
+		{
+			oss << "-";
+		}
+		oss << *it;
+	}
+	
+	return oss.str();
 }
 
 int main (int argc, char *argv[])
@@ -319,6 +450,9 @@ int main (int argc, char *argv[])
 					am.addAnnotation(annLoops);
 					
 					am.annotate (gucRelationMask);
+					
+					cycles = computeSecondaryStructureCycles(am);
+					
 					std::set<annotate::Cycle>::const_iterator itCycle;
 					for( itCycle = cycles.begin(); itCycle != cycles.end(); ++ itCycle)
 					{

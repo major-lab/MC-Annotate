@@ -1,8 +1,9 @@
 #ifndef _annotate_AlgorithmExtra_h_
 #define _annotate_AlgorithmExtra_h_
 
-#include <set>
 #include <algorithm>
+#include <set>
+#include <memory>
 
 namespace annotate
 {
@@ -117,6 +118,14 @@ namespace annotate
   		bool operator() (const T* x, const T* y) const
     	{
     		return *x < *y;
+    	}
+	};
+	
+	template <class T> struct less_auto_ptr : std::binary_function <T,T,bool> 
+	{
+  		bool operator() (const std::auto_ptr<T>& x, const std::auto_ptr<T>& y) const
+    	{
+    		return (*x) < (*y);
     	}
 	};
 }

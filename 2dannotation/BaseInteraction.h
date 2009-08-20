@@ -36,13 +36,23 @@ namespace annotate
 	    virtual bool operator< (const BaseInteraction &right) const
 	    {
 	    	mccore::ResId thisMin = std::min(fResId, rResId);
-	    	mccore::ResId rightMin = std::min(right.fResId, right.fResId);
+	    	mccore::ResId rightMin = std::min(right.fResId, right.rResId);
 	    	
 	      return (&right != this
 		      && (thisMin < rightMin
 			  || (thisMin == rightMin 
 			  	&& std::max(fResId, rResId) < std::max(right.fResId, right.rResId))));
 	    }
+	    /*
+	    virtual bool operator== (const BaseInteraction &right) const
+	    {
+	    	mccore::ResId thisMin = std::min(fResId, rResId);
+	    	mccore::ResId rightMin = std::min(right.fResId, right.rResId);
+	    	mccore::ResId thisMax = std::max(fResId, rResId);
+	    	mccore::ResId rightMax = std::max(right.fResId, right.rResId);
+	    	
+	      return (thisMin == rightMin && thisMax == rightMax));
+	    }*/
 	    
 	    bool sameResidues(const BaseInteraction &right) const
 	    {

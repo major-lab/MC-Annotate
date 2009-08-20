@@ -20,7 +20,7 @@ namespace annotate
 		virtual ~Linker();
 		
 		// ACCESS ---------------------------------------------------------------
-		const std::vector<mccore::ResId >& getResidues() const;
+		const std::vector<mccore::ResId>& residues() const {return mResidues;}
 		const StemConnection& getStart() const {return mStart;}
 		const StemConnection& getEnd() const {return mEnd;}
 		
@@ -73,11 +73,6 @@ namespace annotate
 			
 		res_info getResInfo(const StemConnection& aConnection) const 
 			throw(mccore::NoSuchElementException);
-			
-		void appendInteractionWithConnection(
-			std::set<BaseInteraction>& aInteractionSet,
-			const StemConnection& aConnection) const 
-			throw(mccore::FatalIntLibException);
 			
 		void appendInteractionBetweenConnections(
 			std::set<BaseInteraction>& aInteractionSet) const 

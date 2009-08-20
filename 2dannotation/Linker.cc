@@ -23,11 +23,6 @@ namespace annotate
 		clear();
 	}
 		
-	const std::vector<mccore::ResId>& Linker::getResidues() const
-	{
-		return mResidues;
-	}
-	
 	void Linker::clear()
 	{
 		mResidues.clear();
@@ -203,23 +198,17 @@ namespace annotate
 			appendInteractionBetweenConnections(interactions);			
 		}else
 		{
-			appendInteractionWithConnection(interactions, mStart);
-			appendInteractionWithConnection(interactions, mEnd);
+			if(mStart.isValid())
+			{
+				interactions.insert(getBaseInteractionWithConnection(mStart));
+			}
+			if(mEnd.isValid())
+			{
+				interactions.insert(getBaseInteractionWithConnection(mEnd));
+			}
 		}
 		
 		return interactions;
-	}
-	
-	void Linker::appendInteractionWithConnection(
-		std::set<BaseInteraction>& aInteractionSet,
-		const StemConnection& aConnection) const 
-		throw(mccore::FatalIntLibException)
-	{
-		if(aConnection.isValid())
-		{			
-			// Add the interaction with the base pair
-			aInteractionSet.insert(getBaseInteractionWithConnection(aConnection));
-		}
 	}
 	
 	void Linker::appendInteractionBetweenConnections(

@@ -1,5 +1,8 @@
 #include "Loop.h"
 
+#include "BaseLink.h"
+#include <cassert>
+
 namespace annotate
 {
 	Loop::Loop() 
@@ -21,11 +24,6 @@ namespace annotate
 		clear();
 	}
 	
-	const std::vector< Linker >& Loop::getLinkers() const
-	{
-		return mLinkers;
-	}
-	
 	void Loop::clear()
 	{
 		mLinkers.clear();
@@ -41,7 +39,7 @@ namespace annotate
 	}
 	
 	void Loop::append(const Loop& aLoop)
-	{
+	{		
 		// Check that this can be added
 		if(mLinkers.back().connects(aLoop.mLinkers.front()))
 		{
@@ -183,13 +181,13 @@ namespace annotate
 	{
 		std::string strDescription;
 		// qualify the loop
-		const StemConnection* pStart = &getLinkers().front().getStart();
-		const StemConnection* pEnd = &getLinkers().back().getEnd();
+		const StemConnection* pStart = &mLinkers.front().getStart();
+		const StemConnection* pEnd = &mLinkers.back().getEnd();
 		if(	pStart->isValid() 
 			&& pEnd->isValid() 
 			&& (&pStart->getStem() == &pEnd->getStem()))
 		{
-			int iSize = getLinkers().size();
+			int iSize = mLinkers.size();
 			switch(iSize)
 			{
 			case 1:
@@ -266,6 +264,7 @@ namespace annotate
 			std::set<BaseInteraction> linkerInteractions;
 			linkerInteractions = itLinker->getBaseInteractions();
 			interactions.insert(linkerInteractions.begin(), linkerInteractions.end());
+			assert(itLinker->getStart().isValid() || itLinker->getEnd().isValid());
 			if(itLinker->getStart().isValid())
 			{
 				BasePair basePair = itLinker->getStart().getPair();
@@ -286,13 +285,49 @@ namespace annotate
 		return interactions;
 	}
 	
+	void Loop::getLinkerInteractions(
+		const Linker& aLinker, 
+		std::set<BaseLink>& aInteractions) const
+	{
+		std::set<BaseInteraction> links;
+		links = aLinker.getBaseInteractions();
+		std::set<BaseInteraction>::const_iterator it;
+		for(it = links.begin(); it != links.end(); ++ it)
+		{
+			BaseLink link(it->first, it->fResId, it->second, it->rResId);
+			aInteractions.insert(link);	
+		}
+	}
+	
+	std::pair<std::set<BaseLink>, std::set<BasePair> > Loop::getInteractions() const
+	{
+		std::pair<std::set<BaseLink>, std::set<BasePair> > interactions;
+		std::vector<Linker>::const_iterator it;
+		for(it = mLinkers.begin(); it != mLinkers.end(); ++it)
+		{
+			getLinkerInteractions(*it, interactions.first);
+			assert(it->getStart().isValid() || it->getEnd().isValid());
+			if(it->getStart().isValid())
+			{
+				BasePair basePair = it->getStart().getPair();
+				interactions.second.insert(basePair);
+			}
+			if(it->getEnd().isValid())
+			{
+				BasePair basePair = it->getEnd().getPair();
+				interactions.second.insert(basePair);
+			}
+		}
+		return interactions;
+	}
+	
 	std::set<mccore::ResId> Loop::getResIds() const
 	{
 		std::set<mccore::ResId> resids;
 		std::vector<Linker>::const_iterator it;
 		for(it = mLinkers.begin(); it != mLinkers.end(); ++ it)
 		{
-			resids.insert(it->getResidues().begin(), it->getResidues().end());
+			resids.insert(it->residues().begin(), it->residues().end());
 			if(it->getStart().isValid())
 			{
 				BasePair basePair = it->getStart().getPair();
@@ -307,5 +342,16 @@ namespace annotate
 			}
 		}
 		return resids;
+	}
+	
+	bool Loop::checkIntegrity() const
+	{
+		bool bIntegrity = true;
+		std::vector<Linker>::const_iterator itLinker;
+		for(itLinker = mLinkers.begin(); itLinker != mLinkers.end() && bIntegrity; ++itLinker)
+		{
+			bIntegrity = (itLinker->getStart().isValid() || itLinker->getEnd().isValid());
+		}
+		return bIntegrity;
 	}
 }

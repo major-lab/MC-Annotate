@@ -35,16 +35,13 @@
 
 #include "AnnotateModel.h"
 #include "AnnotationChains.h"
-#include "AnnotationCycles.h"
 #include "AnnotationInteractions.h"
 #include "AnnotationLinkers.h"
 #include "AnnotationLoops.h"
 #include "AnnotationResSecondaryStructures.h"
 #include "AnnotationStems.h"
-#include "AnnotationTertiaryCycles.h"
 #include "AnnotationTertiaryPairs.h"
 #include "AnnotationTertiaryStacks.h"
-#include "AnnotationTertiaryStructures.h"
 
 using namespace mccore;
 using namespace std;
@@ -54,19 +51,14 @@ bool binary = false;
 unsigned int environment = 0;
 bool oneModel = false;
 unsigned int modelNumber = 0;  // 1 based vector identifier, 0 means all
-std::string gstrCycleOutputDir = "";
-std::string gstrStructureOutputDir = "";
-unsigned int guiMaxCycleSize = 0;
-unsigned int guiMax3DCycleSize = 0;
-unsigned int guiMax3DCycleStrands = 0;
 unsigned char gucRelationMask = 
 	mccore::Relation::adjacent_mask
 	| mccore::Relation::pairing_mask 
 	| mccore::Relation::stacking_mask 
 	| mccore::Relation::backbone_mask;
 ResIdSet residueSelection;
-const char* shortopts = "Vbc:s:z:x:n:e:f:hlr:vm:";
-
+const char* shortopts = "Vbe:f:hlr:vm:";
+/*
 class stCycleInfoEntry
 {
 public:
@@ -78,8 +70,8 @@ public:
 	{
 		return strProfile < aRight.strProfile;
 	}
-};
-
+};*/
+/*
 class stCycleInformation
 {
 public:
@@ -92,7 +84,7 @@ public:
 		return strSignature < aRight.strSignature;
 	}
 };
-
+*/
 void
 version ()
 {
@@ -107,7 +99,7 @@ void
 usage ()
 {
   gOut (0) << "usage: " << PACKAGE
-	   << " [-bhlvV] [-e num] [-z <cycle size>] [-x <3D cycle size>] [-n <3D cycle strands>] [-s <structure directory>] [-f <model number>] [-r <residue ids>] [-m <relation mask>] [-c <cycle directory>] <structure file> ..."
+	   << " [-bhlvV] [-e num] [-f <model number>] [-r <residue ids>] [-m <relation mask>] <structure file> ..."
 	   << endl;
 }
 
@@ -117,12 +109,12 @@ help ()
   gOut (0)
     << "This program annotate structures (and more)." << endl
     << "  -b                read binary files instead of pdb files" << endl
-    << "  -c <directory>    directory in which to output tertiary cycle files" << endl
-	<< "  -s <directory>    directory in which to output tertiary structure files" << endl
+//    << "  -c <directory>    directory in which to output tertiary cycle files" << endl
+//	<< "  -s <directory>    directory in which to output tertiary structure files" << endl
     << "  -m <mask>         annotation mask string: any combination of 'A' (adjacent), 'S' (stacking), 'P' (pairing) and 'B' (backbone). (default: all)" << endl
-    << "  -z <cycle size>   maximum size of cycles" << endl
-	<< "  -x <3Dcycle size> maximum size of non-adjacent cycles" << endl
-	<< "  -n <Nb strands> 	maximum number of strands of non-adjacent cycles" << endl
+//    << "  -z <cycle size>   maximum size of cycles" << endl
+//	<< "  -x <3Dcycle size> maximum size of non-adjacent cycles" << endl
+//	<< "  -n <Nb strands> 	maximum number of strands of non-adjacent cycles" << endl
     << "  -e num            number of surrounding layers of connected residues to annotate" << endl
     << "  -f model number   model to print" << endl
     << "  -h                print this help" << endl
@@ -164,6 +156,7 @@ read_options (int argc, char* argv[])
 	    environment = tmp;
 	    break;
 	  }
+	  /*
 	case 'c':
 	{
 		gstrCycleOutputDir = optarg;
@@ -173,7 +166,7 @@ read_options (int argc, char* argv[])
 	{
 		gstrStructureOutputDir = optarg;
 		break;		
-	}
+	}*/
 	case 'f':
 	  {
 	    long int tmp;
@@ -190,11 +183,13 @@ read_options (int argc, char* argv[])
 	    oneModel = true;
 	    break;
 	  }
+	  /*
 	 case 'z':
 	  {
 	    guiMaxCycleSize = atol (optarg);
 	    break;
-	  }
+	  }*/
+	  /*
 	  case 'x':
 	  {
 	    guiMax3DCycleSize = atol (optarg);
@@ -204,7 +199,7 @@ read_options (int argc, char* argv[])
 	  {
 	  	guiMax3DCycleStrands = atol(optarg);
 	  	break;
-	  }
+	  }*/
         case 'h':
           usage ();
           help ();
@@ -325,7 +320,7 @@ std::string getFilePrefix(const std::string& aFileName)
     }
 	return filename;
 }
-
+/*
 void dumpCyclesFiles(
 	const std::string& aFilePrefix, 
 	const AnnotationTertiaryCycles& aAnnotationCycles)
@@ -387,9 +382,9 @@ std::string cycleResidues(const annotate::Cycle& aCycle)
 {
 	std::ostringstream oss;
 	std::list<mccore::ResId>::const_iterator it;
-	for(it = aCycle.getResidues().begin(); it != aCycle.getResidues().end(); ++ it)
+	for(it = aCycle.residues().begin(); it != aCycle.residues().end(); ++ it)
 	{
-		if(it != aCycle.getResidues().begin())
+		if(it != aCycle.residues().begin())
 		{
 			oss << ", ";
 		}
@@ -586,11 +581,11 @@ std::map<std::string, unsigned int> countSignatures(
 	}
 	return summary;
 }
-
+*/
 int
 main (int argc, char *argv[])
 {
-	std::vector<stCycleInformation> cyclesInformations;
+	// std::vector<stCycleInformation> cyclesInformations;
 	read_options (argc, argv);
 
 	while (optind < argc)
@@ -619,10 +614,10 @@ main (int argc, char *argv[])
 					AnnotationLoops annLoops;
 					AnnotationTertiaryPairs annTertiaryPairs;
 					AnnotationTertiaryStacks annTertiaryStacks;
-					AnnotationCycles annCycles(guiMaxCycleSize);
-					AnnotationTertiaryCycles annTertiaryCycles(guiMax3DCycleSize);
+					// AnnotationCycles annCycles(guiMaxCycleSize);
+					// AnnotationTertiaryCycles annTertiaryCycles(guiMax3DCycleSize);
 					AnnotationResSecondaryStructures annResSecondaryStructures;
-					AnnotationTertiaryStructures annTertiaryStructures;
+					// AnnotationTertiaryStructures annTertiaryStructures;
 		  
 		  			am.addAnnotation(annInteractions);
 		  			am.addAnnotation(annChains);
@@ -632,25 +627,25 @@ main (int argc, char *argv[])
 					am.addAnnotation(annTertiaryPairs);
 					am.addAnnotation(annTertiaryStacks);
 					am.addAnnotation(annResSecondaryStructures);
-					am.addAnnotation(annCycles);
-					am.addAnnotation(annTertiaryCycles);
-					am.addAnnotation(annTertiaryStructures);
+					// am.addAnnotation(annCycles);
+					// am.addAnnotation(annTertiaryCycles);
+					// am.addAnnotation(annTertiaryStructures);
 					
 					gOut (0) << "Annotating Model ------------------------------------------------" << endl;										
 					gOut (0) << filename << std::endl;
 					am.annotate (gucRelationMask);
 					gOut(0) << am;
-					
+					/*
 					if(!gstrCycleOutputDir.empty())
 					{
 						dumpCyclesFiles(getFilePrefix(filename), annTertiaryCycles);
-					}
-					
+					}*/
+					/*
 					if(!gstrStructureOutputDir.empty())
 					{
 						dumpStructuresFiles(getFilePrefix(filename), annTertiaryStructures);
-					}
-					
+					}*/
+					/*
 					std::set<Cycle>::const_iterator itCycle;
 					for(itCycle = annTertiaryCycles.getCycles().begin();
 						itCycle != annTertiaryCycles.getCycles().end();
@@ -662,7 +657,7 @@ main (int argc, char *argv[])
 							stCycleInformation info = cycleInformation(am, *itCycle, annTertiaryCycles);
 							cyclesInformations.push_back(info);
 						}
-					}
+					}*/
 					
 					if (oneModel)
 					{
@@ -674,7 +669,7 @@ main (int argc, char *argv[])
 		}
 		++optind;
 	}
-	
+	/*
 	mccore::gOut (0) << "------------------------------------------------------------" << std::endl;
 	filterCycleInfo(cyclesInformations);
 	
@@ -698,6 +693,6 @@ main (int argc, char *argv[])
 		mccore::gOut(0) << itSum->second << "\t:\t" << itSum->first << std::endl;
 	}
 	mccore::gOut (0) << "------------------------------------------------------------" << std::endl;
-	
+	*/
 	return EXIT_SUCCESS;	
 }

@@ -2,6 +2,7 @@
 #include "AnnotateModel.h"
 #include "AnnotationLinkers.h"
 #include <sstream>
+#include <cassert>
 
 namespace annotate
 {
@@ -61,7 +62,32 @@ namespace annotate
 			}
 			if(!bConnectionFound)
 			{
-				// This is an open loop with one end connected to a stem
+				// Check loop integrity
+				if(!workLoop.checkIntegrity())
+				{
+					mccore::gOut(0) << "Loop failed integrity check" << std::endl;
+					std::vector<Linker>::const_iterator itLink;
+					for(itLink = workLoop.linkers().begin(); 
+						itLink != workLoop.linkers().end(); 
+						++ itLink)
+					{
+						mccore::gOut(0) << "Linker : " << std::endl;
+						mccore::gOut(0) << "residues : ";
+						std::vector<mccore::ResId>::const_iterator itRes;
+						for(itRes = itLink->residues().begin(); 
+							itRes != itLink->residues().end();
+							++ itRes)
+						{
+							if(itRes != itLink->residues().begin())
+							{
+								mccore::gOut(0) << "-";
+							}
+							mccore::gOut(0) << *itRes;
+						}
+						mccore::gOut(0) << std::endl;
+					}
+					// assert(false);
+				}
 				mLoops.push_back(workLoop);
 			}
 			else
@@ -116,16 +142,14 @@ namespace annotate
 	{
 		std::ostringstream oss;
 		std::vector< Linker >::const_iterator it;
-		for(it = aLoop.getLinkers().begin(); 
-			it != aLoop.getLinkers().end(); 
-			++ it)
+		for(it = aLoop.linkers().begin(); it != aLoop.linkers().end(); ++ it)
 		{
 			oss << "{";
-			if(0 < it->getResidues().size())
+			if(0 < it->residues().size())
 			{
-				oss << it->getResidues().front();
+				oss << it->residues().front();
 				oss << "-";
-				oss << it->getResidues().back();
+				oss << it->residues().back();
 			}
 			else
 			{
