@@ -11,7 +11,8 @@
 
 #include "mcnacs.h"
 
-#include "../AlgorithmExtra.h"
+#include "AlgorithmExtra.h"
+#include "CycleProfile.h"
 
 #include "CycleInfo.h"
 #include "Interaction.h"
@@ -33,12 +34,16 @@
 bool gbSplitInteractions = false;
 bool gbRemoveComposites = false;
 std::string gstrCyclesFile;
+std::string gstrSecondaryCyclesFile;
 std::string gstrPairsFile;
-const char* shortopts = "Vhsp:c:";
+const char* shortopts = "Vhus:p:c:";
 
 typedef std::multimap<ModelInfo, InteractionInfo>::const_iterator inter_map_iterator;
 typedef std::set<CycleInfo>::const_iterator cycle_set_iterator;
 typedef std::pair<cycle_set_iterator, cycle_set_iterator> cycle_set_range;
+
+// PROTOTYPES ------------------------------------------------------------------
+void displayConnectedCycle(const NACycleInfo& aCycle);
 
 void version ()
 {
@@ -52,7 +57,7 @@ void usage ()
 {
 	std::cout
 	 	<< "usage: " << PACKAGE
-		<< " [-hsvV] -p <distant pairs file> -c <cycles file>"
+		<< " [-huvV] -p <distant pairs file> -c <cycles file> [-s <secondary structure cycles file>]"
 		<< std::endl;
 }
 
@@ -62,9 +67,10 @@ void help ()
 		<< "This program read cycle structures and return the corresponding residue ids." 
 		<< std::endl
 		<< "  -h	print this help" << std::endl
-		<< "  -s	split the non-adjacent cycles into sets of single interacting cycle per strand" << std::endl
+		<< "  -u	split the non-adjacent cycles into sets of unique interacting cycle per strand" << std::endl
 		<< "  -p	file containing the non-adjacent interacting pairs" << std::endl
 		<< "  -c	file containing the identified cycles" << std::endl
+		<< "  -s	file containing a second set of cycles identified in the secondary structure" << std::endl
 		<< "  -V	print the software version info" << std::endl;    
 }
 
@@ -96,6 +102,11 @@ void read_options (int argc, char* argv[])
 			break;		
 		}
 		case 's':
+		{
+			gstrSecondaryCyclesFile = optarg;
+			break;		
+		}
+		case 'u':
 		{
 			gbSplitInteractions = true;
 			break;
@@ -180,18 +191,6 @@ std::multimap<ModelInfo, InteractionInfo> readPairsFile(const std::string& aFile
 	return infos;
 }
 
-std::list<unsigned int> getProfile(const std::string& astrProfile)
-{
-	std::list<unsigned int> profile;
-	std::string::const_iterator it;
-	for(it = astrProfile.begin(); it != astrProfile.end(); ++ it)
-	{
-		std::string strNumber(1, *it);
-		profile.push_back(atol (strNumber.c_str()));
-	}
-	return profile;	
-}
-
 std::list<std::string> getResidues(const std::string& aResidues)
 {
 	std::list<std::string> residues;
@@ -219,14 +218,16 @@ std::list<std::string> getResidues(const std::string& aResidues)
 
 std::vector<std::vector<std::string> > getStrandResidues(
 	const std::string& aResidues, 
-	const std::list<unsigned int>& aProfile)
+	const annotate::CycleProfile& aProfile)
 {
 	std::list<std::string> residues = getResidues(aResidues);
 	std::vector<std::vector<std::string> > strandResidues;
 	
 	std::list<std::string>::const_iterator itRes = residues.begin();
 	std::list<unsigned int>::const_iterator itProf;
-	for(itProf = aProfile.begin(); itProf != aProfile.end(); ++ itProf)
+	for(itProf = aProfile.strandProfile().begin(); 
+		itProf != aProfile.strandProfile().end(); 
+		++ itProf)
 	{
 		std::vector<std::string> strand;
 		unsigned int iRes = 0;
@@ -252,33 +253,36 @@ std::set<CycleInfo> readCyclesFile(const std::string& aFile)
 	while(std::getline(infile, strLine).good())
 	{
 		cleanString(strLine, ' ');
-		
+
 		std::size_t sep = strLine.rfind(':');
 		std::string strSeq = strLine.substr(sep + 1, strLine.size() - (sep + 1));
 		strLine.erase(sep);
-		
+
 		sep = strLine.rfind(':');
 		std::string strResIds = strLine.substr(sep + 1, strLine.size() - (sep + 1));
 		strLine.erase(sep);
-		
+
 		sep = strLine.rfind(':');
 		std::string strProfile = strLine.substr(sep + 1, strLine.size() - (sep + 1));
 		strLine.erase(sep);
-		
+
 		sep = strLine.rfind(':');
 		std::string strPredProfile = strLine.substr(sep + 1, strLine.size() - (sep + 1));
 		strLine.erase(sep);
-		
+
 		sep = strLine.rfind(':');
 		std::string strModel = strLine.substr(sep + 1, strLine.size() - (sep + 1));
 		strLine.erase(sep);
 		unsigned int uiModel = atol(strModel.c_str());
-		
+
 		std::string strPDBFile = strLine;
-		std::list<unsigned int> prof = getProfile(strProfile);
+		annotate::CycleProfile prof(strProfile);
+
 		CycleInfo::residue_profile resProfile;
 		resProfile = getStrandResidues(strResIds, prof); 
+
 		CycleInfo cInfo(strPDBFile, uiModel, resProfile);
+
 		infos.insert(cInfo);
 		assert(infos.size() == i);
 		++ i;
@@ -607,6 +611,48 @@ std::set<NACycleInfo> filterOutPartialCoverage(
 	return filtered;	
 }
 
+std::set<NACycleInfo> filterOutEnclosingCycles(
+	const std::set<NACycleInfo>& aCycles)
+{
+	std::set<NACycleInfo> filtered;
+	std::set<NACycleInfo>::const_iterator it;
+	for(it = aCycles.begin(); it != aCycles.end(); ++ it)
+	{
+		NACycleInfo cycle(
+			it->getPDBFile(), 
+			it->getModel(), 
+			it->getStrandResidues());
+		
+		unsigned int uiIndex;
+		for(uiIndex = 0; uiIndex < it->getConnections().size(); ++ uiIndex)
+		{
+			std::set<CycleInfo> connection = it->getConnections()[uiIndex];
+			for(std::set<CycleInfo>::const_iterator itCycle = connection.begin();
+				itCycle != connection.end(); 
+				++ itCycle)
+			{
+				bool bHasSubCycle = false;
+				std::set<CycleInfo>::const_iterator itSubCycle;
+				for(itSubCycle = connection.begin(); 
+					itSubCycle != connection.end() && !bHasSubCycle; 
+					++ itSubCycle)
+				{
+					if(itCycle != itSubCycle)
+					{
+						bHasSubCycle = itSubCycle->isSubCycleOf(*itCycle);
+					}
+				}
+				if(!bHasSubCycle)
+				{
+					cycle.getStrandConnections(uiIndex).insert(*itCycle);
+				}
+			}
+		}
+		filtered.insert(cycle);
+	}
+	return filtered;	
+}
+
 void displayConnectedCycle(const NACycleInfo& aCycle)
 {
 	std::cout << "index:" << std::endl;
@@ -739,8 +785,17 @@ int main (int argc, char *argv[])
 	
 	std::cout << "Number of interactions found : " << interactionInfos.size() << std::endl;
 	std::cout << "Number of cycle found : " << cycleInfos.size() << std::endl;
+	if(!gstrSecondaryCyclesFile.empty())
+	{
+		std::set<CycleInfo> secondInfo = readCyclesFile(gstrSecondaryCyclesFile);
+		std::cout << "Number of supplementary cycle found : " << secondInfo.size() << std::endl;
+		
+		cycleInfos = annotate::SetUnion(cycleInfos, secondInfo);
+		std::cout << "Total number of potential cycle found : " << secondInfo.size() << std::endl;
+	}
 	std::cout << "Number of non-adjacent cycle found : " << cycleNAInfos.size() << std::endl;
-	
+	displayCycleInfos(cycleNAInfos);
+#if 0	
 	// Remove the non-adjacent cycle
 	cycleInfos = annotate::SetDifference(cycleInfos, cycleNAInfos);
 	
@@ -749,15 +804,23 @@ int main (int argc, char *argv[])
 	
 	// Remove the cycles not interacting with other NCMs
 	unsigned int uiNbConnectedCycles = connectedCycles.size();
-	connectedCycles = filterOutOpenConnections(connectedCycles);
+	// connectedCycles = filterOutOpenConnections(connectedCycles);
 	std::cout << "Number of ignored cycle due to open strand ";
 	std::cout << (uiNbConnectedCycles - connectedCycles.size()) << std::endl;
 	
+	// Remove the cycles not covering entirely the relation
 	uiNbConnectedCycles = connectedCycles.size();
-	connectedCycles = filterOutPartialCoverage(connectedCycles);
+	// connectedCycles = filterOutPartialCoverage(connectedCycles);
 	std::cout << "Number of ignored cycle due to partial strand coverage ";
 	std::cout << (uiNbConnectedCycles - connectedCycles.size()) << std::endl;
 	
+	// Remove the cycles who has subcycles in the same interactions 
+	// ( e.g. NGNRAN vs GNRA, keep GNRA only )
+	uiNbConnectedCycles = connectedCycles.size();
+	// connectedCycles = filterOutEnclosingCycles(connectedCycles);
+	std::cout << "Number of ignored cycle due to subcycles ";
+	std::cout << (uiNbConnectedCycles - connectedCycles.size()) << std::endl;
+
 	if(gbSplitInteractions)
 	{
 		connectedCycles = splitAdjacency(connectedCycles);
@@ -767,6 +830,7 @@ int main (int argc, char *argv[])
 	
 	std::map<std::string, unsigned int> stats = compileStatistics(connectedCycles);
 	displayStatistics(stats);
+#endif
 	
 	return EXIT_SUCCESS;	
 }

@@ -57,7 +57,7 @@ HEADERS = $(SOURCES:.cc=.h)
 
 OBJECTS = $(SOURCES:.cc=.o)
 
-LOCALLIBS = 
+LOCALLIBS = ../libmcannotate.a
 
 DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(SOURCES) $(HEADERS) \
 config.guess config.h.in config.sub configure configure.in install-sh \
