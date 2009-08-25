@@ -10,44 +10,9 @@
 
 namespace annotate
 {	
-	Cycle::Cycle(const mccore::GraphModel& aModel, unsigned char aucRelationMask)
-	: mName("")
-	{
-		// Create from a cycle model
-		mucRelationMask = aucRelationMask;
-		mModel = aModel;
-		
-		mModel.annotate(mucRelationMask);
-
-		// Verify what we have for residues
-		std::set<mccore::ResId> residues;
-		GraphModel::const_iterator it;
-		for(it = mModel.begin(); it != mModel.end(); ++it)
-		{
-			residues.insert(it->getResId());
-		}
-		
-		// Get the interactions forming the cycle
-		AnnotationInteractions annInteractions;
-		annInteractions.update(mModel);
-		std::list<const BaseInteraction*> interactions;
-		interactions = annInteractions.getInteractions(residues);
-		setInteractions(interactions);
-		
-		mResidues = getOrderedResidues(mInteractions);
-		
-		updateProfile();
-	}
-	
-	Cycle::Cycle(
-		const mccore::GraphModel& aModel, 
-		const interactions_set& aInteractions,
-		unsigned char aucRelationMask)
+	Cycle::Cycle(const interactions_set& aInteractions)
 	{
 		assert(0 < aInteractions.size());
-		
-		// Create a cycle from a set of interactions from another model
-		mucRelationMask = aucRelationMask;
 		
 		std::list<const BaseInteraction*> interactions;
 		interactions.insert(
@@ -57,14 +22,6 @@ namespace annotate
 		setInteractions(interactions);			
 		
 		mResidues = getOrderedResidues(mInteractions);
-		
-		// Insert the residues in the model
-		std::list<mccore::ResId>::const_iterator it;
-		for(it = mResidues.begin(); it != mResidues.end(); ++it)
-		{
-			mccore::GraphModel::const_iterator itRes = aModel.find(*it);
-			mModel.insert(*itRes);
-		}
 		
 		updateProfile();
 	}
@@ -80,11 +37,6 @@ namespace annotate
 		mStacks.clear();
 		mLinks.clear();
 		mInteractions.clear();
-	}
-		
-	const mccore::GraphModel& Cycle::getModel() const
-	{
-		return mModel;
 	}
 	
 	std::list<mccore::ResId> Cycle::getOrderedResidues(
@@ -369,20 +321,6 @@ namespace annotate
 			}
 		}
 		return bSingleChain;
-	}
-	
-	std::string Cycle::getSequence() const
-		throw(mccore::NoSuchElementException)
-	{
-		std::ostringstream oss;
-		std::list<mccore::ResId>::const_iterator it;
-		for(it = mResidues.begin(); it != mResidues.end(); ++ it)
-		{
-			mccore::GraphModel::const_iterator itRes = mModel.find(*it);
-			assert(itRes != mModel.end()); // Cycle is invalid
-			oss << mccore::Pdbstream::stringifyResidueType (itRes->getType());
-		}
-		return oss.str();
 	}
 	
 	bool Cycle::isClosed() const

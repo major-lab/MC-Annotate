@@ -57,9 +57,9 @@ SOURCES = AnnotateModel.cc Annotation.cc AnnotationChains.cc \
 	AnnotationInteractions.cc AnnotationLinkers.cc \
 	AnnotationLoops.cc AnnotationResSecondaryStructures.cc AnnotationStems.cc \
 	AnnotationTertiaryPairs.cc AnnotationTertiaryStacks.cc BaseLink.cc \
-	BasePair.cc BaseStack.cc Cycle.cc GraphIsoUllman.cc \
+	BasePair.cc BaseStack.cc Cycle.cc CycleProfile.cc GraphIsoUllman.cc \
 	IsomorphismContextPerfectMatch.cc Linker.cc Loop.cc Stem.cc \
-	StemConnection.cc 
+	StemConnection.cc StringUtil.cc
 
 ALLSOURCES = $(SOURCES) $(PROGSOURCES)
 

@@ -36,6 +36,20 @@ namespace annotate
 	
 	//----------------------------------------------------------------------
 	template < class T >
+	std::set< T > SetUnion( const std::set< T > & set1, const std::set< T > & set2 )
+	{
+		std::set< T > setUnion;
+		std::insert_iterator< std::set< T > > iter( setUnion, setUnion.begin() );
+	
+		std::set_union( set1.begin(), set1.end(),
+	          set2.begin(), set2.end(),
+	          iter );
+	
+		return setUnion;
+	};
+	
+	//----------------------------------------------------------------------
+	template < class T >
 	std::set< T > SetSymmetricDifference( const std::set< T > & set1, const std::set< T > & set2 )
 	{
 		std::set< T > setSymDiff;

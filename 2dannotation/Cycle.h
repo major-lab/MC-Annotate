@@ -27,16 +27,11 @@ namespace annotate
 		};
 				
 		// LIFECYCLE ------------------------------------------------------------
-		Cycle(const mccore::GraphModel& aModel, unsigned char aucRelationMask);
-		Cycle(
-			const mccore::GraphModel& aModel, 
-			const interactions_set& aInteractions,
-			unsigned char aucRelationMask);
+		Cycle(const interactions_set& aInteractions);
 		
 		virtual ~Cycle();
 		
 		// ACCESS ---------------------------------------------------------------
-		const mccore::GraphModel& getModel() const;
 		const std::list<mccore::ResId>& residues() const {return mResidues;}
 		
 		const std::string& name() const {return mName;}
@@ -60,8 +55,6 @@ namespace annotate
 		 * @brief Checks if the cycle is complete
 		 */
 		bool isClosed() const;
-		std::string getSequence() const 
-			throw(mccore::NoSuchElementException);
 		bool isParallel() const;
 		unsigned int getNbStrands() const {return mProfile.size();}
 		enType getType() const;
@@ -74,8 +67,6 @@ namespace annotate
 		std::string mName;
 		std::string mModelName;
 		
-		unsigned char mucRelationMask;
-		mccore::GraphModel mModel;
 		interactions_set mInteractions;
 		std::vector<unsigned int> mProfile;
 		std::list<mccore::ResId> mResidues;
