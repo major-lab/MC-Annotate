@@ -1,4 +1,4 @@
-//                              -*- Mode: C++ -*- 
+//                              -*- Mode: C++ -*-
 // mcnacs.cc
 // Copyright © 2009 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
@@ -47,8 +47,8 @@ void displayConnectedCycle(const NACycleInfo& aCycle);
 
 void version ()
 {
-	std::cout 
-		<< PACKAGE << " " << VERSION << " (" << __DATE__ << ")" 
+	std::cout
+		<< PACKAGE << " " << VERSION << " (" << __DATE__ << ")"
 		<< std::endl;
 }
 
@@ -63,22 +63,22 @@ void usage ()
 
 void help ()
 {
-	std::cout	
-		<< "This program read cycle structures and return the corresponding residue ids." 
+	std::cout
+		<< "This program read cycle structures and return the corresponding residue ids."
 		<< std::endl
 		<< "  -h	print this help" << std::endl
 		<< "  -u	split the non-adjacent cycles into sets of unique interacting cycle per strand" << std::endl
 		<< "  -p	file containing the non-adjacent interacting pairs" << std::endl
 		<< "  -c	file containing the identified cycles" << std::endl
 		<< "  -s	file containing a second set of cycles identified in the secondary structure" << std::endl
-		<< "  -V	print the software version info" << std::endl;    
+		<< "  -V	print the software version info" << std::endl;
 }
 
 void read_options (int argc, char* argv[])
 {
 	int c;
 
-	while ((c = getopt (argc, argv, shortopts)) != EOF) 
+	while ((c = getopt (argc, argv, shortopts)) != EOF)
 	{
 		switch (c)
 		{
@@ -89,7 +89,7 @@ void read_options (int argc, char* argv[])
 		case 'c':
 		{
 			gstrCyclesFile = optarg;
-			break;		
+			break;
 		}
 		case 'f':
 		{
@@ -99,12 +99,12 @@ void read_options (int argc, char* argv[])
 		case 'p':
 		{
 			gstrPairsFile = optarg;
-			break;		
+			break;
 		}
 		case 's':
 		{
 			gstrSecondaryCyclesFile = optarg;
-			break;		
+			break;
 		}
 		case 'u':
 		{
@@ -166,28 +166,28 @@ std::multimap<ModelInfo, InteractionInfo> readPairsFile(const std::string& aFile
 	while (std::getline(infile, strLine).good())
 	{
 		cleanString(strLine, ' ');
-		
+
 		std::size_t sep = strLine.rfind('-');
 		std::string strRes2 = strLine.substr(sep + 1, strLine.size() - (sep + 1));
 		strLine.erase(sep);
-		
+
 		sep = strLine.rfind(':');
 		std::string strRes1 = strLine.substr(sep + 1, strLine.size() - (sep + 1));
 		strLine.erase(sep);
-		
+
 		sep = strLine.rfind(':');
 		std::string strModel = strLine.substr(sep + 1, strLine.size() - (sep + 1));
 		strLine.erase(sep);
 		unsigned int uiModel = atol(strModel.c_str());
-		
+
 		std::string strPDBFile = strLine;
-		
+
 		InteractionInfo info(strPDBFile, uiModel, strRes1, strRes2);
-		infos.insert(std::pair<ModelInfo, InteractionInfo>(info.getModelInfo(), info)); 
+		infos.insert(std::pair<ModelInfo, InteractionInfo>(info.getModelInfo(), info));
 	}
 
 	infile.close();
-	
+
 	return infos;
 }
 
@@ -195,7 +195,7 @@ std::list<std::string> getResidues(const std::string& aResidues)
 {
 	std::list<std::string> residues;
 	std::string strResidues = aResidues;
-	
+
 	cleanString(strResidues, ' ');
 	while(0 < strResidues.size())
 	{
@@ -217,16 +217,16 @@ std::list<std::string> getResidues(const std::string& aResidues)
 }
 
 std::vector<std::vector<std::string> > getStrandResidues(
-	const std::string& aResidues, 
+	const std::string& aResidues,
 	const annotate::CycleProfile& aProfile)
 {
 	std::list<std::string> residues = getResidues(aResidues);
 	std::vector<std::vector<std::string> > strandResidues;
-	
+
 	std::list<std::string>::const_iterator itRes = residues.begin();
 	std::list<unsigned int>::const_iterator itProf;
-	for(itProf = aProfile.strandProfile().begin(); 
-		itProf != aProfile.strandProfile().end(); 
+	for(itProf = aProfile.strandProfile().begin();
+		itProf != aProfile.strandProfile().end();
 		++ itProf)
 	{
 		std::vector<std::string> strand;
@@ -249,7 +249,7 @@ std::set<CycleInfo> readCyclesFile(const std::string& aFile)
 	std::set<CycleInfo> infos;
 	infile.open (aFile.c_str(), std::ifstream::in);
 	std::string strLine;
-	
+
 	while(std::getline(infile, strLine).good())
 	{
 		cleanString(strLine, ' ');
@@ -279,7 +279,7 @@ std::set<CycleInfo> readCyclesFile(const std::string& aFile)
 		annotate::CycleProfile prof(strProfile);
 
 		CycleInfo::residue_profile resProfile;
-		resProfile = getStrandResidues(strResIds, prof); 
+		resProfile = getStrandResidues(strResIds, prof);
 
 		CycleInfo cInfo(strPDBFile, uiModel, resProfile);
 
@@ -287,9 +287,9 @@ std::set<CycleInfo> readCyclesFile(const std::string& aFile)
 		assert(infos.size() == i);
 		++ i;
 	}
-	
+
 	infile.close();
-	
+
 	return infos;
 }
 
@@ -304,7 +304,7 @@ std::string modelInfoString(const CycleInfo& aCycle)
 std::string cycleInfoString(const CycleInfo& aCycle)
 {
 	std::ostringstream oss;
-	
+
 	std::vector<unsigned int> profile = aCycle.getProfile();
 	std::vector<unsigned int>::const_iterator itProf;
 	for(itProf = profile.begin(); itProf != profile.end(); ++ itProf)
@@ -313,8 +313,8 @@ std::string cycleInfoString(const CycleInfo& aCycle)
 	}
 	oss << "\t: ";
 	CycleInfo::residue_profile::const_iterator itResStrand;
-	for(itResStrand = aCycle.getStrandResidues().begin(); 
-		itResStrand != aCycle.getStrandResidues().end(); 
+	for(itResStrand = aCycle.getStrandResidues().begin();
+		itResStrand != aCycle.getStrandResidues().end();
 		++ itResStrand)
 	{
 		if(itResStrand != aCycle.getStrandResidues().begin())
@@ -323,8 +323,8 @@ std::string cycleInfoString(const CycleInfo& aCycle)
 		}
 		oss << "{";
 		CycleInfo::residue_strand::const_iterator itRes;
-		for(itRes = itResStrand->begin(); 
-			itRes != itResStrand->end(); 
+		for(itRes = itResStrand->begin();
+			itRes != itResStrand->end();
 			++ itRes)
 		{
 			if(itRes != itResStrand->begin())
@@ -376,15 +376,15 @@ std::set<CycleInfo> getNonAdjacentCycleFromModel(
 	std::set<CycleInfo> oNACycles;
 	inter_map_iterator interIt;
 	cycle_set_iterator cycleIt;
-	for(interIt = interactionRange.first; 
-		interIt != interactionRange.second; 
-		++ interIt) 
+	for(interIt = interactionRange.first;
+		interIt != interactionRange.second;
+		++ interIt)
 	{
 		for(cycleIt = cycleRange.first; cycleIt != cycleRange.second; ++cycleIt)
 		{
 			if(cycleIt->contains(interIt->second))
 			{
-				oNACycles.insert(*cycleIt);				
+				oNACycles.insert(*cycleIt);
 			}
 		}
 	}
@@ -392,7 +392,7 @@ std::set<CycleInfo> getNonAdjacentCycleFromModel(
 }
 
 std::pair<cycle_set_iterator, cycle_set_iterator> getModelRange(
-	const std::set<CycleInfo>& aCycles, 
+	const std::set<CycleInfo>& aCycles,
 	const ModelInfo& aModelInfo)
 {
 	std::pair<cycle_set_iterator, cycle_set_iterator> range(aCycles.end(), aCycles.end());
@@ -408,35 +408,35 @@ std::pair<cycle_set_iterator, cycle_set_iterator> getModelRange(
 	}
 	range.second = it;
 	return range;
-} 
+}
 
 std::set<CycleInfo> getNonAdjacentCycle(
 	const std::multimap<ModelInfo, InteractionInfo>& aInteractions,
 	const std::set<CycleInfo>& aCycles)
 {
 	std::set<CycleInfo> oNACycles;
-	
+
 	std::list<ModelInfo> models = getModels(aInteractions);
-	
+
 	std::list<ModelInfo>::const_iterator itModel;
 	for(itModel = models.begin(); itModel != models.end(); ++itModel)
 	{
 		std::pair<inter_map_iterator, inter_map_iterator> interRange;
 		std::pair<cycle_set_iterator, cycle_set_iterator> cycleRange;
-		
+
 		interRange = aInteractions.equal_range(*itModel);
 		cycleRange = getModelRange(aCycles, *itModel);
-		
+
 		std::set<CycleInfo> oModelCycle;
 		oModelCycle = getNonAdjacentCycleFromModel(interRange, cycleRange);
-		
-		oNACycles.insert(oModelCycle.begin(), oModelCycle.end());		
+
+		oNACycles.insert(oModelCycle.begin(), oModelCycle.end());
 	}
 	return oNACycles;
 }
 
 std::set<CycleInfo> removeCycles(
-	std::multimap<ModelInfo, CycleInfo>& aCycles, 
+	std::multimap<ModelInfo, CycleInfo>& aCycles,
 	const std::multimap<ModelInfo, CycleInfo>& aToRemove)
 {
 	std::set<CycleInfo> cycles;
@@ -445,13 +445,13 @@ std::set<CycleInfo> removeCycles(
 	{
 		cycles.insert(it->second);
 	}
-	
+
 	std::set<CycleInfo> cyclesToRemove;
 	for(it = aToRemove.begin(); it != aToRemove.end(); ++ it)
 	{
 		cyclesToRemove.insert(it->second);
 	}
-	
+
 	return annotate::SetDifference(cycles, cyclesToRemove);
 }
 
@@ -489,7 +489,7 @@ std::set<NACycleInfo> getConnectedCycles(
 			range = getModelRange(aACycles, itCycle->getModelInfo());
 			std::set<CycleInfo> connectedCycles;
 			connectedCycles =  getCyclesWithInteraction(range, interactions);
-			cycle.getStrandConnections(iStrand) = connectedCycles;			
+			cycle.getStrandConnections(iStrand) = connectedCycles;
 		}
 		oNACycles.insert(cycle);
 	}
@@ -514,8 +514,8 @@ std::string connectedCycleEquationString(const NACycleInfo& aCycle)
 	std::string strProfile = getProfileString(aCycle);
 	oss << strProfile << " = ";
 	std::vector< std::set<CycleInfo> >::const_iterator it;
-	for(it = aCycle.getConnections().begin(); 
-		it != aCycle.getConnections().end(); 
+	for(it = aCycle.getConnections().begin();
+		it != aCycle.getConnections().end();
 		++ it)
 	{
 		if(it != aCycle.getConnections().begin())
@@ -553,7 +553,7 @@ std::set<NACycleInfo> filterOutOpenConnections(std::set<NACycleInfo>& aCycles)
 	{
 		bPass = true;
 		std::vector< std::set<CycleInfo> >::const_iterator itStrand;
-		for(itStrand = it->getConnections().begin(); 
+		for(itStrand = it->getConnections().begin();
 			itStrand != it->getConnections().end() && bPass;
 			++itStrand)
 		{
@@ -567,7 +567,7 @@ std::set<NACycleInfo> filterOutOpenConnections(std::set<NACycleInfo>& aCycles)
 			filtered.insert(*it);
 		}
 	}
-	return filtered;	
+	return filtered;
 }
 
 std::set<NACycleInfo> filterOutPartialCoverage(
@@ -580,10 +580,10 @@ std::set<NACycleInfo> filterOutPartialCoverage(
 	{
 		bPass = true;
 		NACycleInfo cycle(
-			it->getPDBFile(), 
-			it->getModel(), 
+			it->getPDBFile(),
+			it->getModel(),
 			it->getStrandResidues());
-		
+
 		unsigned int uiIndex;
 		bool bPassStrand = true;
 		for(uiIndex = 0; uiIndex < it->getConnections().size() && bPassStrand; ++ uiIndex)
@@ -592,7 +592,7 @@ std::set<NACycleInfo> filterOutPartialCoverage(
 			std::set<Interaction> strand = it->getStrandInteractions(uiIndex);
 			std::set<CycleInfo> connection = it->getConnections()[uiIndex];
 			for(std::set<CycleInfo>::const_iterator itCycle = connection.begin();
-				itCycle != connection.end(); 
+				itCycle != connection.end();
 				++ itCycle)
 			{
 				if(itCycle->hasStrandCoveringInteractions(strand))
@@ -608,7 +608,7 @@ std::set<NACycleInfo> filterOutPartialCoverage(
 			filtered.insert(cycle);
 		}
 	}
-	return filtered;	
+	return filtered;
 }
 
 std::set<NACycleInfo> filterOutEnclosingCycles(
@@ -619,22 +619,22 @@ std::set<NACycleInfo> filterOutEnclosingCycles(
 	for(it = aCycles.begin(); it != aCycles.end(); ++ it)
 	{
 		NACycleInfo cycle(
-			it->getPDBFile(), 
-			it->getModel(), 
+			it->getPDBFile(),
+			it->getModel(),
 			it->getStrandResidues());
-		
+
 		unsigned int uiIndex;
 		for(uiIndex = 0; uiIndex < it->getConnections().size(); ++ uiIndex)
 		{
 			std::set<CycleInfo> connection = it->getConnections()[uiIndex];
 			for(std::set<CycleInfo>::const_iterator itCycle = connection.begin();
-				itCycle != connection.end(); 
+				itCycle != connection.end();
 				++ itCycle)
 			{
 				bool bHasSubCycle = false;
 				std::set<CycleInfo>::const_iterator itSubCycle;
-				for(itSubCycle = connection.begin(); 
-					itSubCycle != connection.end() && !bHasSubCycle; 
+				for(itSubCycle = connection.begin();
+					itSubCycle != connection.end() && !bHasSubCycle;
 					++ itSubCycle)
 				{
 					if(itCycle != itSubCycle)
@@ -650,7 +650,7 @@ std::set<NACycleInfo> filterOutEnclosingCycles(
 		}
 		filtered.insert(cycle);
 	}
-	return filtered;	
+	return filtered;
 }
 
 void displayConnectedCycle(const NACycleInfo& aCycle)
@@ -662,8 +662,8 @@ void displayConnectedCycle(const NACycleInfo& aCycle)
 	std::cout << "\t" << cycleInfoString(aCycle) << std::endl;
 	std::cout << "\t=" << std::endl;
 	std::vector< std::set<CycleInfo> >::const_iterator it;
-	for(it = aCycle.getConnections().begin(); 
-		it != aCycle.getConnections().end(); 
+	for(it = aCycle.getConnections().begin();
+		it != aCycle.getConnections().end();
 		++ it)
 	{
 		if(it != aCycle.getConnections().begin())
@@ -674,7 +674,7 @@ void displayConnectedCycle(const NACycleInfo& aCycle)
 		for(itCycle = it->begin(); itCycle != it->end(); ++itCycle)
 		{
 			std::cout << "\t" << cycleInfoString(*itCycle) << ";" << std::endl;
-		}		
+		}
 	}
 }
 
@@ -698,13 +698,13 @@ std::set<NACycleInfo> splitAdjacency(const std::set<NACycleInfo>& aCycles)
 		if(1 == it->getConnections().size())
 		{
 			std::set<CycleInfo>::const_iterator itCycle;
-			for(itCycle = it->getConnections()[0].begin(); 
-				itCycle != it->getConnections()[0].end(); 
+			for(itCycle = it->getConnections()[0].begin();
+				itCycle != it->getConnections()[0].end();
 				++ itCycle)
 			{
 				NACycleInfo cycle(
-					it->getPDBFile(), 
-					it->getModel(), 
+					it->getPDBFile(),
+					it->getModel(),
 					it->getStrandResidues());
 				cycle.getStrandConnections(0).insert(*itCycle);
 				cycles.insert(cycle);
@@ -713,24 +713,24 @@ std::set<NACycleInfo> splitAdjacency(const std::set<NACycleInfo>& aCycles)
 		else if(2 == it->getConnections().size())
 		{
 			std::set<CycleInfo>::const_iterator itCycle1;
-			for(itCycle1 = it->getConnections()[0].begin(); 
-				itCycle1 != it->getConnections()[0].end(); 
+			for(itCycle1 = it->getConnections()[0].begin();
+				itCycle1 != it->getConnections()[0].end();
 				++ itCycle1)
 			{
 				std::set<CycleInfo>::const_iterator itCycle2;
-				for(itCycle2 = it->getConnections()[1].begin(); 
-					itCycle2 != it->getConnections()[1].end(); 
+				for(itCycle2 = it->getConnections()[1].begin();
+					itCycle2 != it->getConnections()[1].end();
 					++ itCycle2)
 				{
 					NACycleInfo cycle(
-						it->getPDBFile(), 
-						it->getModel(), 
+						it->getPDBFile(),
+						it->getModel(),
 						it->getStrandResidues());
 					cycle.getStrandConnections(0).insert(*itCycle1);
 					cycle.getStrandConnections(1).insert(*itCycle2);
 					cycles.insert(cycle);
 				}
-			}			
+			}
 		}
 	}
 	return cycles;
@@ -742,7 +742,7 @@ std::map<std::string, unsigned int> compileStatistics(
 	std::map<std::string, unsigned int> stats;
 	std::set<NACycleInfo>::const_iterator it;
 	for(it = aCycles.begin(); it != aCycles.end(); ++ it)
-	{		
+	{
 		std::string strEquation = connectedCycleEquationString(*it);
 		std::map<std::string, unsigned int>::iterator it;
 		it = stats.find(strEquation);
@@ -767,7 +767,7 @@ void displayStatistics(const std::map<std::string, unsigned int>& aStats)
 	{
 		displayStats.insert(std::make_pair(itInput->second, itInput->first));
 	}
-	
+
 	std::multimap<unsigned int, std::string>::const_iterator it;
 	for(it = displayStats.begin(); it != displayStats.end(); ++ it)
 	{
@@ -778,46 +778,46 @@ void displayStatistics(const std::map<std::string, unsigned int>& aStats)
 int main (int argc, char *argv[])
 {
 	read_options (argc, argv);
-	
+
 	std::multimap<ModelInfo, InteractionInfo> interactionInfos = readPairsFile(gstrPairsFile);
 	std::set<CycleInfo> cycleInfos = readCyclesFile(gstrCyclesFile);
 	std::set<CycleInfo> cycleNAInfos = getNonAdjacentCycle(interactionInfos, cycleInfos);
-	
+
 	std::cout << "Number of interactions found : " << interactionInfos.size() << std::endl;
 	std::cout << "Number of cycle found : " << cycleInfos.size() << std::endl;
 	if(!gstrSecondaryCyclesFile.empty())
 	{
 		std::set<CycleInfo> secondInfo = readCyclesFile(gstrSecondaryCyclesFile);
 		std::cout << "Number of supplementary cycle found : " << secondInfo.size() << std::endl;
-		
+
 		cycleInfos = annotate::SetUnion(cycleInfos, secondInfo);
-		std::cout << "Total number of potential cycle found : " << secondInfo.size() << std::endl;
+		std::cout << "Total number of potential cycle found : " << cycleInfos.size() << std::endl;
 	}
 	std::cout << "Number of non-adjacent cycle found : " << cycleNAInfos.size() << std::endl;
-	displayCycleInfos(cycleNAInfos);
-#if 0	
+
 	// Remove the non-adjacent cycle
 	cycleInfos = annotate::SetDifference(cycleInfos, cycleNAInfos);
-	
+	std::cout << "Number of cycles excluding non-adjacent ones : " << cycleInfos.size() << std::endl;
+
 	std::set<NACycleInfo> connectedCycles;
 	connectedCycles = getConnectedCycles(cycleNAInfos, cycleInfos);
-	
+
 	// Remove the cycles not interacting with other NCMs
 	unsigned int uiNbConnectedCycles = connectedCycles.size();
-	// connectedCycles = filterOutOpenConnections(connectedCycles);
+	connectedCycles = filterOutOpenConnections(connectedCycles);
 	std::cout << "Number of ignored cycle due to open strand ";
 	std::cout << (uiNbConnectedCycles - connectedCycles.size()) << std::endl;
-	
+
 	// Remove the cycles not covering entirely the relation
 	uiNbConnectedCycles = connectedCycles.size();
-	// connectedCycles = filterOutPartialCoverage(connectedCycles);
+	connectedCycles = filterOutPartialCoverage(connectedCycles);
 	std::cout << "Number of ignored cycle due to partial strand coverage ";
 	std::cout << (uiNbConnectedCycles - connectedCycles.size()) << std::endl;
-	
-	// Remove the cycles who has subcycles in the same interactions 
+
+	// Remove the cycles who has subcycles in the same interactions
 	// ( e.g. NGNRAN vs GNRA, keep GNRA only )
 	uiNbConnectedCycles = connectedCycles.size();
-	// connectedCycles = filterOutEnclosingCycles(connectedCycles);
+	connectedCycles = filterOutEnclosingCycles(connectedCycles);
 	std::cout << "Number of ignored cycle due to subcycles ";
 	std::cout << (uiNbConnectedCycles - connectedCycles.size()) << std::endl;
 
@@ -825,12 +825,11 @@ int main (int argc, char *argv[])
 	{
 		connectedCycles = splitAdjacency(connectedCycles);
 	}
-	
+
 	displayConnectedCycles(connectedCycles);
-	
+
 	std::map<std::string, unsigned int> stats = compileStatistics(connectedCycles);
 	displayStatistics(stats);
-#endif
-	
-	return EXIT_SUCCESS;	
+
+	return EXIT_SUCCESS;
 }

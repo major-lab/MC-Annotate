@@ -1,4 +1,4 @@
-//                              -*- Mode: C++ -*- 
+//                              -*- Mode: C++ -*-
 // mcnaip.cc
 // Copyright © 2009 Laboratoire de Biologie Informatique et Théorique.
 //                  Université de Montréal
@@ -48,10 +48,10 @@ bool binary = false;
 unsigned int environment = 0;
 bool oneModel = false;
 unsigned int guiModelNumber = 0;  // 1 based vector identifier, 0 means all
-unsigned char gucRelationMask = 
+unsigned char gucRelationMask =
 	mccore::Relation::adjacent_mask
-	| mccore::Relation::pairing_mask 
-	| mccore::Relation::stacking_mask 
+	| mccore::Relation::pairing_mask
+	| mccore::Relation::stacking_mask
 	| mccore::Relation::backbone_mask;
 const char* shortopts = "Vbf:hlvm:";
 
@@ -81,7 +81,7 @@ void help ()
 		<< "  -h                print this help" << endl
 		<< "  -l                be more verbose (log)" << endl
 		<< "  -v                be verbose" << endl
-		<< "  -V                print the software version info" << endl;    
+		<< "  -V                print the software version info" << endl;
 }
 
 
@@ -89,7 +89,7 @@ void read_options (int argc, char* argv[])
 {
 	int c;
 
-	while ((c = getopt (argc, argv, shortopts)) != EOF) 
+	while ((c = getopt (argc, argv, shortopts)) != EOF)
 	{
 		switch (c)
 		{
@@ -99,7 +99,7 @@ void read_options (int argc, char* argv[])
 			break;
 		case 'b':
 			binary = true;
-			break; 
+			break;
 		case 'e':
 		{
 			long int tmp;
@@ -165,7 +165,7 @@ void read_options (int argc, char* argv[])
 			exit (EXIT_FAILURE);
 		}
 	}
-	
+
 	if (argc - optind < 1)
 	{
 		usage ();
@@ -201,12 +201,12 @@ mccore::Molecule* loadFile (const std::string &filename)
 	{
 #ifdef HAVE_LIBRNAMLC__
 		RnamlReader reader (filename.c_str (), &aFM);
-      
+
 		if (0 == (molecule = reader.read ()))
 		{
 #endif
 			izfPdbstream in;
-	
+
 			in.open (filename.c_str ());
 			if (in.fail ())
 			{
@@ -233,7 +233,7 @@ std::string getPdbFileName(const std::string& aFileName)
 		filename.erase (0, index + 1);
     }
 	if (string::npos != (index = filename.find (".")))
-    { 
+    {
 		filename.erase (index, filename.size ());
     }
 	return filename;
@@ -248,7 +248,7 @@ int main (int argc, char *argv[])
 		Molecule *molecule;
 		Molecule::iterator molIt;
 		std::string filename = (std::string) argv[optind];
-      
+
 		molecule = loadFile (filename);
 		if (0 != molecule)
 		{
@@ -270,8 +270,7 @@ int main (int argc, char *argv[])
 					annotate::AnnotationLoops annLoops;
 					annotate::AnnotationTertiaryPairs annTertiaryPairs;
 					annotate::AnnotationTertiaryStacks annTertiaryStacks;
-					annotate::AnnotationResSecondaryStructures annResSecondaryStructures;
-		  
+
 		  			am.addAnnotation(annInteractions);
 		  			am.addAnnotation(annChains);
 					am.addAnnotation(annStems);
@@ -279,12 +278,11 @@ int main (int argc, char *argv[])
 					am.addAnnotation(annLoops);
 					am.addAnnotation(annTertiaryPairs);
 					am.addAnnotation(annTertiaryStacks);
-					am.addAnnotation(annResSecondaryStructures);
-					
+
 					am.annotate (gucRelationMask);
 					std::set<annotate::BasePair>::const_iterator itPair;
-					for(itPair = annTertiaryPairs.getPairs().begin(); 
-						itPair != annTertiaryPairs.getPairs().end(); 
+					for(itPair = annTertiaryPairs.getPairs().begin();
+						itPair != annTertiaryPairs.getPairs().end();
 						++ itPair)
 					{
 						mccore::gOut(0) << getPdbFileName(filename) << " : ";
@@ -292,8 +290,8 @@ int main (int argc, char *argv[])
 						mccore::gOut(0) << itPair->fResId << "-" << itPair->rResId;
 						mccore::gOut(0) << std::endl;
 					}
-					
-					
+
+
 					if (oneModel)
 					{
 						break;
@@ -304,6 +302,6 @@ int main (int argc, char *argv[])
 		}
 		++optind;
 	}
-	
-	return EXIT_SUCCESS;	
+
+	return EXIT_SUCCESS;
 }

@@ -1,4 +1,4 @@
-//                              -*- Mode: C++ -*- 
+//                              -*- Mode: C++ -*-
 // mcsc2resids.cc
 // Copyright © 2001-09 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
@@ -37,7 +37,7 @@ bool binary = false;
 bool oneModel = false;
 const char* shortopts = "Vbhlv";
 
-typedef std::list<const mccore::Residue*> residue_strand; 
+typedef std::list<const mccore::Residue*> residue_strand;
 typedef std::vector<residue_strand > residue_profile;
 
 struct stCycleInfo
@@ -53,7 +53,7 @@ struct stCycleInfo
 void version ()
 {
 	mccore::Version mccorev;
-	mccore::gOut (0) << PACKAGE << " " << VERSION << " (" << __DATE__ << ")" 
+	mccore::gOut (0) << PACKAGE << " " << VERSION << " (" << __DATE__ << ")"
 		<< std::endl
 		<< "  using " << mccorev << endl;
 }
@@ -74,7 +74,7 @@ void help ()
 		<< "  -h                print this help" << std::endl
 		<< "  -l                be more verbose (log)" << std::endl
 		<< "  -v                be verbose" << std::endl
-		<< "  -V                print the software version info" << std::endl;    
+		<< "  -V                print the software version info" << std::endl;
 }
 
 
@@ -82,7 +82,7 @@ void read_options (int argc, char* argv[])
 {
 	int c;
 
-	while ((c = getopt (argc, argv, shortopts)) != EOF) 
+	while ((c = getopt (argc, argv, shortopts)) != EOF)
 	{
 		switch (c)
 		{
@@ -92,7 +92,7 @@ void read_options (int argc, char* argv[])
 			break;
 		case 'b':
 			binary = true;
-			break; 
+			break;
 		case 'h':
 			usage ();
 			help ();
@@ -143,16 +143,16 @@ mccore::Molecule* loadFile (const std::string &filename)
 	{
 #ifdef HAVE_LIBRNAMLC__
 		RnamlReader reader (filename.c_str (), &aFM);
-      
+
 		if (0 == (molecule = reader.read ()))
 		{
 #endif
 		mccore::izfPdbstream in;
-	  
+
 		in.open (filename.c_str ());
 		if (in.fail ())
 		{
-			mccore::gErr (0) << PACKAGE << ": cannot open pdb file '" 
+			mccore::gErr (0) << PACKAGE << ": cannot open pdb file '"
 				<< filename << "'." << std::endl;
 			return 0;
 		}
@@ -176,14 +176,14 @@ std::string getModelIndex(const std::string& aFileName)
 		filename.erase (0, index + 1);
     }
 	if (string::npos != (index = filename.find (".")))
-    { 
+    {
 		filename.erase (index, filename.size ());
     }
     if(std::string::npos != (index = filename.rfind("_")))
     {
-    	strModel = filename.substr(index + 1);	
+    	strModel = filename.substr(index + 1);
     }
-    
+
 	return strModel;
 }
 
@@ -192,37 +192,37 @@ bool isProfileParallel(const std::string& aProfile)
 	bool bParallel = false;
 	std::string aDelim = "_";
 	std::list<std::string> fields = annotate::splitStringFields(aProfile, aDelim);
-	
+
 	if(0 < fields.size())
 	{
 		bParallel = (fields.back() == "p");
 	}
-	
+
 	return bParallel;
-}	
+}
 
 std::string getModelProfile(const std::string& aFileName)
 {
 	std::string::size_type index;
-	std::string filename = aFileName;
-	if (std::string::npos != (index = filename.rfind ("/")))
+	std::string strProfile = aFileName;
+	if (std::string::npos != (index = strProfile.rfind ("/")))
     {
-		filename.erase (0, index + 1);
+		strProfile.erase (0, index + 1);
     }
-	if (string::npos != (index = filename.find (".")))
-    { 
-		filename.erase (index, filename.size ());
-    }
-    if(std::string::npos != (index = filename.find("_")))
+	if (string::npos != (index = strProfile.find (".")))
     {
-    	filename.erase (0, index + 1);
+		strProfile.erase (index, strProfile.size ());
     }
-    if(std::string::npos != (index = filename.find("_model")))
+    if(std::string::npos != (index = strProfile.find("_")))
     {
-    	filename.erase (index, filename.size());
+    	strProfile.erase (0, index + 1);
     }
-    
-	return filename;
+    if(std::string::npos != (index = strProfile.find("_model")))
+    {
+    	strProfile.erase (index, strProfile.size());
+    }
+
+	return strProfile;
 }
 
 std::string getFilePrefix(const std::string& aFileName)
@@ -234,7 +234,7 @@ std::string getFilePrefix(const std::string& aFileName)
 		filename.erase (0, index + 1);
     }
 	if (string::npos != (index = filename.find (".")))
-    { 
+    {
 		filename.erase (index, filename.size ());
     }
 	return filename;
@@ -246,7 +246,7 @@ std::string getPdbFileName(const std::string& aFileName)
 	std::string filename = getFilePrefix(aFileName);
     if(std::string::npos != (index = filename.find("_")))
     {
-    	filename.erase(index, filename.size());	
+    	filename.erase(index, filename.size());
     }
 	return filename;
 }
@@ -259,11 +259,11 @@ residue_profile getResProfile(
 	residue_profile profile;
 	std::list<unsigned int>::const_iterator itProf;
 	mccore::GraphModel::const_iterator itRes = aModel.begin();
-	for(itProf = aProfile.strandProfile().begin(); 
-		itProf != aProfile.strandProfile().end(); 
+	for(itProf = aProfile.strandProfile().begin();
+		itProf != aProfile.strandProfile().end();
 		++ itProf)
 	{
-		residue_strand strand; 
+		residue_strand strand;
 		for(unsigned int iRes = 0; iRes < *itProf; ++ iRes)
 		{
 			strand.push_back(&(*itRes));
@@ -304,7 +304,7 @@ residue_profile orderProfile(const residue_profile& aProfile)
 }
 
 std::string getProfileString(
-	residue_profile& aProfile, 
+	residue_profile& aProfile,
 	const std::string& astrProfile)
 {
 	std::ostringstream oss;
@@ -317,7 +317,7 @@ std::string getProfileString(
 		}
 		oss << it->size();
 	}
-	
+
 	std::list<std::string> fields = annotate::splitStringFields(astrProfile, "_");
 	if(1 == fields.back().size() && std::isalpha(fields.back()[0]))
 	{
@@ -346,7 +346,7 @@ std::string getResiduesString(residue_profile& aProfile)
 			oss << (*itRes)->getResId();
 		}
 	}
-	
+
 	return oss.str();
 }
 
@@ -370,7 +370,7 @@ std::string getNucleotideString(residue_profile& aProfile)
 			oss << mccore::Pdbstream::stringifyResidueType((*itRes)->getType());
 		}
 	}
-	
+
 	return oss.str();
 }
 
@@ -387,7 +387,7 @@ int main (int argc, char *argv[])
 	std::vector<std::size_t> colSizes;
 	colSizes.resize(6, 0);
 	std::list<stCycleInfo> infos;
-	
+
 	read_options (argc, argv);
 
 	while (optind < argc)
@@ -395,24 +395,24 @@ int main (int argc, char *argv[])
 		mccore::Molecule *molecule;
 		mccore::Molecule::iterator molIt;
 		std::string filename = (std::string) argv[optind];
-      
+
 		molecule = loadFile (filename);
 		if (0 != molecule)
 		{
 			for (molIt = molecule->begin (); molecule->end () != molIt; ++molIt)
 			{
 				mccore::GraphModel &am = (mccore::GraphModel&) *molIt;
-				
+
 				std::string strFileProfile = getModelProfile(filename);
 				annotate::CycleProfile expectedProfile(strFileProfile);
 				residue_profile resProfile = getResProfile(am, expectedProfile);
-				bool bIsParallel = isProfileParallel(filename);
+				bool bIsParallel = isProfileParallel(strFileProfile);
 				if(bIsParallel)
 				{
 					makeParallel(resProfile);
 				}
 				resProfile = orderProfile(resProfile);
-				
+
 				stCycleInfo info;
 				info.strFile = getPdbFileName(filename);
 				colSizes[0] = std::max(info.strFile.size(), colSizes[0]);
@@ -432,7 +432,7 @@ int main (int argc, char *argv[])
 		}
 		++optind;
 	}
-	
+
 	std::list<stCycleInfo>::iterator infoIt;
 	for(infoIt = infos.begin(); infoIt != infos.end(); ++infoIt)
 	{
@@ -453,6 +453,6 @@ int main (int argc, char *argv[])
 		mccore::gOut(0) << infoIt->strNucleotides;
 		mccore::gOut(0) << std::endl;
 	}
-	
-	return EXIT_SUCCESS;	
+
+	return EXIT_SUCCESS;
 }
