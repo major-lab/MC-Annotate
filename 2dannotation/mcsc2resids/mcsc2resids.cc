@@ -10,6 +10,10 @@
 #endif
 
 #include "mcsc2resids.h"
+
+#include "CycleProfile.h"
+#include "StringUtil.h"
+
 #include "mccore/Binstream.h"
 #include "mccore/GraphModel.h"
 #include "mccore/Messagestream.h"
@@ -183,34 +187,19 @@ std::string getModelIndex(const std::string& aFileName)
 	return strModel;
 }
 
-bool isProfileParallel(const std::string& aFileName)
+bool isProfileParallel(const std::string& aProfile)
 {
 	bool bParallel = false;
-	std::string::size_type index;
-	std::string filename = aFileName;
-	if (std::string::npos != (index = filename.rfind ("/")))
-    {
-		filename.erase (0, index + 1);
-    }
-	if (string::npos != (index = filename.find (".")))
-    { 
-		filename.erase (index, filename.size ());
-    }
-    if(std::string::npos != (index = filename.find("_")))
-    {
-    	filename.erase (0, index + 1);
-    }
-    if(std::string::npos != (index = filename.find("_")))
-    {
-    	filename.erase (index, filename.size());
-    }
-    if(std::string::npos != (index = filename.find("p")))
-    {
-    	bParallel = true;
-    }
-    
+	std::string aDelim = "_";
+	std::list<std::string> fields = annotate::splitStringFields(aProfile, aDelim);
+	
+	if(0 < fields.size())
+	{
+		bParallel = (fields.back() == "p");
+	}
+	
 	return bParallel;
-}
+}	
 
 std::string getModelProfile(const std::string& aFileName)
 {
@@ -228,11 +217,7 @@ std::string getModelProfile(const std::string& aFileName)
     {
     	filename.erase (0, index + 1);
     }
-    if(std::string::npos != (index = filename.find("_")))
-    {
-    	filename.erase (index, filename.size());
-    }
-    if(std::string::npos != (index = filename.find("p")))
+    if(std::string::npos != (index = filename.find("_model")))
     {
     	filename.erase (index, filename.size());
     }
@@ -268,13 +253,15 @@ std::string getPdbFileName(const std::string& aFileName)
 
 residue_profile getResProfile(
 	const mccore::GraphModel& aModel,
-	std::list<unsigned int>& aProfile)
+	annotate::CycleProfile& aProfile)
 {
 	// Compute the profile
 	residue_profile profile;
 	std::list<unsigned int>::const_iterator itProf;
 	mccore::GraphModel::const_iterator itRes = aModel.begin();
-	for(itProf = aProfile.begin(); itProf != aProfile.end(); ++ itProf)
+	for(itProf = aProfile.strandProfile().begin(); 
+		itProf != aProfile.strandProfile().end(); 
+		++ itProf)
 	{
 		residue_strand strand; 
 		for(unsigned int iRes = 0; iRes < *itProf; ++ iRes)
@@ -316,25 +303,25 @@ residue_profile orderProfile(const residue_profile& aProfile)
 	return profile;
 }
 
-std::list<unsigned int> getExpectedProfile(const std::string& astrProfile)
-{
-	std::list<unsigned int> profile;
-	std::string::const_iterator it;
-	for(it = astrProfile.begin(); it != astrProfile.end(); ++ it)
-	{
-		std::string strNumber(1, *it);
-		profile.push_back(atol (strNumber.c_str()));
-	}	
-	return profile;
-}
-
-std::string getProfileString(residue_profile& aProfile)
+std::string getProfileString(
+	residue_profile& aProfile, 
+	const std::string& astrProfile)
 {
 	std::ostringstream oss;
 	residue_profile::const_iterator it;
 	for(it = aProfile.begin(); it != aProfile.end(); ++ it)
 	{
+		if(it != aProfile.begin())
+		{
+			oss << "_";
+		}
 		oss << it->size();
+	}
+	
+	std::list<std::string> fields = annotate::splitStringFields(astrProfile, "_");
+	if(1 == fields.back().size() && std::isalpha(fields.back()[0]))
+	{
+		oss << "_" << fields.back();
 	}
 	return oss.str();
 }
@@ -417,7 +404,7 @@ int main (int argc, char *argv[])
 				mccore::GraphModel &am = (mccore::GraphModel&) *molIt;
 				
 				std::string strFileProfile = getModelProfile(filename);
-				std::list<unsigned int> expectedProfile = getExpectedProfile(strFileProfile);
+				annotate::CycleProfile expectedProfile(strFileProfile);
 				residue_profile resProfile = getResProfile(am, expectedProfile);
 				bool bIsParallel = isProfileParallel(filename);
 				if(bIsParallel)
@@ -431,9 +418,9 @@ int main (int argc, char *argv[])
 				colSizes[0] = std::max(info.strFile.size(), colSizes[0]);
 				info.strModelId = getModelIndex(filename);
 				colSizes[1] = std::max(info.strModelId.size(), colSizes[1]);
-				info.strFileProfile = getModelProfile(filename);
+				info.strFileProfile = strFileProfile;
 				colSizes[2] = std::max(info.strFileProfile.size(), colSizes[2]);
-				info.strProfile =  getProfileString(resProfile);
+				info.strProfile =  getProfileString(resProfile, strFileProfile);
 				colSizes[3] = std::max(info.strProfile.size(), colSizes[3]);
 				info.strResIds = getResiduesString(resProfile);
 				colSizes[4] = std::max(info.strResIds.size(), colSizes[4]);
