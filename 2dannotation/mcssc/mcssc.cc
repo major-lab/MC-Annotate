@@ -269,7 +269,7 @@ std::set<annotate::Cycle> computeStemCycles(
 				itPrev->second, itPrev->rResId));
 			
 			// Insert the residues in the model
-			annotate::Cycle cycle(aModel, interactions, gucRelationMask);
+			annotate::Cycle cycle(interactions);
 			
 			clearInteractionsSet(interactions);
 			
@@ -315,7 +315,7 @@ annotate::Cycle computeLoopCycle(
 	
 	// Insert the residues in the model
 	assert(0 < interactions.size());
-	annotate::Cycle cycle(aModel, interactions, gucRelationMask);
+	annotate::Cycle cycle(interactions);
 	
 	return cycle;
 }
@@ -359,8 +359,32 @@ std::string cycleProfileStrandString(const annotate::Cycle& aCycle)
 	std::vector<unsigned int>::const_iterator it = aCycle.profile().begin();
 	for(; it != aCycle.profile().end(); ++ it)
 	{
+		if(it != aCycle.profile().begin())
+		{
+			oss << "_";
+		}
 		oss << *it;
 	}
+	return oss.str();
+}
+
+std::string getResiduesString(
+	const annotate::AnnotateModel &aModel,
+	const annotate::Cycle& aCycle)
+{
+	std::ostringstream oss;
+	std::list<mccore::ResId>::const_iterator it;
+	for(it = aCycle.residues().begin(); it != aCycle.residues().end(); ++ it)
+	{
+		if(it != aCycle.residues().begin())
+		{
+			oss << "-";
+		}
+		GraphModel::const_iterator itRes = aModel.find(*it);
+		assert(itRes != aModel.end());
+		oss << mccore::Pdbstream::stringifyResidueType(itRes->getType());
+	}
+	
 	return oss.str();
 }
 
@@ -374,14 +398,14 @@ std::string cycleProfileString(const annotate::Cycle& aCycle)
 	{
 		case annotate::Cycle::eLOOSE:
 			oss << aCycle.residues().size();
-			oss << "L";
+			oss << "_L";
 			break;
 		case annotate::Cycle::e2STRANDS_PARALLEL:
-			oss << cycleProfileStrandString(aCycle) << "p";
+			oss << cycleProfileStrandString(aCycle) << "_p";
 			break;
 		case annotate::Cycle::eMULTIBRANCH:
 			oss << aCycle.residues().size();
-			oss << "M";
+			oss << "_M";
 			break;
 		default:
 			oss << cycleProfileStrandString(aCycle);
@@ -391,7 +415,9 @@ std::string cycleProfileString(const annotate::Cycle& aCycle)
 	return oss.str();
 }
 
-std::string cycleString(const annotate::Cycle& aCycle)
+std::string cycleString(
+	const annotate::AnnotateModel &aModel, 
+	const annotate::Cycle& aCycle)
 {
 	std::ostringstream oss;
 	
@@ -408,6 +434,7 @@ std::string cycleString(const annotate::Cycle& aCycle)
 		}
 		oss << *it;
 	}
+	oss << " : " << getResiduesString(aModel, aCycle);
 	
 	return oss.str();
 }
@@ -458,7 +485,7 @@ int main (int argc, char *argv[])
 					{
 						mccore::gOut(0) << getPdbFileName(filename) << " : ";
 						mccore::gOut(0) << uiModel << " : ";
-						mccore::gOut(0) << cycleString(*itCycle);
+						mccore::gOut(0) << cycleString(am, *itCycle);
 						mccore::gOut(0) << std::endl;
 					}
 					
