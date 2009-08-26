@@ -50,6 +50,9 @@ struct stCycleInfo
 	std::string strNucleotides;
 };
 
+// PROTOTYPES ------------------------------------------------------------------
+std::string getResiduesString(const residue_profile& aProfile);
+
 void version ()
 {
 	mccore::Version mccorev;
@@ -285,7 +288,7 @@ residue_profile orderProfile(const residue_profile& aProfile)
 	}
 	else if(2 == aProfile.size())
 	{
-		if(aProfile[1].front() < aProfile[0].front())
+		if(aProfile[1].front()->getResId() < aProfile[0].front()->getResId())
 		{
 			profile.push_back(aProfile[1]);
 			profile.push_back(aProfile[0]);
@@ -300,6 +303,7 @@ residue_profile orderProfile(const residue_profile& aProfile)
 		mccore::gOut(0) << "Only single and dual stranded cycle supported" << std::endl;
 		exit(0);
 	}
+
 	return profile;
 }
 
@@ -326,7 +330,7 @@ std::string getProfileString(
 	return oss.str();
 }
 
-std::string getResiduesString(residue_profile& aProfile)
+std::string getResiduesString(const residue_profile& aProfile)
 {
 	std::ostringstream oss;
 	residue_profile::const_iterator it;
