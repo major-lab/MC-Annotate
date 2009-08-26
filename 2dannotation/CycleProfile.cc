@@ -10,8 +10,8 @@ namespace annotate
 {
 	CycleProfile::CycleProfile(const std::string& astrString)
 	{
-		std::list<std::string> fields = splitStringFields(astrString, "_");
-		std::list<std::string>::const_iterator it;
+		std::vector<std::string> fields = splitStringFields(astrString, "_");
+		std::vector<std::string>::const_iterator it;
 		for(it = fields.begin(); it != fields.end(); ++ it)
 		{
 			if(std::isdigit((*it)[it->size() - 1]))

@@ -11,14 +11,16 @@
 
 #include "mcnacs.h"
 
-#include "AlgorithmExtra.h"
-#include "CycleProfile.h"
-
 #include "CycleInfo.h"
 #include "Interaction.h"
 #include "InteractionInfo.h"
 #include "ModelInfo.h"
 #include "NACycleInfo.h"
+
+// libmcannotate
+#include "AlgorithmExtra.h"
+#include "CycleProfile.h"
+#include "StringUtil.h"
 
 #include <algorithm>
 #include <cassert>
@@ -44,6 +46,7 @@ typedef std::pair<cycle_set_iterator, cycle_set_iterator> cycle_set_range;
 
 // PROTOTYPES ------------------------------------------------------------------
 void displayConnectedCycle(const NACycleInfo& aCycle);
+std::string cycleInfoString(const CycleInfo& aCycle);
 
 void version ()
 {
@@ -126,11 +129,11 @@ void read_options (int argc, char* argv[])
 std::string cycleResiduesString(const CycleInfo& aCycle)
 {
 	std::ostringstream oss;
-	std::vector<std::string> residues = aCycle.getResidues();
-	std::vector<std::string>::const_iterator it = residues.begin();
-	for(it = residues.begin(); it != residues.end(); ++ it)
+	std::vector<std::string> resIds = aCycle.getResIds();
+	std::vector<std::string>::const_iterator it = resIds.begin();
+	for(it = resIds.begin(); it != resIds.end(); ++ it)
 	{
-		if(it != residues.begin())
+		if(it != resIds.begin())
 		{
 			oss << "-";
 		}
@@ -249,39 +252,28 @@ std::set<CycleInfo> readCyclesFile(const std::string& aFile)
 	std::set<CycleInfo> infos;
 	infile.open (aFile.c_str(), std::ifstream::in);
 	std::string strLine;
+	std::vector<std::string> fields;
 
 	while(std::getline(infile, strLine).good())
 	{
 		cleanString(strLine, ' ');
 
-		std::size_t sep = strLine.rfind(':');
-		std::string strSeq = strLine.substr(sep + 1, strLine.size() - (sep + 1));
-		strLine.erase(sep);
+		fields = annotate::splitStringFields(strLine, ":");
 
-		sep = strLine.rfind(':');
-		std::string strResIds = strLine.substr(sep + 1, strLine.size() - (sep + 1));
-		strLine.erase(sep);
+		std::string strPDBFile = fields[0];
+		unsigned int uiModel = atol(fields[1].c_str());
+		std::string strProfile = fields[2];
+		std::string strPredProfile = fields[3];
+		std::string strResIds = fields[4];
+		std::string strSeq = fields[5];
 
-		sep = strLine.rfind(':');
-		std::string strProfile = strLine.substr(sep + 1, strLine.size() - (sep + 1));
-		strLine.erase(sep);
-
-		sep = strLine.rfind(':');
-		std::string strPredProfile = strLine.substr(sep + 1, strLine.size() - (sep + 1));
-		strLine.erase(sep);
-
-		sep = strLine.rfind(':');
-		std::string strModel = strLine.substr(sep + 1, strLine.size() - (sep + 1));
-		strLine.erase(sep);
-		unsigned int uiModel = atol(strModel.c_str());
-
-		std::string strPDBFile = strLine;
 		annotate::CycleProfile prof(strProfile);
 
 		CycleInfo::residue_profile resProfile;
 		resProfile = getStrandResidues(strResIds, prof);
 
-		CycleInfo cInfo(strPDBFile, uiModel, prof, resProfile);
+		std::vector<std::string> residues = annotate::splitStringFields(strSeq, "-");
+		CycleInfo cInfo(strPDBFile, uiModel, prof, resProfile, residues);
 
 		infos.insert(cInfo);
 		assert(infos.size() == i);
@@ -301,26 +293,33 @@ std::string modelInfoString(const CycleInfo& aCycle)
 	return oss.str();
 }
 
-std::string cycleInfoString(const CycleInfo& aCycle)
+std::string cycleInfoResiduesString(const CycleInfo& aCycle)
 {
 	std::ostringstream oss;
 
-	annotate::CycleProfile profile = aCycle.getProfile();
-	/*
-	std::vector<unsigned int> profile = aCycle.getProfile();
-	std::vector<unsigned int>::const_iterator itProf;
-	for(itProf = profile.begin(); itProf != profile.end(); ++ itProf)
+	std::vector<std::string> sequence = aCycle.getSequence();
+	std::vector<std::string>::const_iterator it;
+	for(it = sequence.begin(); it != sequence.end(); ++ it)
 	{
-		oss << *itProf;
-	}*/
-	oss << profile.toString();
-	oss << "\t: ";
+		if(it != sequence.begin())
+		{
+			oss << "-";
+		}
+		oss << *it;
+	}
+	return oss.str();
+}
+
+std::string cycleInfoResIdsString(const CycleInfo& aCycle)
+{
+	std::ostringstream oss;
+
 	CycleInfo::residue_profile::const_iterator itResStrand;
-	for(itResStrand = aCycle.getStrandResidues().begin();
-		itResStrand != aCycle.getStrandResidues().end();
+	for(itResStrand = aCycle.getStrandResIds().begin();
+		itResStrand != aCycle.getStrandResIds().end();
 		++ itResStrand)
 	{
-		if(itResStrand != aCycle.getStrandResidues().begin())
+		if(itResStrand != aCycle.getStrandResIds().begin())
 		{
 			oss << ",";
 		}
@@ -338,6 +337,20 @@ std::string cycleInfoString(const CycleInfo& aCycle)
 		}
 		oss << "}";
 	}
+
+	return oss.str();
+}
+
+std::string cycleInfoString(const CycleInfo& aCycle)
+{
+	std::ostringstream oss;
+
+	annotate::CycleProfile profile = aCycle.getProfile();
+	oss << profile.toString();
+	oss << "\t: ";
+	oss << cycleInfoResIdsString(aCycle);
+	oss << " : ";
+	oss << cycleInfoResiduesString(aCycle);
 	return oss.str();
 }
 
@@ -574,7 +587,8 @@ std::set<NACycleInfo> filterOutPartialCoverage(
 			it->getPDBFile(),
 			it->getModel(),
 			it->getProfile(),
-			it->getStrandResidues());
+			it->getStrandResIds(),
+			it->getSequence());
 
 		unsigned int uiIndex;
 		bool bPassStrand = true;
@@ -616,7 +630,8 @@ std::set<NACycleInfo> filterOutEnclosingCycles(
 			it->getPDBFile(),
 			it->getModel(),
 			it->getProfile(),
-			it->getStrandResidues());
+			it->getStrandResIds(),
+			it->getSequence());
 
 		unsigned int uiIndex;
 		for(uiIndex = 0; uiIndex < it->getConnections().size(); ++ uiIndex)
@@ -668,7 +683,7 @@ void displayConnectedCycle(const NACycleInfo& aCycle)
 		std::set<CycleInfo>::const_iterator itCycle;
 		for(itCycle = it->begin(); itCycle != it->end(); ++itCycle)
 		{
-			std::cout << "\t" << cycleInfoString(*itCycle) << ";" << std::endl;
+			std::cout << "\t" << cycleInfoString(*itCycle) << std::endl;
 		}
 	}
 }
@@ -701,7 +716,8 @@ std::set<NACycleInfo> splitAdjacency(const std::set<NACycleInfo>& aCycles)
 					it->getPDBFile(),
 					it->getModel(),
 					it->getProfile(),
-					it->getStrandResidues());
+					it->getStrandResIds(),
+					it->getSequence());
 				cycle.getStrandConnections(0).insert(*itCycle);
 				cycles.insert(cycle);
 			}
@@ -722,7 +738,8 @@ std::set<NACycleInfo> splitAdjacency(const std::set<NACycleInfo>& aCycles)
 						it->getPDBFile(),
 						it->getModel(),
 						it->getProfile(),
-						it->getStrandResidues());
+						it->getStrandResIds(),
+						it->getSequence());
 					cycle.getStrandConnections(0).insert(*itCycle1);
 					cycle.getStrandConnections(1).insert(*itCycle2);
 					cycles.insert(cycle);

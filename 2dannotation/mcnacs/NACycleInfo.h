@@ -18,7 +18,8 @@ public:
 		const std::string& aFile,
 		unsigned int auiModel,
 		const annotate::CycleProfile& aProfile,
-		const CycleInfo::residue_profile& aResidues);
+		const CycleInfo::residue_profile& aResIds,
+		const std::vector<std::string>& aResidues);
 	NACycleInfo(const CycleInfo& aCycle);
 	~NACycleInfo(){}
 

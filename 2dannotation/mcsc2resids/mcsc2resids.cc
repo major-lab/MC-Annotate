@@ -194,7 +194,7 @@ bool isProfileParallel(const std::string& aProfile)
 {
 	bool bParallel = false;
 	std::string aDelim = "_";
-	std::list<std::string> fields = annotate::splitStringFields(aProfile, aDelim);
+	std::vector<std::string> fields = annotate::splitStringFields(aProfile, aDelim);
 
 	if(0 < fields.size())
 	{
@@ -322,7 +322,7 @@ std::string getProfileString(
 		oss << it->size();
 	}
 
-	std::list<std::string> fields = annotate::splitStringFields(astrProfile, "_");
+	std::vector<std::string> fields = annotate::splitStringFields(astrProfile, "_");
 	if(1 == fields.back().size() && std::isalpha(fields.back()[0]))
 	{
 		oss << "_" << fields.back();

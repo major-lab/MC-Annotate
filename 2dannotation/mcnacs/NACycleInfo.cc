@@ -8,16 +8,17 @@ NACycleInfo::NACycleInfo(
 	const std::string& aFile,
 	unsigned int auiModel,
 	const annotate::CycleProfile& aProfile,
-	const CycleInfo::residue_profile& aResidues)
-: CycleInfo(aFile, auiModel, aProfile, aResidues)
+	const CycleInfo::residue_profile& aResIds,
+	const std::vector<std::string>& aResidues)
+: CycleInfo(aFile, auiModel, aProfile, aResIds, aResidues)
 {
-	mConnections.resize(aResidues.size());
+	mConnections.resize(aResIds.size());
 }
 
 NACycleInfo::NACycleInfo(const CycleInfo& aCycle)
 : CycleInfo(aCycle)
 {
-	mConnections.resize(mResidues.size());
+	mConnections.resize(mResIds.size());
 }
 
 std::set<CycleInfo>& NACycleInfo::getStrandConnections(unsigned int auiStrand)

@@ -25,26 +25,23 @@ public:
 		const std::string& aFile,
 		unsigned int auiModel,
 		const annotate::CycleProfile& aProfile,
-		const residue_profile& aResidues)
-	: 	mModelInfo(aFile, auiModel),
-		mProfile(aProfile)
-	{
-		mResidues = aResidues;
-	}
+		const residue_profile& aResIds,
+		const std::vector<std::string>& aResidues);
 	~CycleInfo() {}
 
 	// ACCESS ------------------------------------------------------------------
 	const ModelInfo& getModelInfo() const {return mModelInfo;}
 	const std::string& getPDBFile() const {return mModelInfo.getPDBFile();}
 	unsigned int getModel() const {return mModelInfo.getModel();}
-	const std::vector<std::vector<std::string> >& getStrandResidues() const
-	{return mResidues;}
+	const std::vector<std::vector<std::string> >& getStrandResIds() const
+	{return mResIds;}
+	const annotate::CycleProfile& getProfile() const {return mProfile;}
 
 	// METHOD ------------------------------------------------------------------
-	const annotate::CycleProfile& getProfile() const {return mProfile;}
+	const std::vector<std::string> getSequence() const;
 	bool contains(const InteractionInfo& aInteraction) const;
-	std::vector<std::string> getResidues() const;
-	unsigned int getNbStrands() const {return mResidues.size();}
+	std::vector<std::string> getResIds() const;
+	unsigned int getNbStrands() const {return mResIds.size();}
 	std::set<Interaction> getStrandInteractions(unsigned int auiStrand) const;
 	bool shareInteraction(const std::set<Interaction>& aInteraction) const;
 	bool isSubCycleOf(const CycleInfo& aCycleInfo) const;
@@ -69,15 +66,18 @@ public:
 	bool operator <(const CycleInfo& aRight) const;
 protected:
 	ModelInfo mModelInfo;
-	residue_profile mResidues;
+	residue_profile mResIds;
 private:
 
 	annotate::CycleProfile mProfile;
+	std::map<std::string, std::string> mIdToResMap;
 
 	int compareStrand(
 		const residue_strand& aLeft,
 		const residue_strand& aRight) const;
-	std::pair<int, int> findResidue(const std::string& astrResidue) const;
+	std::pair<int, int> findResId(const std::string& astrResId) const;
+
+
 };
 
 #endif /*_CycleInfo_H_*/

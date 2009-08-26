@@ -2,13 +2,13 @@
 
 namespace annotate
 {
-	std::list<std::string> splitStringFields(
-		const std::string& aString, 
+	std::vector<std::string> splitStringFields(
+		const std::string& aString,
 		const std::string& aDelimiter)
 	{
 		std::string strWork = aString;
-		std::list<std::string> stringFields;
-		
+		std::vector<std::string> stringFields;
+
 		while(!strWork.empty())
 		{
 			std::string::size_type index;
