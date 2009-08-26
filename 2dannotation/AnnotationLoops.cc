@@ -8,45 +8,81 @@ namespace annotate
 {
 	// Static members
 	std::string AnnotationLoops::mstrAnnotationName = "Loops";
-	
-	// Methods	
-	AnnotationLoops::AnnotationLoops() 
+
+	// Methods
+	AnnotationLoops::AnnotationLoops()
 	{
 		addRequirement<AnnotationLinkers>();
 	}
-	
-	AnnotationLoops::~AnnotationLoops() 
+
+	AnnotationLoops::~AnnotationLoops()
 	{
 		clear();
 	}
-	
+
 	void AnnotationLoops::clear()
 	{
 		mLoops.clear();
 	}
-	
+
 	const std::vector< Loop >& AnnotationLoops::getLoops() const
 	{
 		return mLoops;
 	}
-	
+
 	void AnnotationLoops::update(AnnotateModel& aModel)
 	{
 		const AnnotationLinkers* pAnnotLinkers = NULL;
 		pAnnotLinkers = aModel.getAnnotation<AnnotationLinkers>();
-		
+
 		// Get the potential loops from the linkers
-		std::list<Loop> potentialLoops;
-		getIncompleteLoops(aModel, potentialLoops);
-		
+		loop_list potentialLoops = createLoopsFromLinkers(aModel);
+
+		// Connect together the potential loops
+		loop_list connectedLoops = findLoopsByConnectivity(potentialLoops);
+
+		// Keep the final loops
+		loop_list::const_iterator it;
+		for(it = connectedLoops.begin(); it != connectedLoops.end(); ++ it)
+		{
+			mLoops.push_back(*it);
+		}
+	}
+
+	std::list<Loop> AnnotationLoops::createLoopsFromLinkers(
+				const AnnotateModel& aModel) const
+	{
+		std::list<Loop> loops;
+		const AnnotationLinkers* pALinkers = NULL;
+		pALinkers = aModel.getAnnotation<AnnotationLinkers>();
+
+		if(NULL != pALinkers)
+		{
+			std::vector<Linker>::const_iterator itLinker;
+			for(itLinker = pALinkers->getLinkers().begin();
+				itLinker != pALinkers->getLinkers().end();
+				++ itLinker)
+			{
+				loops.push_back(Loop(*itLinker));
+			}
+		}
+		return loops;
+	}
+
+	std::list<Loop> AnnotationLoops::findLoopsByConnectivity(
+			std::list<Loop>& aPotentials) const
+	{
+		std::list<Loop> loops;
+		std::list<Loop> potentialLoops = aPotentials;
+
 		while(!potentialLoops.empty())
 		{
 			bool bConnectionFound = false;
 			Loop workLoop = potentialLoops.front();
 			potentialLoops.pop_front();
-			
+
 			// Find other loop to connect this one to
-			std::list<Loop>::iterator it = potentialLoops.begin();				
+			std::list<Loop>::iterator it = potentialLoops.begin();
 			while(it != potentialLoops.end())
 			{
 				if(workLoop.connects(*it))
@@ -62,33 +98,9 @@ namespace annotate
 			}
 			if(!bConnectionFound)
 			{
-				// Check loop integrity
-				if(!workLoop.checkIntegrity())
-				{
-					mccore::gOut(0) << "Loop failed integrity check" << std::endl;
-					std::vector<Linker>::const_iterator itLink;
-					for(itLink = workLoop.linkers().begin(); 
-						itLink != workLoop.linkers().end(); 
-						++ itLink)
-					{
-						mccore::gOut(0) << "Linker : " << std::endl;
-						mccore::gOut(0) << "residues : ";
-						std::vector<mccore::ResId>::const_iterator itRes;
-						for(itRes = itLink->residues().begin(); 
-							itRes != itLink->residues().end();
-							++ itRes)
-						{
-							if(itRes != itLink->residues().begin())
-							{
-								mccore::gOut(0) << "-";
-							}
-							mccore::gOut(0) << *itRes;
-						}
-						mccore::gOut(0) << std::endl;
-					}
-					// assert(false);
-				}
-				mLoops.push_back(workLoop);
+				// Loop is not connected to any other, this is a complete loop
+				// considering only connectivity
+				loops.push_back(workLoop);
 			}
 			else
 			{
@@ -96,33 +108,15 @@ namespace annotate
 				potentialLoops.push_back(workLoop);
 			}
 		}
+		return loops;
 	}
-	
-	void AnnotationLoops::getIncompleteLoops(
-		const AnnotateModel& aModel, 
-		std::list<Loop>& aLoops) const
-	{
-		const AnnotationLinkers* pALinkers = NULL;
-		pALinkers = aModel.getAnnotation<AnnotationLinkers>();
-		
-		if(NULL != pALinkers)
-		{
-			std::vector<Linker>::const_iterator itLinker;
-			for(itLinker = pALinkers->getLinkers().begin();
-				itLinker != pALinkers->getLinkers().end(); 
-				++ itLinker)
-			{
-				aLoops.push_back(Loop(*itLinker));
-			}
-		}		
-	}
-	
+
 	bool AnnotationLoops::loopSelfComplete(const Loop& aLoop) const
 	{
 		bool bComplete = aLoop.closed() || aLoop.opened();
 		return bComplete;
 	}
-	
+
 	std::vector< Loop > AnnotationLoops::getLoops(
 		const std::string& aDescription) const
 	{
@@ -137,7 +131,7 @@ namespace annotate
 		}
 		return loops;
 	}
-	
+
 	std::string AnnotationLoops::outputLoop(const Loop& aLoop) const
 	{
 		std::ostringstream oss;
@@ -160,7 +154,7 @@ namespace annotate
 		oss << aLoop.describe();
 		return oss.str();
 	}
-	
+
 	std::string AnnotationLoops::output() const
 	{
 		std::ostringstream oss;
