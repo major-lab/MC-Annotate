@@ -1,5 +1,6 @@
 #include "AnnotationLoops.h"
 #include "AnnotateModel.h"
+#include "AnnotationInteractions.h"
 #include "AnnotationLinkers.h"
 #include <sstream>
 #include <cassert>
@@ -13,6 +14,7 @@ namespace annotate
 	AnnotationLoops::AnnotationLoops()
 	{
 		addRequirement<AnnotationLinkers>();
+		addRequirement<AnnotationInteractions>();
 	}
 
 	AnnotationLoops::~AnnotationLoops()
@@ -108,6 +110,24 @@ namespace annotate
 				potentialLoops.push_back(workLoop);
 			}
 		}
+		return loops;
+	}
+
+	AnnotationLoops::loop_list AnnotationLoops::divideLoops(
+			const AnnotateModel& aModel,
+			loop_list& aPotentials) const
+	{
+		loop_list loops;
+
+		const AnnotationInteractions* pInteractions = NULL;
+		pInteractions = aModel.getAnnotation<AnnotationInteractions>();
+
+		if(NULL != pInteractions)
+		{
+			// Get the W/W pairs
+
+		}
+
 		return loops;
 	}
 

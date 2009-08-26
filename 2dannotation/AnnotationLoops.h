@@ -47,9 +47,15 @@ namespace annotate
 		 */
 		loop_list findLoopsByConnectivity(loop_list& aPotentials) const;
 
+		/*
+		 * @brief Walk the list of loops and divide loops split by W/W pairs
+		 * @return List of loops, including those divided by W/W pairs.
+		 */
+		loop_list divideLoops(
+			const AnnotateModel& aModel,
+			loop_list& aPotentials) const;
+
 		bool loopSelfComplete(const Loop& aLoop) const;
-
-
 	};
 }
 
