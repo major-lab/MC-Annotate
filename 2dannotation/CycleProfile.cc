@@ -20,7 +20,7 @@ namespace annotate
 				mStrandProfile.push_back(uiSize);
 			}
 		}
-		
+
 		if(1 == mStrandProfile.size())
 		{
 			if(fields.back() == "L")
@@ -52,17 +52,17 @@ namespace annotate
 			assert(false);
 		}
 	}
-	
+
 	CycleProfile::~CycleProfile()
 	{
 		clear();
 	}
-	
+
 	void CycleProfile::clear()
 	{
 		mStrandProfile.clear();
 	}
-	
+
 	std::string CycleProfile::toString() const
 	{
 		std::ostringstream oss;
@@ -75,7 +75,7 @@ namespace annotate
 			}
 			oss << *it;
 		}
-		
+
 		switch(meType)
 		{
 		case Cycle::eLOOSE:
@@ -83,12 +83,14 @@ namespace annotate
 			break;
 		case Cycle::e2STRANDS_PARALLEL:
 			oss << "_p";
+			break;
 		case Cycle::eMULTIBRANCH:
 			oss << "_M";
+			break;
 		default:
 			break;
 		}
-				
+
 		return oss.str();
 	}
 };
