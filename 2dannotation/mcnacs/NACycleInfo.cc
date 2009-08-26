@@ -2,11 +2,14 @@
 
 #include <cassert>
 
+#include "CycleProfile.h"
+
 NACycleInfo::NACycleInfo(
-	const std::string& aFile, 
-	unsigned int auiModel, 
-	const CycleInfo::residue_profile& aResidues) 
-: CycleInfo(aFile, auiModel, aResidues)
+	const std::string& aFile,
+	unsigned int auiModel,
+	const annotate::CycleProfile& aProfile,
+	const CycleInfo::residue_profile& aResidues)
+: CycleInfo(aFile, auiModel, aProfile, aResidues)
 {
 	mConnections.resize(aResidues.size());
 }
@@ -14,7 +17,7 @@ NACycleInfo::NACycleInfo(
 NACycleInfo::NACycleInfo(const CycleInfo& aCycle)
 : CycleInfo(aCycle)
 {
-	mConnections.resize(mResidues.size());	
+	mConnections.resize(mResidues.size());
 }
 
 std::set<CycleInfo>& NACycleInfo::getStrandConnections(unsigned int auiStrand)
@@ -26,7 +29,7 @@ std::set<CycleInfo>& NACycleInfo::getStrandConnections(unsigned int auiStrand)
 bool NACycleInfo::operator <(const NACycleInfo& aRight) const
 {
 	bool bLess = false;
-	
+
 	if(CycleInfo::operator <(aRight))
 	{
 		bLess = true;
@@ -44,7 +47,7 @@ bool NACycleInfo::operator <(const NACycleInfo& aRight) const
 			for(unsigned int i = 0; i < mConnections.size(); ++ i)
 			{
 				int iCompare = compareConnectionStrand(
-					mConnections[i], 
+					mConnections[i],
 					aRight.mConnections[i]);
 				if(iCompare < 0)
 				{
@@ -62,11 +65,11 @@ bool NACycleInfo::operator <(const NACycleInfo& aRight) const
 }
 
 int NACycleInfo::compareConnectionStrand(
-	const std::set<CycleInfo>& aConnection1, 
+	const std::set<CycleInfo>& aConnection1,
 	const std::set<CycleInfo>& aConnection2) const
 {
 	int iCompare = 0;
-	
+
 	if(aConnection1.size() < aConnection2.size())
 	{
 		iCompare = -1;

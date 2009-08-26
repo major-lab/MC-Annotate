@@ -281,7 +281,7 @@ std::set<CycleInfo> readCyclesFile(const std::string& aFile)
 		CycleInfo::residue_profile resProfile;
 		resProfile = getStrandResidues(strResIds, prof);
 
-		CycleInfo cInfo(strPDBFile, uiModel, resProfile);
+		CycleInfo cInfo(strPDBFile, uiModel, prof, resProfile);
 
 		infos.insert(cInfo);
 		assert(infos.size() == i);
@@ -305,12 +305,15 @@ std::string cycleInfoString(const CycleInfo& aCycle)
 {
 	std::ostringstream oss;
 
+	annotate::CycleProfile profile = aCycle.getProfile();
+	/*
 	std::vector<unsigned int> profile = aCycle.getProfile();
 	std::vector<unsigned int>::const_iterator itProf;
 	for(itProf = profile.begin(); itProf != profile.end(); ++ itProf)
 	{
 		oss << *itProf;
-	}
+	}*/
+	oss << profile.toString();
 	oss << "\t: ";
 	CycleInfo::residue_profile::const_iterator itResStrand;
 	for(itResStrand = aCycle.getStrandResidues().begin();
@@ -496,22 +499,10 @@ std::set<NACycleInfo> getConnectedCycles(
 	return oNACycles;
 }
 
-std::string getProfileString(const CycleInfo& aCycle)
-{
-	std::ostringstream oss;
-	std::vector<unsigned int> profile = aCycle.getProfile();
-	std::vector<unsigned int>::const_iterator it;
-	for(it = profile.begin(); it != profile.end(); ++ it)
-	{
-		oss << *it;
-	}
-	return oss.str();
-}
-
 std::string connectedCycleEquationString(const NACycleInfo& aCycle)
 {
 	std::ostringstream oss;
-	std::string strProfile = getProfileString(aCycle);
+	std::string strProfile = aCycle.getProfile().toString();
 	oss << strProfile << " = ";
 	std::vector< std::set<CycleInfo> >::const_iterator it;
 	for(it = aCycle.getConnections().begin();
@@ -533,7 +524,7 @@ std::string connectedCycleEquationString(const NACycleInfo& aCycle)
 			{
 				oss << " + ";
 			}
-			oss << getProfileString(*itCycle);
+			oss << itCycle->getProfile().toString();
 		}
 		if(1 < it->size())
 		{
@@ -582,11 +573,14 @@ std::set<NACycleInfo> filterOutPartialCoverage(
 		NACycleInfo cycle(
 			it->getPDBFile(),
 			it->getModel(),
+			it->getProfile(),
 			it->getStrandResidues());
 
 		unsigned int uiIndex;
 		bool bPassStrand = true;
-		for(uiIndex = 0; uiIndex < it->getConnections().size() && bPassStrand; ++ uiIndex)
+		for(uiIndex = 0;
+			uiIndex < it->getConnections().size() && bPassStrand;
+			++ uiIndex)
 		{
 			bPassStrand = false;
 			std::set<Interaction> strand = it->getStrandInteractions(uiIndex);
@@ -621,6 +615,7 @@ std::set<NACycleInfo> filterOutEnclosingCycles(
 		NACycleInfo cycle(
 			it->getPDBFile(),
 			it->getModel(),
+			it->getProfile(),
 			it->getStrandResidues());
 
 		unsigned int uiIndex;
@@ -705,6 +700,7 @@ std::set<NACycleInfo> splitAdjacency(const std::set<NACycleInfo>& aCycles)
 				NACycleInfo cycle(
 					it->getPDBFile(),
 					it->getModel(),
+					it->getProfile(),
 					it->getStrandResidues());
 				cycle.getStrandConnections(0).insert(*itCycle);
 				cycles.insert(cycle);
@@ -725,6 +721,7 @@ std::set<NACycleInfo> splitAdjacency(const std::set<NACycleInfo>& aCycles)
 					NACycleInfo cycle(
 						it->getPDBFile(),
 						it->getModel(),
+						it->getProfile(),
 						it->getStrandResidues());
 					cycle.getStrandConnections(0).insert(*itCycle1);
 					cycle.getStrandConnections(1).insert(*itCycle2);

@@ -1,28 +1,15 @@
-#include "CycleInfo.h"
-
 #include "Interaction.h"
 
-#include "../AlgorithmExtra.h"
+// libmcannotate
+#include "AlgorithmExtra.h"
+#include "CycleInfo.h"
 
 #include <cassert>
-
-std::vector<unsigned int> CycleInfo::getProfile() const
-{
-	std::vector<unsigned int> profile;
-	std::vector<std::vector<std::string> >::const_iterator it;
-	for(it = mResidues.begin();
-		it != mResidues.end();
-		++ it)
-	{
-		profile.push_back(it->size());
-	}
-	return profile;
-}
 
 bool CycleInfo::operator <(const CycleInfo& aRight) const
 {
 	bool bLess = false;
-	
+
 	if(mModelInfo < aRight.mModelInfo)
 	{
 		bLess = true;
@@ -38,7 +25,7 @@ bool CycleInfo::operator <(const CycleInfo& aRight) const
 			residue_profile::const_iterator itLeft = mResidues.begin();
 			residue_profile::const_iterator itRight = aRight.mResidues.begin();
 			for(;
-				itLeft != mResidues.end() && itRight != aRight.mResidues.end(); 
+				itLeft != mResidues.end() && itRight != aRight.mResidues.end();
 				++ itLeft, ++ itRight)
 			{
 				int iCompare = compareStrand(*itLeft, *itRight);
@@ -57,17 +44,17 @@ bool CycleInfo::operator <(const CycleInfo& aRight) const
 }
 
 int CycleInfo::compareStrand(
-	const residue_strand& aLeft, 
+	const residue_strand& aLeft,
 	const residue_strand& aRight) const
 {
 	int iCompare = 0;
-	
+
 	if(aLeft.size() == aRight.size())
 	{
 		residue_strand::const_iterator leftIt = aLeft.begin();
 		residue_strand::const_iterator rightIt = aRight.begin();
-		for(; 
-			leftIt != aLeft.end() && rightIt != aRight.end(); 
+		for(;
+			leftIt != aLeft.end() && rightIt != aRight.end();
 			++leftIt, ++rightIt)
 		{
 			iCompare = leftIt->compare(*rightIt);
@@ -100,7 +87,7 @@ std::vector<std::string> CycleInfo::getResidues() const
 			residues.push_back(*itRes);
 		}
 	}
-	return residues;	
+	return residues;
 }
 
 std::pair<int, int> CycleInfo::findResidue(const std::string& astrResidue) const
@@ -163,25 +150,25 @@ bool CycleInfo::contains(const InteractionInfo& aInteraction) const
 			{
 				if(residues[i + 1] == res2 || residues[i - 1] == res2)
 				{
-					bContains = true;	
+					bContains = true;
 				}
 			}
 		}
 	}
-	return bContains;	
+	return bContains;
 }
 
 std::set<Interaction> CycleInfo::getStrandInteractions(
 	unsigned int auiStrand) const
 {
 	std::set<Interaction> interactions;
-	
+
 	assert(auiStrand < mResidues.size());
-	
+
 	std::vector<std::string>::const_iterator it;
 	std::vector<std::string>::const_iterator itPrev;
-	for(it = mResidues[auiStrand].begin(); 
-		it != mResidues[auiStrand].end(); 
+	for(it = mResidues[auiStrand].begin();
+		it != mResidues[auiStrand].end();
 		++ it)
 	{
 		if(it != mResidues[auiStrand].begin())
@@ -197,14 +184,14 @@ bool CycleInfo::shareInteraction(
 	const std::set<Interaction>& aInteractions) const
 {
 	bool bShares = false;
-	for(unsigned int uiStrand = 0; 
-		uiStrand < mResidues.size() && !bShares; 
+	for(unsigned int uiStrand = 0;
+		uiStrand < mResidues.size() && !bShares;
 		++ uiStrand)
 	{
 		std::set<Interaction> interactions = getStrandInteractions(uiStrand);
 		bShares = annotate::set_intersects(
-			interactions.begin(), interactions.end(), 
-			aInteractions.begin(), aInteractions.end());		
+			interactions.begin(), interactions.end(),
+			aInteractions.begin(), aInteractions.end());
 	}
 	return bShares;
 }
@@ -212,7 +199,7 @@ bool CycleInfo::shareInteraction(
 bool CycleInfo::isSubCycleOf(const CycleInfo& aCycleInfo) const
 {
 	bool bSubCycle = false;
-	
+
 	if(1 == mResidues.size() && 1 == aCycleInfo.mResidues.size())
 	{
 		// Loop
@@ -226,7 +213,7 @@ bool CycleInfo::isSubCycleOf(const CycleInfo& aCycleInfo) const
 	{
 		assert(1 == mResidues.size() || 2 == mResidues.size());
 		assert(1 == aCycleInfo.mResidues.size() || 2 == aCycleInfo.mResidues.size());
-		
+
 		if(2 == mResidues.size())
 		{
 			bSubCycle = is2StrandsSubCycleOfLoop(aCycleInfo);
@@ -234,7 +221,7 @@ bool CycleInfo::isSubCycleOf(const CycleInfo& aCycleInfo) const
 		{
 			bSubCycle = isLoopSubCycleOf2Strands(aCycleInfo);
 		}
-		
+
 	}
 	return bSubCycle;
 }
@@ -244,21 +231,21 @@ bool CycleInfo::isSubLoopOf(const CycleInfo& aCycleInfo) const
 	bool bSubLoop = false;
 	assert(mResidues.size() == 1);
 	assert(aCycleInfo.mResidues.size() == 1);
-	
+
 	if(mResidues[0].size() < aCycleInfo.mResidues[0].size())
 	{
 		std::set<Interaction> interactionsLeft;
 		std::set<Interaction> interactionsRight;
 		interactionsLeft = getStrandInteractions(0);
 		interactionsRight = aCycleInfo.getStrandInteractions(0);
-		
+
 		std::set<Interaction> intersection;
 		intersection = annotate::SetIntersection(
-			interactionsLeft, 
+			interactionsLeft,
 			interactionsRight);
 		bSubLoop = (intersection.size() == interactionsLeft.size());
 	}
-	
+
 	return bSubLoop;
 }
 
@@ -267,7 +254,7 @@ bool CycleInfo::isSub2StrandsCycle(const CycleInfo& aCycleInfo) const
 	bool bSubLoop = false;
 	assert(mResidues.size() == 2);
 	assert(aCycleInfo.mResidues.size() == 2);
-	
+
 	unsigned int iStrand;
 	for(iStrand = 0; iStrand < mResidues.size(); ++ iStrand)
 	{
@@ -277,10 +264,10 @@ bool CycleInfo::isSub2StrandsCycle(const CycleInfo& aCycleInfo) const
 			std::set<Interaction> interactionsRight;
 			interactionsLeft = getStrandInteractions(iStrand);
 			interactionsRight = aCycleInfo.getStrandInteractions(iStrand);
-			
+
 			std::set<Interaction> intersection;
 			intersection = annotate::SetIntersection(
-				interactionsLeft, 
+				interactionsLeft,
 				interactionsRight);
 			if(intersection.size() != interactionsLeft.size())
 			{
@@ -292,10 +279,10 @@ bool CycleInfo::isSub2StrandsCycle(const CycleInfo& aCycleInfo) const
 			break;
 		}
 	}
-	
+
 	// If we got through, than it is a sub cycle
 	bSubLoop = (iStrand == mResidues.size());
-	
+
 	return bSubLoop;
 }
 
@@ -304,25 +291,25 @@ bool CycleInfo::is2StrandsSubCycleOfLoop(const CycleInfo& aCycleInfo) const
 	bool bSubLoop = false;
 	assert(mResidues.size() == 2);
 	assert(aCycleInfo.mResidues.size() == 1);
-	
-	
+
+
 	std::set<Interaction> interactionsRight;
 	interactionsRight = aCycleInfo.getStrandInteractions(0);
-	
+
 	std::set<Interaction> interactionsLeft;
 	interactionsLeft = getStrandInteractions(0);
 	std::set<Interaction> interactionStrand2 = getStrandInteractions(1);
 	interactionsLeft.insert(interactionStrand2.begin(), interactionStrand2.end());
-	
+
 	if(interactionsLeft.size() < interactionsRight.size())
 	{
 		std::set<Interaction> intersection;
 		intersection = annotate::SetIntersection(
-			interactionsLeft, 
+			interactionsLeft,
 			interactionsRight);
 		bSubLoop = (intersection.size() == interactionsLeft.size());
 	}
-	
+
 	return bSubLoop;
 }
 
@@ -331,38 +318,38 @@ bool CycleInfo::isLoopSubCycleOf2Strands(const CycleInfo& aCycleInfo) const
 	bool bSubLoop = false;
 	assert(mResidues.size() == 1);
 	assert(aCycleInfo.mResidues.size() == 2);
-	
+
 	std::set<Interaction> interactionsRight;
 	interactionsRight = aCycleInfo.getStrandInteractions(0);
 	std::set<Interaction> interactionStrand2 = aCycleInfo.getStrandInteractions(1);
 	interactionsRight.insert(interactionStrand2.begin(), interactionStrand2.end());
-	
+
 	std::set<Interaction> interactionsLeft;
-	interactionsLeft = getStrandInteractions(0);	
-	
+	interactionsLeft = getStrandInteractions(0);
+
 	if(interactionsLeft.size() < interactionsRight.size())
 	{
 		std::set<Interaction> intersection;
 		intersection = annotate::SetIntersection(
-			interactionsLeft, 
+			interactionsLeft,
 			interactionsRight);
 		bSubLoop = (intersection.size() == interactionsLeft.size());
 	}
-	
+
 	return bSubLoop;
 }
 
 bool CycleInfo::strandCoversInteractions(
-	unsigned int uiStrand, 
+	unsigned int uiStrand,
 	const std::set<Interaction>& aInteractions) const
 {
 	bool bCovers;
 	std::set<Interaction> strandInteractions = getStrandInteractions(uiStrand);
-	
+
 	std::set<Interaction> intersection = annotate::SetIntersection(
-		aInteractions, 
+		aInteractions,
 		strandInteractions);
-	
+
 	bCovers = (aInteractions.size() == intersection.size());
 	return bCovers;
 }
