@@ -1,4 +1,4 @@
-//                              -*- Mode: C++ -*- 
+//                              -*- Mode: C++ -*-
 // mcssc.cc
 // Copyright © 2009 Laboratoire de Biologie Informatique et Théorique.
 //                  Université de Montréal
@@ -44,14 +44,15 @@
 #include "BaseLink.h"
 #include "BasePair.h"
 #include "Cycle.h"
+#include "StringTable.h"
 
 bool binary = false;
 bool oneModel = false;
 unsigned int guiModelNumber = 0;  // 1 based vector identifier, 0 means all
-unsigned char gucRelationMask = 
+unsigned char gucRelationMask =
 	mccore::Relation::adjacent_mask
-	| mccore::Relation::pairing_mask 
-	| mccore::Relation::stacking_mask 
+	| mccore::Relation::pairing_mask
+	| mccore::Relation::stacking_mask
 	| mccore::Relation::backbone_mask;
 const char* shortopts = "Vbf:hlvm:";
 
@@ -81,7 +82,7 @@ void help ()
 		<< "  -h                print this help" << endl
 		<< "  -l                be more verbose (log)" << endl
 		<< "  -v                be verbose" << endl
-		<< "  -V                print the software version info" << endl;    
+		<< "  -V                print the software version info" << endl;
 }
 
 
@@ -89,7 +90,7 @@ void read_options (int argc, char* argv[])
 {
 	int c;
 
-	while ((c = getopt (argc, argv, shortopts)) != EOF) 
+	while ((c = getopt (argc, argv, shortopts)) != EOF)
 	{
 		switch (c)
 		{
@@ -99,7 +100,7 @@ void read_options (int argc, char* argv[])
 			break;
 		case 'b':
 			binary = true;
-			break; 
+			break;
 		case 'f':
 		{
 			long int tmp;
@@ -152,7 +153,7 @@ void read_options (int argc, char* argv[])
 			exit (EXIT_FAILURE);
 		}
 	}
-	
+
 	if (argc - optind < 1)
 	{
 		usage ();
@@ -188,12 +189,12 @@ mccore::Molecule* loadFile (const std::string &filename)
 	{
 #ifdef HAVE_LIBRNAMLC__
 		RnamlReader reader (filename.c_str (), &aFM);
-      
+
 		if (0 == (molecule = reader.read ()))
 		{
 #endif
 			izfPdbstream in;
-	
+
 			in.open (filename.c_str ());
 			if (in.fail ())
 			{
@@ -211,6 +212,22 @@ mccore::Molecule* loadFile (const std::string &filename)
 	return molecule;
 }
 
+void cleanString(std::string& aString, const char& aChar)
+{
+	std::string::iterator it = aString.begin();
+	while(it != aString.end())
+	{
+		if(*it == aChar)
+		{
+			it = aString.erase(it);
+		}
+		else
+		{
+			++ it;
+		}
+	}
+}
+
 std::string getPdbFileName(const std::string& aFileName)
 {
 	std::string::size_type index;
@@ -220,9 +237,10 @@ std::string getPdbFileName(const std::string& aFileName)
 		filename.erase (0, index + 1);
     }
 	if (string::npos != (index = filename.find (".")))
-    { 
+    {
 		filename.erase (index, filename.size ());
     }
+	cleanString(filename, ' ');
 	return filename;
 }
 
@@ -232,17 +250,17 @@ void clearInteractionsSet(annotate::Cycle::interactions_set& aSet)
 	annotate::Cycle::interactions_set::iterator it;
 	for(it = aSet.begin(); it != aSet.end(); ++ it)
 	{
-		delete *it;	
+		delete *it;
 	}
 	aSet.clear();
 }
 
 std::set<annotate::Cycle> computeStemCycles(
-	const mccore::GraphModel& aModel, 
+	const mccore::GraphModel& aModel,
 	const annotate::Stem& aStem)
 {
 	std::set<annotate::Cycle> cycles;
-	
+
 	std::vector< annotate::BasePair >::const_iterator it;
 	std::vector< annotate::BasePair >::const_iterator itPrev;
 	for(it = aStem.basePairs().begin();	it != aStem.basePairs().end();	++ it)
@@ -250,29 +268,29 @@ std::set<annotate::Cycle> computeStemCycles(
 		if(it != aStem.basePairs().begin())
 		{
 			annotate::Cycle::interactions_set interactions;
-			
+
 			// First pair
 			interactions.insert(new annotate::BasePair(
-				itPrev->first, itPrev->fResId, 
-				itPrev->second, itPrev->rResId)); 
-				
-			interactions.insert(new annotate::BasePair(
-				it->first, it->fResId, 
-				it->second, it->rResId)); 
-				
-			interactions.insert(new annotate::BaseLink(
-				itPrev->first, itPrev->fResId, 
-				it->first, it->fResId));
-				
-			interactions.insert(new annotate::BaseLink(
-				it->second, it->rResId, 
+				itPrev->first, itPrev->fResId,
 				itPrev->second, itPrev->rResId));
-			
+
+			interactions.insert(new annotate::BasePair(
+				it->first, it->fResId,
+				it->second, it->rResId));
+
+			interactions.insert(new annotate::BaseLink(
+				itPrev->first, itPrev->fResId,
+				it->first, it->fResId));
+
+			interactions.insert(new annotate::BaseLink(
+				it->second, it->rResId,
+				itPrev->second, itPrev->rResId));
+
 			// Insert the residues in the model
 			annotate::Cycle cycle(interactions);
-			
+
 			clearInteractionsSet(interactions);
-			
+
 			cycles.insert(cycle);
 		}
 		itPrev = it;
@@ -281,42 +299,42 @@ std::set<annotate::Cycle> computeStemCycles(
 }
 
 annotate::Cycle computeLoopCycle(
-	const annotate::AnnotateModel &aModel, 
+	const annotate::AnnotateModel &aModel,
 	const annotate::Loop& aLoop)
 {
 	assert(0 < aLoop.linkers().size());
 
 	std::vector< annotate::Linker >::const_iterator it;
-	
+
 	annotate::Cycle::interactions_set interactions;
-	
+
 	std::pair<std::set<annotate::BaseLink>, std::set<annotate::BasePair> > interPair;
 	interPair = aLoop.getInteractions();
-	
+
 	std::set<annotate::BaseLink>::const_iterator itLink;
-	for(itLink = interPair.first.begin(); 
-		itLink != interPair.first.end(); 
+	for(itLink = interPair.first.begin();
+		itLink != interPair.first.end();
 		++ itLink)
 	{
 		interactions.insert(new annotate::BaseLink(
-			itLink->first, itLink->fResId, 
+			itLink->first, itLink->fResId,
 			itLink->second, itLink->rResId));
 	}
-	
+
 	std::set<annotate::BasePair>::const_iterator itPair;
-	for(itPair = interPair.second.begin(); 
-		itPair != interPair.second.end(); 
+	for(itPair = interPair.second.begin();
+		itPair != interPair.second.end();
 		++ itPair)
 	{
 		interactions.insert(new annotate::BasePair(
-			itPair->first, itPair->fResId, 
+			itPair->first, itPair->fResId,
 			itPair->second, itPair->rResId));
 	}
-	
+
 	// Insert the residues in the model
 	assert(0 < interactions.size());
 	annotate::Cycle cycle(interactions);
-	
+
 	return cycle;
 }
 
@@ -326,35 +344,35 @@ std::set<annotate::Cycle> computeSecondaryStructureCycles(
 	std::set<annotate::Cycle> cycles;
 	const annotate::AnnotationStems* pStems = NULL;
 	const annotate::AnnotationLoops* pLoops = NULL;
-	
+
 	pStems = aModel.getAnnotation<annotate::AnnotationStems>();
 	pLoops = aModel.getAnnotation<annotate::AnnotationLoops>();
-	
+
 	std::vector<annotate::Stem>::const_iterator itStem;
-	for(itStem = pStems->getStems().begin(); 
-		itStem != pStems->getStems().end(); 
+	for(itStem = pStems->getStems().begin();
+		itStem != pStems->getStems().end();
 		++ itStem)
 	{
 		std::set<annotate::Cycle> stemCycles = computeStemCycles(aModel, *itStem);
 		cycles.insert(stemCycles.begin(), stemCycles.end());
 	}
-	
+
 	std::vector<annotate::Loop>::const_iterator itLoop;
-	for(itLoop = pLoops->getLoops().begin(); 
-		itLoop != pLoops->getLoops().end(); 
+	for(itLoop = pLoops->getLoops().begin();
+		itLoop != pLoops->getLoops().end();
 		++ itLoop)
 	{
 		annotate::Cycle cycle = computeLoopCycle(aModel, *itLoop);
 		cycles.insert(cycle);
 	}
-	
+
 	return cycles;
 }
 
 std::string cycleProfileStrandString(const annotate::Cycle& aCycle)
 {
 	std::ostringstream oss;
-	
+
 	// Describe the profile
 	std::vector<unsigned int>::const_iterator it = aCycle.profile().begin();
 	for(; it != aCycle.profile().end(); ++ it)
@@ -362,6 +380,29 @@ std::string cycleProfileStrandString(const annotate::Cycle& aCycle)
 		if(it != aCycle.profile().begin())
 		{
 			oss << "_";
+		}
+		oss << *it;
+	}
+	return oss.str();
+}
+
+std::string getModelString(const unsigned int auiModel)
+{
+	std::ostringstream oss;
+	oss << auiModel;
+	return oss.str();
+}
+
+std::string getResIdsString(const annotate::Cycle& aCycle)
+{
+	std::ostringstream oss;
+
+	std::list<mccore::ResId>::const_iterator it;
+	for(it = aCycle.residues().begin(); it != aCycle.residues().end(); ++ it)
+	{
+		if(it != aCycle.residues().begin())
+		{
+			oss << "-";
 		}
 		oss << *it;
 	}
@@ -384,14 +425,14 @@ std::string getResiduesString(
 		assert(itRes != aModel.end());
 		oss << mccore::Pdbstream::stringifyResidueType(itRes->getType());
 	}
-	
+
 	return oss.str();
 }
 
 std::string cycleProfileString(const annotate::Cycle& aCycle)
 {
 	std::ostringstream oss;
-	
+
 	// Describe the profile
 	annotate::Cycle::enType eCycleType = aCycle.getType();
 	switch(eCycleType)
@@ -409,39 +450,15 @@ std::string cycleProfileString(const annotate::Cycle& aCycle)
 			break;
 		default:
 			oss << cycleProfileStrandString(aCycle);
-			break;		
+			break;
 	}
-	
-	return oss.str();
-}
 
-std::string cycleString(
-	const annotate::AnnotateModel &aModel, 
-	const annotate::Cycle& aCycle)
-{
-	std::ostringstream oss;
-	
-	// Describe the profile
-	oss << cycleProfileString(aCycle) << " : ";
-	oss << cycleProfileString(aCycle) << " : ";
-	
-	std::list<mccore::ResId>::const_iterator it;
-	for(it = aCycle.residues().begin(); it != aCycle.residues().end(); ++ it)
-	{
-		if(it != aCycle.residues().begin())
-		{
-			oss << "-";
-		}
-		oss << *it;
-	}
-	oss << " : " << getResiduesString(aModel, aCycle);
-	
 	return oss.str();
 }
 
 int main (int argc, char *argv[])
 {
-	std::set<annotate::Cycle> cycles;
+	annotate::StringTable stringTable(6);
 	read_options (argc, argv);
 
 	while (optind < argc)
@@ -449,7 +466,7 @@ int main (int argc, char *argv[])
 		Molecule *molecule;
 		Molecule::iterator molIt;
 		std::string filename = (std::string) argv[optind];
-      
+
 		molecule = loadFile (filename);
 		if (0 != molecule)
 		{
@@ -469,26 +486,29 @@ int main (int argc, char *argv[])
 					annotate::AnnotationStems annStems;
 					annotate::AnnotationLinkers annLinkers;
 					annotate::AnnotationLoops annLoops;
-		  
+
 		  			am.addAnnotation(annInteractions);
 		  			am.addAnnotation(annChains);
 					am.addAnnotation(annStems);
 					am.addAnnotation(annLinkers);
 					am.addAnnotation(annLoops);
-					
+
 					am.annotate (gucRelationMask);
-					
+
+					std::set<annotate::Cycle> cycles;
 					cycles = computeSecondaryStructureCycles(am);
-					
 					std::set<annotate::Cycle>::const_iterator itCycle;
 					for( itCycle = cycles.begin(); itCycle != cycles.end(); ++ itCycle)
 					{
-						mccore::gOut(0) << getPdbFileName(filename) << " : ";
-						mccore::gOut(0) << uiModel << " : ";
-						mccore::gOut(0) << cycleString(am, *itCycle);
-						mccore::gOut(0) << std::endl;
+						std::vector<string>& tableRow = stringTable.addRow();
+						tableRow[0] = getPdbFileName(filename);
+						tableRow[1] = getModelString(uiModel);
+						tableRow[2] = cycleProfileString(*itCycle);
+						tableRow[3] = cycleProfileString(*itCycle);
+						tableRow[4] = getResIdsString(*itCycle);
+						tableRow[5] = getResiduesString(am, *itCycle);
 					}
-					
+
 					if (oneModel)
 					{
 						break;
@@ -499,6 +519,7 @@ int main (int argc, char *argv[])
 		}
 		++optind;
 	}
-	
-	return EXIT_SUCCESS;	
+	mccore::gOut(0) << stringTable.toString(" : ");
+
+	return EXIT_SUCCESS;
 }
