@@ -123,7 +123,6 @@ namespace annotate
 				const mccore::Relation &rel = *aModel.internalGetEdge (it->first, it->second);
 				if(checkFacesStrict(rel))
 				{
-					gOut (0) << it->fResId << "-" << it->rResId << " is considered a best partner" << std::endl;
 					bBestPartner = false;
 				}
 			}
