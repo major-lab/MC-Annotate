@@ -11,7 +11,9 @@
 
 #include "mcsc2resids.h"
 
+// libmcannotate.a
 #include "CycleProfile.h"
+#include "StringTable.h"
 #include "StringUtil.h"
 
 #include "mccore/Binstream.h"
@@ -388,9 +390,7 @@ void makeParallel(residue_profile& aProfile)
 
 int main (int argc, char *argv[])
 {
-	std::vector<std::size_t> colSizes;
-	colSizes.resize(6, 0);
-	std::list<stCycleInfo> infos;
+	annotate::StringTable stringTable(6);
 
 	read_options (argc, argv);
 
@@ -418,45 +418,20 @@ int main (int argc, char *argv[])
 				resProfile = orderProfile(resProfile);
 
 				stCycleInfo info;
-				info.strFile = getPdbFileName(filename);
-				colSizes[0] = std::max(info.strFile.size(), colSizes[0]);
-				info.strModelId = getModelIndex(filename);
-				colSizes[1] = std::max(info.strModelId.size(), colSizes[1]);
-				info.strFileProfile = strFileProfile;
-				colSizes[2] = std::max(info.strFileProfile.size(), colSizes[2]);
-				info.strProfile =  getProfileString(resProfile, strFileProfile);
-				colSizes[3] = std::max(info.strProfile.size(), colSizes[3]);
-				info.strResIds = getResiduesString(resProfile);
-				colSizes[4] = std::max(info.strResIds.size(), colSizes[4]);
-				info.strNucleotides = getNucleotideString(resProfile);
-				colSizes[5] = std::max(info.strNucleotides.size(), colSizes[5]);
-				infos.push_back(info);
+				std::vector<string>& tableRow = stringTable.addRow();
+				tableRow[0] = getPdbFileName(filename);
+				tableRow[1] = getModelIndex(filename);
+				tableRow[2] = strFileProfile;
+				tableRow[3] = getProfileString(resProfile, strFileProfile);
+				tableRow[4] = getResiduesString(resProfile);
+				tableRow[5] = getNucleotideString(resProfile);
 			}
 			delete molecule;
 		}
 		++optind;
 	}
 
-	std::list<stCycleInfo>::iterator infoIt;
-	for(infoIt = infos.begin(); infoIt != infos.end(); ++infoIt)
-	{
-		infoIt->strFile.resize(colSizes[0], ' ');
-		infoIt->strModelId.resize(colSizes[1], ' ');
-		infoIt->strFileProfile.resize(colSizes[2], ' ');
-		infoIt->strProfile.resize(colSizes[3], ' ');
-		infoIt->strResIds.resize(colSizes[4], ' ');
-		infoIt->strNucleotides.resize(colSizes[5], ' ');
-	}
-	for(infoIt = infos.begin(); infoIt != infos.end(); ++infoIt)
-	{
-		mccore::gOut(0) << infoIt->strFile << " : ";
-		mccore::gOut(0) << infoIt->strModelId << " : ";
-		mccore::gOut(0) << infoIt->strFileProfile << " : ";
-		mccore::gOut(0) << infoIt->strProfile << " : ";
-		mccore::gOut(0) << infoIt->strResIds << " : ";
-		mccore::gOut(0) << infoIt->strNucleotides;
-		mccore::gOut(0) << std::endl;
-	}
+	mccore::gOut(0) << stringTable.toString(" : ");
 
 	return EXIT_SUCCESS;
 }
