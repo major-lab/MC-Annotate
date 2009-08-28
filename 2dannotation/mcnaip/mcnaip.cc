@@ -43,6 +43,7 @@
 #include "AnnotationStems.h"
 #include "AnnotationTertiaryPairs.h"
 #include "AnnotationTertiaryStacks.h"
+#include "StringTable.h"
 
 bool binary = false;
 unsigned int environment = 0;
@@ -239,8 +240,23 @@ std::string getPdbFileName(const std::string& aFileName)
 	return filename;
 }
 
+std::string getModelString(unsigned int auiModel)
+{
+	std::ostringstream oss;
+	oss << auiModel;
+	return oss.str();
+}
+
+std::string getPairString(const annotate::BasePair& aPair)
+{
+	std::ostringstream oss;
+	oss << aPair.fResId << "-" << aPair.rResId;
+	return oss.str();
+}
+
 int main (int argc, char *argv[])
 {
+	annotate::StringTable stringTable(3);
 	read_options (argc, argv);
 
 	while (optind < argc)
@@ -285,12 +301,11 @@ int main (int argc, char *argv[])
 						itPair != annTertiaryPairs.getPairs().end();
 						++ itPair)
 					{
-						mccore::gOut(0) << getPdbFileName(filename) << " : ";
-						mccore::gOut(0) << uiModel << " : ";
-						mccore::gOut(0) << itPair->fResId << "-" << itPair->rResId;
-						mccore::gOut(0) << std::endl;
+						std::vector<std::string>& tableRow = stringTable.addRow();
+						tableRow[0] = getPdbFileName(filename);
+						tableRow[1] = getModelString(uiModel);
+						tableRow[2] = getPairString(*itPair);
 					}
-
 
 					if (oneModel)
 					{
@@ -302,6 +317,8 @@ int main (int argc, char *argv[])
 		}
 		++optind;
 	}
+
+	mccore::gOut(0) << stringTable.toString(":");
 
 	return EXIT_SUCCESS;
 }
