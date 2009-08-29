@@ -2,14 +2,14 @@
 
 #include <cassert>
 
-namespace annotate 
+namespace annotate
 {
 	Linker::Linker()
 	{
 	}
-		
+
 	Linker::Linker(
-		const std::vector<mccore::ResId>& aResidues, 
+		const std::vector<mccore::ResId>& aResidues,
 		const StemConnection& aStart,
 		const StemConnection& aEnd)
 	{
@@ -17,32 +17,32 @@ namespace annotate
 		mStart = aStart;
 		mEnd = aEnd;
 	}
-	
+
 	Linker::~Linker()
 	{
 		clear();
 	}
-		
+
 	void Linker::clear()
 	{
 		mResidues.clear();
 	}
-	
+
 	bool Linker::isEmpty() const
 	{
 		bool bIsEmpty = true;
-		
+
 		if((mStart.isValid() && mEnd.isValid()) || 0 < mResidues.size())
 		{
 			bIsEmpty = false;
 		}
 		return bIsEmpty;
 	}
-	
+
 	bool Linker::operator== (const Linker &other) const
 	{
 		bool bEqual = false;
-		
+
 		if((mStart == other.mStart && mEnd == other.mEnd) // same
 			|| (mStart == other.mEnd && mEnd == other.mStart)) // reversed
 		{
@@ -51,18 +51,18 @@ namespace annotate
 		}
 		return bEqual;
 	}
-	
+
 	bool Linker::operator!= (const Linker &other) const
 	{
 		bool bEqual = operator==(other);
-		
+
 		return !bEqual;
 	}
-	
+
 	bool Linker::operator< (const Linker &other) const
     {
     	bool bIsSmaller = false;
-    	
+
     	if(!isEmpty() && !other.isEmpty())
     	{
     		mccore::ResId thisId;
@@ -74,7 +74,7 @@ namespace annotate
 	    	{
 	    		thisId = mResidues.front();
 	    	}
-	    	
+
 	    	mccore::ResId otherId;
 	    	if(other.mStart.isValid())
 	    	{
@@ -86,49 +86,57 @@ namespace annotate
 	    	}
 	    	bIsSmaller = thisId < otherId;
     	}
-    	
+
       return bIsSmaller;
     }
-    
-    bool Linker::isAdjacent(const SecondaryStructure& aStruct) const
+
+	bool Linker::isSame(const SecondaryStructure& aStruct) const
 	{
-		bool bAdjacent = false;
-		
+		bool bSame = false;
 		const Linker* pLinker = dynamic_cast<const Linker*>(&aStruct);
 		if(NULL != pLinker && operator == (*pLinker))
 		{
-			bAdjacent = true;			
+			// This is a linker and it has the same value as this one
+			bSame = true;
 		}
-		else
+		return bSame;
+	}
+
+    bool Linker::isAdjacent(const SecondaryStructure& aStruct) const
+	{
+		bool bAdjacent = false;
+
+		if(isSame(aStruct))
 		{
-			const Stem* pStem = dynamic_cast<const Stem*>(&aStruct);
-			if(NULL != pStem)
-			{
-				// This is a stem
-				if((mStart.isValid() && mStart.getStem() == *pStem)
-					|| (mEnd.isValid() && mEnd.getStem() == *pStem))
-				{
-					bAdjacent = true;
-				}
-			}
+			// Parameter is the current linker
+			bAdjacent = true;
+		}
+		else if(mStart.isValid() && mStart.getStructure()->isSame(aStruct))
+		{
+			// Start of the linker connects to the provided structure
+			bAdjacent = true;
+		}
+		else if(mEnd.isValid() && mEnd.getStructure()->isSame(aStruct))
+		{
+			bAdjacent = true;
 		}
 		return bAdjacent;
 	}
-    
+
     bool Linker::contains(const mccore::ResId& aResId) const
 	{
 		std::vector<mccore::ResId>::const_iterator it;
 		it = std::find(mResidues.begin(), mResidues.end(), aResId);
 		return it != mResidues.end();
 	}
-	
+
 	void Linker::order()
 	{
 		if(0 < mResidues.size())
 		{
 			std::sort(mResidues.begin(), mResidues.end());
 		}
-		
+
 		if(mStart.isValid() && mEnd.isValid())
 		{
 			mccore::ResId startResId = mStart.getResidue();
@@ -143,7 +151,7 @@ namespace annotate
 			if(startResId < mResidues.back())
 			{
 				std::swap(mStart, mEnd);
-			}			
+			}
 		}else if(mEnd.isValid() && 0 < mResidues.size())
 		{
 			mccore::ResId endResId = mEnd.getResidue();
@@ -153,32 +161,32 @@ namespace annotate
 			}
 		}
 	}
-	
+
 	void Linker::reverse()
 	{
 		std::reverse(mResidues.begin(), mResidues.end());
 		std::swap(mStart, mEnd);
 	}
-	
+
 	bool Linker::connects(const Linker& aLinker) const
 	{
 		bool bConnects = false;
-		if( mStart.connects(aLinker.mStart) 
-			|| mStart.connects(aLinker.mEnd) 
-			|| mEnd.connects(aLinker.mStart) 
+		if( mStart.connects(aLinker.mStart)
+			|| mStart.connects(aLinker.mEnd)
+			|| mEnd.connects(aLinker.mStart)
 			|| mEnd.connects(aLinker.mEnd) )
 		{
 			bConnects = true;
 		}
 		return bConnects;
 	}
-	
-	std::set<BaseInteraction> Linker::getBaseInteractions() const 
+
+	std::set<BaseInteraction> Linker::getBaseInteractions() const
 	throw(mccore::FatalIntLibException)
 	{
 		std::set<BaseInteraction> interactions;
 		std::vector<mccore::ResId>::const_iterator itRes;
-		
+
 		// Get the interactions between the residues of the linkers
 		for(itRes = mResidues.begin(); itRes != mResidues.end(); ++itRes)
 		{
@@ -186,16 +194,16 @@ namespace annotate
 			itNextRes ++;
 			if(itNextRes != mResidues.end())
 			{
-				// TODO : Interactions shouldn't use 0 labels, we need to get 
+				// TODO : Interactions shouldn't use 0 labels, we need to get
 				// the real adjacency interactions in the linkers
 				BaseInteraction inter(0, *itRes, 0, *itNextRes);
 				interactions.insert(inter);
-			}			
+			}
 		}
-		
+
 		if(0 == mResidues.size())
 		{
-			appendInteractionBetweenConnections(interactions);			
+			appendInteractionBetweenConnections(interactions);
 		}else
 		{
 			if(mStart.isValid())
@@ -207,12 +215,12 @@ namespace annotate
 				interactions.insert(getBaseInteractionWithConnection(mEnd));
 			}
 		}
-		
+
 		return interactions;
 	}
-	
+
 	void Linker::appendInteractionBetweenConnections(
-			std::set<BaseInteraction>& aInteractionSet) const 
+			std::set<BaseInteraction>& aInteractionSet) const
 			throw(mccore::FatalIntLibException)
 	{
 		if(mStart.isValid() && mEnd.isValid())
@@ -225,20 +233,20 @@ namespace annotate
 			throw mccore::FatalIntLibException(strMsg, __FILE__, __LINE__);
 		}
 	}
-	
+
 	BaseInteraction Linker::getBaseInteractionWithConnection(
-		const StemConnection& aConnection) const 
+		const StemConnection& aConnection) const
 		throw(mccore::FatalIntLibException)
 	{
 		assert(aConnection.isValid());
 		assert(0 < mResidues.size());
-		
-		// TODO : Interactions shouldn't use 0 labels, we need to get 
+
+		// TODO : Interactions shouldn't use 0 labels, we need to get
 		// the real adjacency interactions in the linkers<
 		res_info startResInfo = getResInfo(aConnection);
 		res_info endResInfo;
 		endResInfo.first = 0;
-		
+
 		if(startResInfo.second < std::min(mResidues.front(), mResidues.back()))
 		{
 			// Connection is 5'
@@ -249,29 +257,29 @@ namespace annotate
 			// Connection is 3'
 			endResInfo.second = std::max(mResidues.front(), mResidues.back());
 		}
-		
+
 		return BaseInteraction(
-			startResInfo.first, startResInfo.second, 
+			startResInfo.first, startResInfo.second,
 			endResInfo.first, endResInfo.second);
 	}
-	
-	BaseInteraction Linker::getBaseInteractionBetweenConnections() const 
+
+	BaseInteraction Linker::getBaseInteractionBetweenConnections() const
 		throw(mccore::FatalIntLibException)
 	{
 		// Assertions
 		assert(mStart.isValid() && mEnd.isValid());
-		
+
 		res_info startResInfo = getResInfo(mStart);
 		res_info endResInfo = getResInfo(mEnd);
 
 		return BaseInteraction(
-			startResInfo.first, 
-			startResInfo.second, 
-			endResInfo.first, 
-			endResInfo.second);		
+			startResInfo.first,
+			startResInfo.second,
+			endResInfo.first,
+			endResInfo.second);
 	}
-	
-	Linker::res_info Linker::getResInfo(const StemConnection& aConnection) const 
+
+	Linker::res_info Linker::getResInfo(const StemConnection& aConnection) const
 		throw(mccore::NoSuchElementException)
 	{
 		std::pair<mccore::GraphModel::label, mccore::ResId> info;
@@ -291,5 +299,5 @@ namespace annotate
 		}
 		return info;
 	}
-	
+
 };

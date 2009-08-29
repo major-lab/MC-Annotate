@@ -1,62 +1,21 @@
 #include "StemConnection.h"
 
-namespace annotate 
+namespace annotate
 {
-	StemConnection::StemConnection() 
+	StemConnection::StemConnection()
 	{
-		mpStem = NULL; 
+		mpStem = NULL;
 		meConnection = Stem::eUNDEFINED_CONNECTION;
 	}
-		
+
 	StemConnection::StemConnection(
-		const Stem& aStem, 
+		const Stem& aStem,
 		const Stem::enConnection& aeConnect)
 	{
 		mpStem = &aStem;
 		meConnection = aeConnect;
 	}
-	
-	int StemConnection::getDirection() const
-	{
-		int iDirection = 0;
-		if(isValid())
-		{
-			switch(meConnection)
-			{
-			case Stem::eFIRST_STRAND_FRONT_PAIR:
-				iDirection = -1;
-				break;
-			case Stem::eFIRST_STRAND_BACK_PAIR:
-				iDirection = 1;
-				break;
-			case Stem::eSECOND_STRAND_FRONT_PAIR:
-				if(Stem::eANTIPARALLEL == mpStem->getOrientation())
-				{
-					iDirection = 1;
-				}
-				else
-				{
-					iDirection = -1;
-				}
-				break;
-			case Stem::eSECOND_STRAND_BACK_PAIR:
-				if(Stem::eANTIPARALLEL == mpStem->getOrientation())
-				{
-					iDirection = -1;
-				}
-				else
-				{
-					iDirection = 1;
-				}
-				break;
-			default:
-				// TODO : Exception
-				iDirection = 0;
-			}
-		}
-		return iDirection;
-	}
-	
+
 	mccore::ResId StemConnection::nextId() const
 		throw(mccore::NoSuchElementException)
 	{
@@ -88,10 +47,10 @@ namespace annotate
 			std::string strMsg("Invalid connections have no nextId");
 			throw mccore::NoSuchElementException(strMsg, __FILE__, __LINE__);
 		}
-		
+
 		return id;
 	}
-	
+
 	BasePair StemConnection::getPair() const
 		throw(mccore::NoSuchElementException)
 	{
@@ -112,15 +71,15 @@ namespace annotate
 				pBasePair = NULL;
 			}
 		}
-		
+
 		if(NULL == pBasePair)
 		{
 			std::string strMsg("Invalid connections have no connecting pairs");
 			throw mccore::NoSuchElementException(strMsg, __FILE__, __LINE__);
 		}
-		return *pBasePair;		
+		return *pBasePair;
 	}
-	
+
 	bool StemConnection::connects(const StemConnection& aConnection) const
 	{
 		bool bConnects = false;
@@ -133,20 +92,20 @@ namespace annotate
 		}
 		return bConnects;
 	}
-	
-	mccore::ResId StemConnection::getResidue() const 
-	{ 
-		return mpStem->getResidue(meConnection); 
+
+	mccore::ResId StemConnection::getResidue() const
+	{
+		return mpStem->getResidue(meConnection);
 	}
-	
-	bool StemConnection::isValid() const 
-	{ 
+
+	bool StemConnection::isValid() const
+	{
 		return (NULL != mpStem && meConnection != Stem::eUNDEFINED_CONNECTION);
 	}
-	
-	bool StemConnection::operator== (const StemConnection &other) const 
+
+	bool StemConnection::operator== (const StemConnection &other) const
 	{
-		bool bEqual = (mpStem == other.mpStem) 
+		bool bEqual = (mpStem == other.mpStem)
 			&& (meConnection == other.meConnection);
 		return bEqual;
 	}

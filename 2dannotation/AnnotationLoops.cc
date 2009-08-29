@@ -112,12 +112,13 @@ namespace annotate
 		}
 		return loops;
 	}
-
+/*
 	AnnotationLoops::loop_list AnnotationLoops::divideLoops(
 			const AnnotateModel& aModel,
 			loop_list& aPotentials) const
 	{
 		loop_list loops;
+		loop_list potentials = aPotentials;
 
 		const AnnotationInteractions* pInteractions = NULL;
 		pInteractions = aModel.getAnnotation<AnnotationInteractions>();
@@ -125,15 +126,58 @@ namespace annotate
 		if(NULL != pInteractions)
 		{
 			// Get the W/W pairs
+			const std::set<BasePair>& pairWW = pInteractions->pairWW();
 
+			//
+			loop_list::const_iterator it = potentials.begin();
+			while(it != potentials.end())
+			{
+				std::set<mccore::ResId> resids = it->getResIds();
+				loop_list divided = divideLoops(*it, pair);
+				it = potentials.begin();
+			}
 		}
 
 		return loops;
 	}
 
+	std::set<BasePair> AnnotationLoops::dividingPairs(
+		const Loop& aLoop,
+		const std::set<BasePair>& aPairs) const
+	{
+		std::set<BasePair> pairs;
+
+		// Get the list of pairs involved in the loop
+		std::set<mccore::ResId> resids = it->getResIds();
+		std::set<BasePair>::const_iterator it;
+		for(it = aPairs.begin(); it != aPairs.end(); ++ it)
+		{
+			if(resids.end() != resids.find(it->fResId)
+				&& resids.end() != resids->find(it->rResId))
+			{
+				pairs.insert(*it);
+			}
+		}
+
+		// TODO : Remove the pairs that are part of a stem connection
+
+
+
+		// TODO : Remove the pairs between adjacent residues
+
+		return pairs;
+	}
+
+	AnnotationLoops::loop_list AnnotationLoops::divideLoop(
+		const Loop& aLoop,
+		const BasePair& aPair) const
+	{
+		}
+	}*/
+
 	bool AnnotationLoops::loopSelfComplete(const Loop& aLoop) const
 	{
-		bool bComplete = aLoop.closed() || aLoop.opened();
+		bool bComplete = aLoop.complete();
 		return bComplete;
 	}
 
