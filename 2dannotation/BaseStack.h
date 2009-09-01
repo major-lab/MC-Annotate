@@ -1,4 +1,4 @@
-//                              -*- Mode: C++ -*- 
+//                              -*- Mode: C++ -*-
 // BaseStack.h
 // Copyright Â© 2006 Laboratoire de Biologie Informatique et ThÃ©orique
 //                  UniversitÃ© de MontrÃ©al.
@@ -6,7 +6,7 @@
 // Created On       : Wed Aug  2 18:11:28 2006
 // $Revision: 59 $
 // $Id: BaseStack.h 59 2006-11-15 21:25:50Z larosem $
-// 
+//
 
 
 #ifndef _annotate_BaseStack_h_
@@ -24,17 +24,25 @@ namespace annotate
 
   class BaseStack : public BaseInteraction
   {
-    
+
   public:
-  
+
     // LIFECYCLE ------------------------------------------------------------
 
     BaseStack (GraphModel::label l, const ResId &fResId, GraphModel::label r, const ResId &rResId)
       : BaseInteraction(l, fResId, r, rResId)
-    { }
+    {
+    	meType = BaseInteraction::eSTACK;
+    }
+
+    BaseStack (const BaseStack& aStack)
+          : BaseInteraction(aStack.first, aStack.fResId, aStack.second, aStack.rResId)
+    {
+    	meType = BaseInteraction::eSTACK;
+    }
 
     ~BaseStack () { }
-    
+
     // OPERATORS ------------------------------------------------------------
 
     /**
@@ -80,15 +88,15 @@ namespace annotate
     {
 		return BaseInteraction::operator<(right);
     }
-    
+
     // ACCESS ---------------------------------------------------------------
 
     // METHODS --------------------------------------------------------------
 
     // I/O  -----------------------------------------------------------------
-    
+
   };
-  
+
 }
 
 #endif

@@ -14,12 +14,7 @@ namespace annotate
 	{
 		assert(0 < aInteractions.size());
 
-		std::list<const BaseInteraction*> interactions;
-		interactions.insert(
-			interactions.begin(),
-			aInteractions.begin(),
-			aInteractions.end());
-		setInteractions(interactions);
+		setInteractions(aInteractions);
 
 		mResidues = getOrderedResidues(mInteractions);
 
@@ -29,13 +24,6 @@ namespace annotate
 	Cycle::~Cycle()
 	{
 		mResidues.clear();
-	}
-
-	void Cycle::clearInteractions()
-	{
-		mPairs.clear();
-		mStacks.clear();
-		mLinks.clear();
 		mInteractions.clear();
 	}
 
@@ -43,13 +31,14 @@ namespace annotate
 		const interactions_set& aInteractions) const
 	{
 		std::list<mccore::ResId> resids;
-		interactions_set interactions = aInteractions;
+		interactions_set interactions;
+		interactions.insert(aInteractions.begin(), aInteractions.end());
 
 		interactions_set::const_iterator itInter = interactions.begin();
 		if(itInter != interactions.end())
 		{
-			resids.push_back((*itInter)->fResId);
-			resids.push_back((*itInter)->rResId);
+			resids.push_back(itInter->fResId);
+			resids.push_back(itInter->rResId);
 			interactions.erase(itInter);
 		}
 
@@ -59,27 +48,27 @@ namespace annotate
 			interactions_set::const_iterator it;
 			for(it = interactions.begin(); it != interactions.end(); ++ it)
 			{
-				if((*it)->fResId == resids.front())
+				if(it->fResId == resids.front())
 				{
-					resids.push_front((*it)->rResId);
+					resids.push_front(it->rResId);
 					interactions.erase(it);
 					break;
 				}
-				else if((*it)->rResId == resids.front())
+				else if(it->rResId == resids.front())
 				{
-					resids.push_front((*it)->fResId);
+					resids.push_front(it->fResId);
 					interactions.erase(it);
 					break;
 				}
-				else if((*it)->fResId == resids.back())
+				else if(it->fResId == resids.back())
 				{
-					resids.push_back((*it)->rResId);
+					resids.push_back(it->rResId);
 					interactions.erase(it);
 					break;
 				}
-				else if((*it)->rResId == resids.back())
+				else if(it->rResId == resids.back())
 				{
-					resids.push_back((*it)->fResId);
+					resids.push_back(it->fResId);
 					interactions.erase(it);
 					break;
 				}
@@ -110,14 +99,21 @@ namespace annotate
 		interactions_set::const_iterator it;
 		for(it = aInteractions.begin(); it != aInteractions.end(); ++ it)
 		{
-			if((std::min((*it)->fResId, (*it)->rResId) == minResId)
-			&& (std::max((*it)->fResId, (*it)->rResId) == maxResId))
+			if((std::min(it->fResId, it->rResId) == minResId)
+			&& (std::max(it->fResId, it->rResId) == maxResId))
 			{
 				break;
 			}
 		}
 
 		return (it != aInteractions.end());
+	}
+
+	const Cycle::interactions_set Cycle::getInteractions() const
+	{
+		interactions_set interactions;
+		interactions.insert(mInteractions.begin(), mInteractions.end());
+		return interactions;
 	}
 
 	void Cycle::orderResidues(
@@ -150,50 +146,13 @@ namespace annotate
 		}
 	}
 
-	void Cycle::setInteractions(
-		const std::list<const BaseInteraction*>& aInteractions)
+	void Cycle::setInteractions(const interactions_set& aInteractions)
 	{
-		clearInteractions();
-		std::list<const BaseInteraction*>::const_iterator it;
+		interactions_set::const_iterator it;
 		for(it = aInteractions.begin(); it != aInteractions.end(); ++ it)
 		{
-			const BasePair *pPair = NULL;
-			const BaseLink *pLink = NULL;
-			const BaseStack *pStack = NULL;
-			if(NULL != (pPair = dynamic_cast<const BasePair*>(*it)))
-			{
-				mPairs.insert(*pPair);
-			}
-			else if(NULL != (pLink = dynamic_cast<const BaseLink*>(*it)))
-			{
-				mLinks.insert(*pLink);
-			}
-			else if(NULL != (pStack = dynamic_cast<const BaseStack*>(*it)))
-			{
-				mStacks.insert(*pStack);
-			}
-			else
-			{
-				assert(false);
-			}
-		}
-
-		std::set<BasePair>::iterator itPair;
-		for(itPair = mPairs.begin(); itPair != mPairs.end(); ++ itPair)
-		{
-			mInteractions.insert(&(*itPair));
-		}
-
-		std::set<BaseLink>::iterator itLink;
-		for(itLink = mLinks.begin(); itLink != mLinks.end(); ++ itLink)
-		{
-			mInteractions.insert(&(*itLink));
-		}
-
-		std::set<BaseStack>::iterator itStack;
-		for(itStack = mStacks.begin(); itStack != mStacks.end(); ++ itStack)
-		{
-			mInteractions.insert(&(*itStack));
+			assert(it->type() != BaseInteraction::eUNKNOWN);
+			mInteractions.insert(*it);
 		}
 	}
 
@@ -229,11 +188,13 @@ namespace annotate
 		const mccore::ResId& aRes2) const
 	{
 		bool bLinked = false;
-		std::set<BaseLink>::const_iterator it;
-		for(it = mLinks.begin(); it != mLinks.end() && !bLinked; ++ it)
+		interactions_set::const_iterator it;
+		for(it = mInteractions.begin(); it != mInteractions.end() && !bLinked; ++ it)
 		{
-			if(((aRes1 == it->fResId && aRes2 == it->rResId))
-				|| (aRes1 == it->rResId && aRes2 == it->fResId))
+
+			if(it->type() == BaseInteraction::eLINK
+				&& ((aRes1 == it->fResId && aRes2 == it->rResId)
+				|| (aRes1 == it->rResId && aRes2 == it->fResId)))
 			{
 				bLinked = true;
 			}
@@ -241,15 +202,17 @@ namespace annotate
 		return bLinked;
 	}
 
-	bool Cycle::areResiduesPaired(const mccore::ResId& aRes1,
+	bool Cycle::areResiduesPaired(
+		const mccore::ResId& aRes1,
 		const mccore::ResId& aRes2) const
 	{
 		bool bPaired = false;
-		std::set<BasePair>::const_iterator it;
-		for(it = mPairs.begin(); it != mPairs.end() && !bPaired; ++ it)
+		interactions_set::const_iterator it;
+		for(it = mInteractions.begin(); it != mInteractions.end() && !bPaired; ++ it)
 		{
-			if(((aRes1 == it->fResId && aRes2 == it->rResId))
-				|| (aRes1 == it->rResId && aRes2 == it->fResId))
+			if(it->type() == BaseInteraction::ePAIR
+				&& ((aRes1 == it->fResId && aRes2 == it->rResId)
+				|| (aRes1 == it->rResId && aRes2 == it->fResId)))
 			{
 				bPaired = true;
 			}
@@ -262,11 +225,12 @@ namespace annotate
 		const mccore::ResId& aRes2) const
 	{
 		bool bStacked = false;
-		std::set<BaseStack>::const_iterator it;
-		for(it = mStacks.begin(); it != mStacks.end() && !bStacked; ++ it)
+		interactions_set::const_iterator it;
+		for(it = mInteractions.begin(); it != mInteractions.end() && !bStacked; ++ it)
 		{
-			if(((aRes1 == it->fResId && aRes2 == it->rResId))
-				|| (aRes1 == it->rResId && aRes2 == it->fResId))
+			if(it->type() == BaseInteraction::eSTACK
+				&& ((aRes1 == it->fResId && aRes2 == it->rResId)
+				|| (aRes1 == it->rResId && aRes2 == it->fResId)))
 			{
 				bStacked = true;
 			}
@@ -288,17 +252,17 @@ namespace annotate
 	{
 		bool bShare = false;
 		interactions_set interactions;
-		interactions_set_iterator first1 = mInteractions.begin();
-		interactions_set_iterator last1 = mInteractions.end();
-		interactions_set_iterator first2 = aCycle.mInteractions.begin();
-		interactions_set_iterator last2 = aCycle.mInteractions.end();
+		interactions_set::const_iterator first1 = mInteractions.begin();
+		interactions_set::const_iterator last1 = mInteractions.end();
+		interactions_set::const_iterator first2 = aCycle.mInteractions.begin();
+		interactions_set::const_iterator last2 = aCycle.mInteractions.end();
 		while (first1!=last1 && first2!=last2 && !bShare)
   		{
-			if (*(*first1)<*(*first2))
+			if (*first1<*first2)
 			{
 				 ++first1;
 			}
-			else if (*(*first2)<*(*first1))
+			else if (*first2<*first1)
 			{
 				 ++first2;
 			}
@@ -418,15 +382,14 @@ namespace annotate
 		return strands;
 	}
 
-	std::set<BaseInteraction> Cycle::getBaseInteractions() const
+	Cycle::interactions_set Cycle::getBaseInteractions() const
 	{
-		std::set<BaseInteraction> inters;
-
-		for(interactions_set::const_iterator it = mInteractions.begin();
-			it != mInteractions.end();
-			++ it)
+		interactions_set inters;
+		interactions_set::const_iterator it;
+		for(it = mInteractions.begin();	it != mInteractions.end(); ++ it)
 		{
-			BaseInteraction inter = *(*it);
+			BaseInteraction inter = *it;
+			inter.type() = BaseInteraction::eUNKNOWN;
 			inters.insert(inter);
 		}
 

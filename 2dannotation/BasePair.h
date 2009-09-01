@@ -1,4 +1,4 @@
-//                              -*- Mode: C++ -*- 
+//                              -*- Mode: C++ -*-
 // BasePair.h
 // Copyright Â© 2006 Laboratoire de Biologie Informatique et ThÃ©orique
 //                  UniversitÃ© de MontrÃ©al.
@@ -6,7 +6,7 @@
 // Created On       : Wed Jul 12 16:27:16 2006
 // $Revision: 59 $
 // $Id: BasePair.h 59 2006-11-15 21:25:50Z larosem $
-// 
+//
 
 
 #ifndef _annotate_BasePair_h_
@@ -22,18 +22,26 @@ namespace annotate
   {
 
   public:
-    
+
     // LIFECYCLE ------------------------------------------------------------
 
-    BasePair (	mccore::GraphModel::label l, 
-    			const mccore::ResId &fResId, 
-    			mccore::GraphModel::label r, 
+    BasePair (	mccore::GraphModel::label l,
+    			const mccore::ResId &fResId,
+    			mccore::GraphModel::label r,
     			const mccore::ResId &rResId)
       : BaseInteraction(l, fResId, r, rResId)
-    { }
+    {
+    	meType = BaseInteraction::ePAIR;
+    }
+
+    BasePair (const BasePair& aPair)
+	: BaseInteraction(aPair.first, aPair.fResId, aPair.second, aPair.rResId)
+    {
+    	meType = BaseInteraction::ePAIR;
+    }
 
     ~BasePair () { }
-    
+
     // OPERATORS ------------------------------------------------------------
 
     /**
@@ -79,7 +87,7 @@ namespace annotate
     {
       return BaseInteraction::operator < (right);
     }
-    
+
     // ACCESS ---------------------------------------------------------------
 
     // METHODS --------------------------------------------------------------
@@ -97,8 +105,8 @@ namespace annotate
     }
 
     // I/O  -----------------------------------------------------------------
-    
-  }; 
+
+  };
 }
 
 #endif

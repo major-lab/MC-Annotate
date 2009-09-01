@@ -56,6 +56,9 @@ unsigned char gucRelationMask =
 	| mccore::Relation::backbone_mask;
 const char* shortopts = "Vbf:hlvm:";
 
+// PROTOTYPES ------------------------------------------------------------------
+std::string getResIdsString(const annotate::Cycle& aCycle);
+
 void version ()
 {
 	mccore::Version mccorev;
@@ -161,7 +164,6 @@ void read_options (int argc, char* argv[])
 	}
 }
 
-
 mccore::Molecule* loadFile (const std::string &filename)
 {
 	mccore::ResIdSet residueSelection;
@@ -244,17 +246,6 @@ std::string getPdbFileName(const std::string& aFileName)
 	return filename;
 }
 
-void clearInteractionsSet(annotate::Cycle::interactions_set& aSet)
-{
-	// Clean up the allocated memory
-	annotate::Cycle::interactions_set::iterator it;
-	for(it = aSet.begin(); it != aSet.end(); ++ it)
-	{
-		delete *it;
-	}
-	aSet.clear();
-}
-
 std::set<annotate::Cycle> computeStemCycles(
 	const mccore::GraphModel& aModel,
 	const annotate::Stem& aStem)
@@ -269,28 +260,28 @@ std::set<annotate::Cycle> computeStemCycles(
 		{
 			annotate::Cycle::interactions_set interactions;
 
-			// First pair
-			interactions.insert(new annotate::BasePair(
+			annotate::BasePair bp1(
 				itPrev->first, itPrev->fResId,
-				itPrev->second, itPrev->rResId));
-
-			interactions.insert(new annotate::BasePair(
+				itPrev->second, itPrev->rResId);
+			annotate::BasePair bp2(
 				it->first, it->fResId,
-				it->second, it->rResId));
-
-			interactions.insert(new annotate::BaseLink(
+				it->second, it->rResId);
+			annotate::BaseLink bl1(
 				itPrev->first, itPrev->fResId,
-				it->first, it->fResId));
-
-			interactions.insert(new annotate::BaseLink(
+				it->first, it->fResId);
+			annotate::BaseLink bl2(
 				it->second, it->rResId,
-				itPrev->second, itPrev->rResId));
+				itPrev->second, itPrev->rResId);
+
+			interactions.insert(bp1);
+			interactions.insert(bp2);
+			interactions.insert(bl1);
+			interactions.insert(bl2);
 
 			// Insert the residues in the model
 			annotate::Cycle cycle(interactions);
 
-			clearInteractionsSet(interactions);
-
+			// clearInteractionsSet(interactions);
 			cycles.insert(cycle);
 		}
 		itPrev = it;
@@ -316,9 +307,10 @@ annotate::Cycle computeLoopCycle(
 		itLink != interPair.first.end();
 		++ itLink)
 	{
-		interactions.insert(new annotate::BaseLink(
-			itLink->first, itLink->fResId,
-			itLink->second, itLink->rResId));
+		annotate::BaseInteraction link(itLink->first, itLink->fResId,
+				itLink->second, itLink->rResId);
+		link.type() = annotate::BaseInteraction::eLINK;
+		interactions.insert(link);
 	}
 
 	std::set<annotate::BasePair>::const_iterator itPair;
@@ -326,9 +318,10 @@ annotate::Cycle computeLoopCycle(
 		itPair != interPair.second.end();
 		++ itPair)
 	{
-		interactions.insert(new annotate::BasePair(
-			itPair->first, itPair->fResId,
-			itPair->second, itPair->rResId));
+		annotate::BaseInteraction pair(itPair->first, itPair->fResId,
+				itPair->second, itPair->rResId);
+		pair.type() = annotate::BaseInteraction::ePAIR;
+		interactions.insert(pair);
 	}
 
 	// Insert the residues in the model
@@ -338,15 +331,211 @@ annotate::Cycle computeLoopCycle(
 	return cycle;
 }
 
+std::string debugCycleString(const annotate::Cycle& aCycle)
+{
+	std::ostringstream oss;
+
+	std::set<annotate::BaseInteraction> inters = aCycle.getBaseInteractions();
+
+	for(std::set<annotate::BaseInteraction>::const_iterator it = inters.begin(); it != inters.end(); ++ it)
+	{
+		if(it != inters.begin())
+		{
+			oss << ",";
+		}
+		oss << "{" << it->fResId << "-" << it->rResId << "}";
+	}
+	return oss.str();
+}
+
+std::set<annotate::BasePair> getDividingPairs(
+	const annotate::Cycle& aCycle,
+	const std::set<annotate::BasePair>& aPairs)
+{
+	std::set<annotate::BaseInteraction> cycleInteractions = aCycle.getBaseInteractions();
+	std::set<annotate::BasePair> dividingPairs;
+	std::list<mccore::ResId> resIds = aCycle.resIds();
+	std::set<annotate::BasePair>::const_iterator itPair;
+	for(itPair = aPairs.begin(); itPair != aPairs.end(); ++ itPair)
+	{
+		if(resIds.end() != std::find(resIds.begin(), resIds.end(), itPair->fResId)
+			&& resIds.end() != std::find(resIds.begin(), resIds.end(), itPair->rResId))
+		{
+			annotate::BaseInteraction search(0, itPair->fResId, 0, itPair->rResId);
+			if(cycleInteractions.end() == cycleInteractions.find(search))
+			{
+				dividingPairs.insert(*itPair);
+			}
+		}
+	}
+
+	return dividingPairs;
+}
+
+bool isValidNCM(const annotate::Cycle& aCycle)
+{
+	bool bIsValid = false;
+
+	if(2 < aCycle.resIds().size())
+	{
+		switch(aCycle.getType())
+		{
+		case annotate::Cycle::eLOOSE:
+		case annotate::Cycle::eLOOP:
+			bIsValid = true;
+			break;
+		case annotate::Cycle::e2STRANDS_PARALLEL:
+		case annotate::Cycle::e2STRANDS_ANTIPARALLEL:
+			// TODO : Change this to support triangle cycle
+			if(1 < aCycle.profile()[0] && 1 < aCycle.profile()[1])
+			{
+				bIsValid = true;
+			}
+			break;
+		case annotate::Cycle::eMULTIBRANCH:
+			bIsValid = true;
+		}
+	}
+	return bIsValid;
+}
+
+annotate::Cycle makeCycle(
+	const annotate::Cycle& aCycle,
+	const std::list<mccore::ResId>& aResidues,
+	const annotate::BasePair& aPair)
+{
+	std::set<mccore::ResId> residues;
+	residues.insert(aResidues.begin(), aResidues.end());
+	annotate::Cycle::interactions_set cycleInteractions;
+	annotate::Cycle::interactions_set interactions = aCycle.getInteractions();
+	annotate::Cycle::interactions_set::const_iterator itInter;
+	for(itInter = interactions.begin(); itInter != interactions.end(); ++ itInter)
+	{
+		assert(itInter->type() != annotate::BaseInteraction::eUNKNOWN);
+		if( residues.end() != residues.find(itInter->fResId)
+			&& residues.end() != residues.find(itInter->rResId))
+		{
+			cycleInteractions.insert(*itInter);
+		}
+	}
+	cycleInteractions.insert(aPair);
+
+	annotate::Cycle cycle(cycleInteractions);
+
+	return cycle;
+}
+
+std::list<annotate::Cycle> divideCycle(
+	const annotate::Cycle &aCycle,
+	const annotate::BasePair& aPair)
+{
+	std::list<annotate::Cycle> dividedCycles;
+	std::list<mccore::ResId> orderedResIds = aCycle.resIds();
+	std::list<mccore::ResId> cycle1ResIds;
+	std::list<mccore::ResId> cycle2ResIds;
+	std::list<mccore::ResId>::const_iterator itResId;
+
+	// Before first cutting point
+	for(itResId = orderedResIds.begin(); itResId != orderedResIds.end(); ++ itResId)
+	{
+		cycle1ResIds.push_back(*itResId);
+		if(*itResId == aPair.fResId || *itResId == aPair.rResId)
+		{
+			cycle2ResIds.push_back(*itResId);
+			++ itResId;
+			break;
+		}
+	}
+
+	// Between cutting points
+	for(; itResId != orderedResIds.end(); ++ itResId)
+	{
+		cycle2ResIds.push_back(*itResId);
+		if(*itResId == aPair.fResId || *itResId == aPair.rResId)
+		{
+			cycle1ResIds.push_back(*itResId);
+			++ itResId;
+			break;
+		}
+	}
+
+	// After cutting points
+	for(; itResId != orderedResIds.end(); ++ itResId)
+	{
+		cycle1ResIds.push_back(*itResId);
+	}
+
+	// Create cycles
+	annotate::Cycle cycle1 = makeCycle(aCycle, cycle1ResIds, aPair);
+	annotate::Cycle cycle2 = makeCycle(aCycle, cycle2ResIds, aPair);
+
+	// Verify that they are valid NCM cycle
+	if(isValidNCM(cycle1))
+	{
+		dividedCycles.push_back(cycle1);
+	}
+	if(isValidNCM(cycle2))
+	{
+		dividedCycles.push_back(cycle2);
+	}
+
+	// If there is no valid cycle, simply return the one passed in parameter
+	if(0 == dividedCycles.size())
+	{
+		dividedCycles.push_back(aCycle);
+	}
+
+	return dividedCycles;
+}
+
+std::list<annotate::Cycle> divideCycle(
+	const annotate::Cycle &aCycle,
+	const std::set<annotate::BasePair>& aPairs)
+{
+	std::list<annotate::Cycle> dividedCycles;
+	std::set<annotate::BasePair> pairs = aPairs;
+	while(!pairs.empty())
+	{
+		annotate::BasePair pair = *aPairs.begin();
+		pairs.erase(pairs.begin());
+		std::list<annotate::Cycle> divided = divideCycle(aCycle, pair);
+		if(1 < divided.size())
+		{
+			std::set<annotate::BasePair> dividingPairs1 = getDividingPairs(divided.front(), pairs);
+			std::list<annotate::Cycle> div1 = divideCycle(divided.front(), dividingPairs1);
+
+			std::set<annotate::BasePair> dividingPairs2 = getDividingPairs(divided.back(), pairs);
+			std::list<annotate::Cycle> div2 = divideCycle(divided.back(), dividingPairs2);
+
+			dividedCycles.insert(dividedCycles.end(), div1.begin(), div1.end());
+			dividedCycles.insert(dividedCycles.end(), div2.begin(), div2.end());
+		}
+		else
+		{
+			dividedCycles.push_back(aCycle);
+		}
+	}
+
+	// If we didn't manage to divide anything, return the cycle in parameter
+	if(dividedCycles.empty())
+	{
+		dividedCycles.push_back(aCycle);
+	}
+
+	return dividedCycles;
+}
+
 std::set<annotate::Cycle> computeSecondaryStructureCycles(
 	const annotate::AnnotateModel &aModel)
 {
 	std::set<annotate::Cycle> cycles;
+	const annotate::AnnotationInteractions* pInteractions = NULL;
 	const annotate::AnnotationStems* pStems = NULL;
 	const annotate::AnnotationLoops* pLoops = NULL;
 
 	pStems = aModel.getAnnotation<annotate::AnnotationStems>();
 	pLoops = aModel.getAnnotation<annotate::AnnotationLoops>();
+	pInteractions = aModel.getAnnotation<annotate::AnnotationInteractions>();
 
 	std::vector<annotate::Stem>::const_iterator itStem;
 	for(itStem = pStems->getStems().begin();
@@ -363,7 +552,11 @@ std::set<annotate::Cycle> computeSecondaryStructureCycles(
 		++ itLoop)
 	{
 		annotate::Cycle cycle = computeLoopCycle(aModel, *itLoop);
-		cycles.insert(cycle);
+
+		std::set<annotate::BasePair> pairs;
+		pairs = getDividingPairs(cycle, pInteractions->pairsWW());
+		std::list<annotate::Cycle> dividedCycles = divideCycle(cycle, pairs);
+		cycles.insert(dividedCycles.begin(), dividedCycles.end());
 	}
 
 	return cycles;
@@ -398,9 +591,9 @@ std::string getResIdsString(const annotate::Cycle& aCycle)
 	std::ostringstream oss;
 
 	std::list<mccore::ResId>::const_iterator it;
-	for(it = aCycle.residues().begin(); it != aCycle.residues().end(); ++ it)
+	for(it = aCycle.resIds().begin(); it != aCycle.resIds().end(); ++ it)
 	{
-		if(it != aCycle.residues().begin())
+		if(it != aCycle.resIds().begin())
 		{
 			oss << "-";
 		}
@@ -415,9 +608,9 @@ std::string getResiduesString(
 {
 	std::ostringstream oss;
 	std::list<mccore::ResId>::const_iterator it;
-	for(it = aCycle.residues().begin(); it != aCycle.residues().end(); ++ it)
+	for(it = aCycle.resIds().begin(); it != aCycle.resIds().end(); ++ it)
 	{
-		if(it != aCycle.residues().begin())
+		if(it != aCycle.resIds().begin())
 		{
 			oss << "-";
 		}
@@ -438,14 +631,14 @@ std::string cycleProfileString(const annotate::Cycle& aCycle)
 	switch(eCycleType)
 	{
 		case annotate::Cycle::eLOOSE:
-			oss << aCycle.residues().size();
+			oss << aCycle.resIds().size();
 			oss << "_L";
 			break;
 		case annotate::Cycle::e2STRANDS_PARALLEL:
 			oss << cycleProfileStrandString(aCycle) << "_p";
 			break;
 		case annotate::Cycle::eMULTIBRANCH:
-			oss << aCycle.residues().size();
+			oss << aCycle.resIds().size();
 			oss << "_M";
 			break;
 		default:
@@ -496,6 +689,7 @@ int main (int argc, char *argv[])
 					am.annotate (gucRelationMask);
 
 					std::set<annotate::Cycle> cycles;
+					std::cout << getPdbFileName(filename) << std::endl;
 					cycles = computeSecondaryStructureCycles(am);
 					std::set<annotate::Cycle>::const_iterator itCycle;
 					for( itCycle = cycles.begin(); itCycle != cycles.end(); ++ itCycle)

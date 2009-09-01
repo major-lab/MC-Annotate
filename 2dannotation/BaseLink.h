@@ -1,4 +1,4 @@
-//                              -*- Mode: C++ -*- 
+//                              -*- Mode: C++ -*-
 // BaseLink.h
 // Copyright Â© 2006 Laboratoire de Biologie Informatique et ThÃ©orique
 //                  UniversitÃ© de MontrÃ©al.
@@ -6,7 +6,7 @@
 // Created On       : Wed Aug  2 18:34:59 2006
 // $Revision: 59 $
 // $Id: BaseLink.h 59 2006-11-15 21:25:50Z larosem $
-// 
+//
 
 
 #ifndef _annotate_BaseLink_h_
@@ -21,18 +21,26 @@ namespace annotate
   {
 
   public:
-    
+
     // LIFECYCLE ------------------------------------------------------------
 
-    BaseLink (	mccore::GraphModel::label l, 
-    			const mccore::ResId &fResId, 
-    			mccore::GraphModel::label r, 
+    BaseLink (	mccore::GraphModel::label l,
+    			const mccore::ResId &fResId,
+    			mccore::GraphModel::label r,
     			const mccore::ResId &rResId)
       : BaseInteraction(l, fResId, r, rResId)
-    { }
+    {
+    	meType = BaseInteraction::eLINK;
+    }
+
+    BaseLink ( const BaseLink& aLink )
+    : BaseInteraction(aLink.first, aLink.fResId, aLink.second, aLink.rResId)
+    {
+    	meType = BaseInteraction::eLINK;
+    }
 
     ~BaseLink () { }
-    
+
     // OPERATORS ------------------------------------------------------------
 
     /**
@@ -78,15 +86,15 @@ namespace annotate
     {
 		return BaseInteraction::operator<(right);
     }
-    
+
     // ACCESS ---------------------------------------------------------------
 
     // METHODS --------------------------------------------------------------
 
     // I/O  -----------------------------------------------------------------
-    
+
   };
-  
+
 }
 
 #endif

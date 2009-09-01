@@ -40,7 +40,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 .SUFFIXES:
 
 %.d: %.cc
-	@ $(SHELL) -ec '$(CXX) $(DEPFLAGS) $(CXXFLAGS) $(DEFS) -I. -I.. -I$(srcdir) $< \
+	@ $(SHELL) -ec '$(CXX) $(DEPFLAGS) $(CXXFLAGS) -g -O0 $(DEFS) -I. -I.. -I$(srcdir) $< \
 	    | sed '\''s/\($*\)\.o[ :]*/\1.o $@ : /g'\'' > $@; \
 	      [ -s $@ ] || rm -f $@'
 
