@@ -417,7 +417,6 @@ int main (int argc, char *argv[])
 				}
 				resProfile = orderProfile(resProfile);
 
-				stCycleInfo info;
 				std::vector<string>& tableRow = stringTable.addRow();
 				tableRow[0] = getPdbFileName(filename);
 				tableRow[1] = getModelIndex(filename);
