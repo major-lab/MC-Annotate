@@ -319,6 +319,7 @@ namespace annotate
 			// TODO : Add support for 'triangle' connections
 			assert(1 < strands[0].size());
 			assert(1 < strands[1].size());
+
 			if(	strands[0].front() < strands[0].back()
 				&& strands[1].back() < strands[1].front())
 			{
@@ -345,8 +346,13 @@ namespace annotate
 			eType = eLOOP;
 		}else if(2 == mProfile.size())
 		{
-			// 2 Strands
-			if(isParallel())
+			std::vector<std::vector<mccore::ResId> > strands = getStrands();
+			assert(2 == strands.size());
+			if(1 == strands[0].size() || 1 == strands[1].size())
+			{
+				eType = e2STRANDS_TRIANGLE;
+			}
+			else if(isParallel())
 			{
 				eType = e2STRANDS_PARALLEL;
 			}

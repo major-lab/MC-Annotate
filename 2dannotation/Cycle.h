@@ -23,6 +23,7 @@ namespace annotate
 			eLOOP,					// Simple loop, 1 strand with connected ends
 			e2STRANDS_ANTIPARALLEL,	// 2 Strands cycle with antiparallel strands
 			e2STRANDS_PARALLEL,		// 2 Strands cycle with parallel strands
+			e2STRANDS_TRIANGLE,		// Only one nucleotide on one side
 			eMULTIBRANCH,			// Multiple branch cycle
 		};
 
