@@ -381,19 +381,23 @@ bool isValidNCM(const annotate::Cycle& aCycle)
 		switch(aCycle.getType())
 		{
 		case annotate::Cycle::eLOOSE:
+			bIsValid = true;
+			break;
 		case annotate::Cycle::eLOOP:
 			bIsValid = true;
 			break;
+		case annotate::Cycle::e2STRANDS_TRIANGLE:
+			// Don't support the triangles
+			break;
 		case annotate::Cycle::e2STRANDS_PARALLEL:
+			bIsValid = true;
+			break;
 		case annotate::Cycle::e2STRANDS_ANTIPARALLEL:
-			// TODO : Change this to support triangle cycle
-			if(1 < aCycle.profile()[0] && 1 < aCycle.profile()[1])
-			{
-				bIsValid = true;
-			}
+			bIsValid = true;
 			break;
 		case annotate::Cycle::eMULTIBRANCH:
 			bIsValid = true;
+			break;
 		}
 	}
 	return bIsValid;
@@ -496,7 +500,7 @@ std::list<annotate::Cycle> divideCycle(
 	std::set<annotate::BasePair> pairs = aPairs;
 	while(!pairs.empty())
 	{
-		annotate::BasePair pair = *aPairs.begin();
+		annotate::BasePair pair = *pairs.begin();
 		pairs.erase(pairs.begin());
 		std::list<annotate::Cycle> divided = divideCycle(aCycle, pair);
 		if(1 < divided.size())
@@ -509,10 +513,7 @@ std::list<annotate::Cycle> divideCycle(
 
 			dividedCycles.insert(dividedCycles.end(), div1.begin(), div1.end());
 			dividedCycles.insert(dividedCycles.end(), div2.begin(), div2.end());
-		}
-		else
-		{
-			dividedCycles.push_back(aCycle);
+			break;
 		}
 	}
 
@@ -554,7 +555,9 @@ std::set<annotate::Cycle> computeSecondaryStructureCycles(
 		annotate::Cycle cycle = computeLoopCycle(aModel, *itLoop);
 
 		std::set<annotate::BasePair> pairs;
-		pairs = getDividingPairs(cycle, pInteractions->pairsWW());
+		std::set<annotate::BasePair> interPairs;
+		interPairs.insert(pInteractions->pairs().begin(), pInteractions->pairs().end());
+		pairs = getDividingPairs(cycle, interPairs);
 		std::list<annotate::Cycle> dividedCycles = divideCycle(cycle, pairs);
 		cycles.insert(dividedCycles.begin(), dividedCycles.end());
 	}
@@ -625,7 +628,6 @@ std::string getResiduesString(
 std::string cycleProfileString(const annotate::Cycle& aCycle)
 {
 	std::ostringstream oss;
-
 	// Describe the profile
 	annotate::Cycle::enType eCycleType = aCycle.getType();
 	switch(eCycleType)
@@ -689,7 +691,6 @@ int main (int argc, char *argv[])
 					am.annotate (gucRelationMask);
 
 					std::set<annotate::Cycle> cycles;
-					std::cout << getPdbFileName(filename) << std::endl;
 					cycles = computeSecondaryStructureCycles(am);
 					std::set<annotate::Cycle>::const_iterator itCycle;
 					for( itCycle = cycles.begin(); itCycle != cycles.end(); ++ itCycle)
