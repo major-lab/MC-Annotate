@@ -142,22 +142,6 @@ std::string cycleResiduesString(const CycleInfo& aCycle)
 	return oss.str();
 }
 
-void cleanString(std::string& aString, const char& aChar)
-{
-	std::string::iterator it = aString.begin();
-	while(it != aString.end())
-	{
-		if(*it == aChar)
-		{
-			it = aString.erase(it);
-		}
-		else
-		{
-			++ it;
-		}
-	}
-}
-
 std::multimap<ModelInfo, InteractionInfo> readPairsFile(const std::string& aFile)
 {
 	std::ifstream infile;
@@ -168,7 +152,7 @@ std::multimap<ModelInfo, InteractionInfo> readPairsFile(const std::string& aFile
 
 	while (std::getline(infile, strLine).good())
 	{
-		cleanString(strLine, ' ');
+		annotate::cleanString(strLine, ' ');
 
 		std::size_t sep = strLine.rfind('-');
 		std::string strRes2 = strLine.substr(sep + 1, strLine.size() - (sep + 1));
@@ -199,7 +183,7 @@ std::list<std::string> getResidues(const std::string& aResidues)
 	std::list<std::string> residues;
 	std::string strResidues = aResidues;
 
-	cleanString(strResidues, ' ');
+	annotate::cleanString(strResidues, ' ');
 	while(0 < strResidues.size())
 	{
 		std::string strRes;
@@ -256,7 +240,7 @@ std::set<CycleInfo> readCyclesFile(const std::string& aFile)
 
 	while(std::getline(infile, strLine).good())
 	{
-		cleanString(strLine, ' ');
+		annotate::cleanString(strLine, ' ');
 
 		fields = annotate::splitStringFields(strLine, ":");
 
