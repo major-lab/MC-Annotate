@@ -9,6 +9,8 @@ namespace annotate
 	std::vector<std::string> splitStringFields(
 		const std::string& aString,
 		const std::string& aDelimiter);
+
+	void cleanString(std::string& aString, const char& aChar);
 };
 
 #endif /*_annotate_StringUtil_H_*/

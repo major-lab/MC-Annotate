@@ -27,4 +27,20 @@ namespace annotate
 		}
 		return stringFields;
 	}
+
+	void cleanString(std::string& aString, const char& aChar)
+	{
+		std::string::iterator it = aString.begin();
+		while(it != aString.end())
+		{
+			if(*it == aChar)
+			{
+				it = aString.erase(it);
+			}
+			else
+			{
+				++ it;
+			}
+		}
+	}
 };
