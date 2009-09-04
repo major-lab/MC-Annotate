@@ -55,22 +55,37 @@ namespace annotate
 				// Filter out pairs between different chains
 				if(it->fResId.getChainId() == it->rResId.getChainId())
 				{
-					// Filter out adjacent pairs
-					bool bAdjacent = false;
-					bAdjacent = areAdjacent(it->fResId, it->rResId, associationMap);
-					if(!bAdjacent)
+					// Filter out pairs without association
+					bool bAssociated =
+						isAssociated(it->fResId, associationMap)
+						&& isAssociated(it->rResId, associationMap);
+					if(bAssociated)
 					{
-						// Filter out pairs inside a loop
-						bool bSameLoop = false;
-						bSameLoop = areSameLoop(aModel, it->fResId, it->rResId);
-						if(!bSameLoop)
+						// Filter out adjacent pairs
+						bool bAdjacent = false;
+						bAdjacent = areAdjacent(it->fResId, it->rResId, associationMap);
+						if(!bAdjacent)
 						{
-							mPairs.insert(*it);
+							// Filter out pairs inside a loop
+							bool bSameLoop = false;
+							bSameLoop = areSameLoop(aModel, it->fResId, it->rResId);
+							if(!bSameLoop)
+							{
+								mPairs.insert(*it);
+							}
 						}
 					}
 				}
 			}
 		}
+	}
+
+	bool AnnotationTertiaryPairs::isAssociated(
+		const mccore::ResId& aResId,
+		const struct_association_map& associationMap) const
+	{
+		struct_association_map::const_iterator it = associationMap.find(aResId);
+		return (it != associationMap.end());
 	}
 
 	bool AnnotationTertiaryPairs::areAdjacent(

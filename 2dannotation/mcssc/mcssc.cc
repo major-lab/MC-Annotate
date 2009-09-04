@@ -403,6 +403,34 @@ bool isValidNCM(const annotate::Cycle& aCycle)
 	return bIsValid;
 }
 
+bool isNewKnowledge(const annotate::Cycle& aCycle)
+{
+	bool bIsNew = false;
+	assert(isValidNCM(aCycle));
+
+	switch(aCycle.getType())
+	{
+	case annotate::Cycle::eLOOSE:
+		bIsNew = true;
+		break;
+	case annotate::Cycle::eLOOP:
+		bIsNew = (6 < aCycle.resIds().size());
+		break;
+	case annotate::Cycle::e2STRANDS_PARALLEL:
+		bIsNew = (8 < aCycle.resIds().size());
+		break;
+	case annotate::Cycle::e2STRANDS_ANTIPARALLEL:
+		bIsNew = (8 < aCycle.resIds().size());
+		break;
+	case annotate::Cycle::eMULTIBRANCH:
+		bIsNew = true;
+		break;
+	default:
+		bIsNew = false;
+	}
+	return bIsNew;
+}
+
 annotate::Cycle makeCycle(
 	const annotate::Cycle& aCycle,
 	const std::list<mccore::ResId>& aResidues,
@@ -490,7 +518,7 @@ std::list<annotate::Cycle> divideCycle(
 	}
 
 	return dividedCycles;
-}
+};
 
 std::list<annotate::Cycle> divideCycle(
 	const annotate::Cycle &aCycle,
@@ -695,13 +723,16 @@ int main (int argc, char *argv[])
 					std::set<annotate::Cycle>::const_iterator itCycle;
 					for( itCycle = cycles.begin(); itCycle != cycles.end(); ++ itCycle)
 					{
-						std::vector<string>& tableRow = stringTable.addRow();
-						tableRow[0] = getPdbFileName(filename);
-						tableRow[1] = getModelString(uiModel);
-						tableRow[2] = cycleProfileString(*itCycle);
-						tableRow[3] = cycleProfileString(*itCycle);
-						tableRow[4] = getResIdsString(*itCycle);
-						tableRow[5] = getResiduesString(am, *itCycle);
+						if(isNewKnowledge(*itCycle))
+						{
+							std::vector<string>& tableRow = stringTable.addRow();
+							tableRow[0] = getPdbFileName(filename);
+							tableRow[1] = getModelString(uiModel);
+							tableRow[2] = cycleProfileString(*itCycle);
+							tableRow[3] = cycleProfileString(*itCycle);
+							tableRow[4] = getResIdsString(*itCycle);
+							tableRow[5] = getResiduesString(am, *itCycle);
+						}
 					}
 
 					if (oneModel)

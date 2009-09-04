@@ -19,12 +19,12 @@ namespace annotate
 	public:
 		AnnotationTertiaryPairs();
 		virtual ~AnnotationTertiaryPairs();
-		
-		virtual void update(AnnotateModel& aModel);		
+
+		virtual void update(AnnotateModel& aModel);
 		virtual std::string output() const;
-		
+
 		const std::set< BasePair >& getPairs() const;
-		
+
 		static const std::string& AnnotationName() {return mstrAnnotationName;}
 		virtual const std::string& annotationName() {return AnnotationName();}
 	private:
@@ -33,26 +33,30 @@ namespace annotate
 		typedef std::multimap<mccore::ResId, const SecondaryStructure*> struct_association_map;
 		std::set< BasePair > mPairs;
 		virtual void clear();
-		
+
 		void addStemsAssociations(
-			const AnnotateModel& aModel, 
+			const AnnotateModel& aModel,
 			struct_association_map& associationMap);
-			
+
 		void addLoopsAssociations(
-			const AnnotateModel& aModel, 
+			const AnnotateModel& aModel,
 			struct_association_map& associationMap);
-			
+
 		bool areAdjacent(
-			const mccore::ResId& aResId1, 
-			const mccore::ResId& aResId2, 
+			const mccore::ResId& aResId1,
+			const mccore::ResId& aResId2,
 			const struct_association_map& associationMap) const;
-			
+
 		bool areSameLoop(
 			const AnnotateModel& aModel,
-			const mccore::ResId& aResId1, 
+			const mccore::ResId& aResId1,
 			const mccore::ResId& aResId2) const;
+
+		bool isAssociated(
+			const mccore::ResId& aResId,
+			const struct_association_map& associationMap) const;
 	};
-	
+
 }
 
 #endif /*_annotate_AnnotationTertiaryPairs_H_*/
