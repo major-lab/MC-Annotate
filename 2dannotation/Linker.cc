@@ -1,21 +1,18 @@
 #include "Linker.h"
+#include "BaseLink.h"
 
 #include <cassert>
 
 namespace annotate
 {
-	Linker::Linker()
-	{
-	}
-
 	Linker::Linker(
-		const std::vector<mccore::ResId>& aResidues,
-		const StemConnection& aStart,
-		const StemConnection& aEnd)
+		const std::vector<LabeledResId>& aResidues,
+		const SecondaryStructure* apStartStruct,
+		const SecondaryStructure* apEndStruct)
 	{
 		mResidues = aResidues;
-		mStart = aStart;
-		mEnd = aEnd;
+		mpStartStruct = apStartStruct;
+		mpEndStruct = apEndStruct;
 	}
 
 	Linker::~Linker()
@@ -30,24 +27,23 @@ namespace annotate
 
 	bool Linker::isEmpty() const
 	{
-		bool bIsEmpty = true;
-
-		if((mStart.isValid() && mEnd.isValid()) || 0 < mResidues.size())
-		{
-			bIsEmpty = false;
-		}
-		return bIsEmpty;
+		return (2 == mResidues.size());
 	}
 
 	bool Linker::operator== (const Linker &other) const
 	{
 		bool bEqual = false;
 
-		if((mStart == other.mStart && mEnd == other.mEnd) // same
-			|| (mStart == other.mEnd && mEnd == other.mStart)) // reversed
+		if(mResidues.size() == other.mResidues.size())
 		{
-			// Same order
-			bEqual = true;
+			if(0 < mResidues.size())
+			{
+				bEqual = (mResidues.front() == other.mResidues.front()
+					&& mResidues.back() == other.mResidues.back());
+			}else
+			{
+				bEqual = true;
+			}
 		}
 		return bEqual;
 	}
@@ -65,26 +61,7 @@ namespace annotate
 
     	if(!isEmpty() && !other.isEmpty())
     	{
-    		mccore::ResId thisId;
-    		if(mStart.isValid())
-	    	{
-	    		thisId = mStart.getResidue();
-	    	}
-	    	else
-	    	{
-	    		thisId = mResidues.front();
-	    	}
-
-	    	mccore::ResId otherId;
-	    	if(other.mStart.isValid())
-	    	{
-	    		otherId = other.mStart.getResidue();
-	    	}
-	    	else
-	    	{
-	    		otherId = other.mResidues.front();
-	    	}
-	    	bIsSmaller = thisId < otherId;
+	    	bIsSmaller = mResidues.front() < other.mResidues.front();
     	}
 
       return bIsSmaller;
@@ -111,73 +88,62 @@ namespace annotate
 			// Parameter is the current linker
 			bAdjacent = true;
 		}
-		else if(mStart.isValid() && mStart.getStructure()->isSame(aStruct))
+		else if(NULL != mpStartStruct && mpStartStruct->isSame(aStruct))
 		{
 			// Start of the linker connects to the provided structure
 			bAdjacent = true;
 		}
-		else if(mEnd.isValid() && mEnd.getStructure()->isSame(aStruct))
+		else if(NULL != mpEndStruct && mpEndStruct->isSame(aStruct))
 		{
 			bAdjacent = true;
 		}
 		return bAdjacent;
 	}
 
-    bool Linker::contains(const mccore::ResId& aResId) const
+    bool Linker::contains(const LabeledResId& aResId) const
 	{
-		std::vector<mccore::ResId>::const_iterator it;
+		std::vector<LabeledResId>::const_iterator it;
 		it = std::find(mResidues.begin(), mResidues.end(), aResId);
 		return it != mResidues.end();
 	}
 
 	void Linker::order()
 	{
-		if(0 < mResidues.size())
-		{
-			std::sort(mResidues.begin(), mResidues.end());
-		}
+		assert(2 <= mResidues.size());
 
-		if(mStart.isValid() && mEnd.isValid())
+		if(mResidues.back() < mResidues.front())
 		{
-			mccore::ResId startResId = mStart.getResidue();
-			mccore::ResId endResId = mEnd.getResidue();
-			if(endResId < startResId)
-			{
-				std::swap(mStart, mEnd);
-			}
-		}else if(mStart.isValid() && 0 < mResidues.size())
-		{
-			mccore::ResId startResId = mStart.getResidue();
-			if(startResId < mResidues.back())
-			{
-				std::swap(mStart, mEnd);
-			}
-		}else if(mEnd.isValid() && 0 < mResidues.size())
-		{
-			mccore::ResId endResId = mEnd.getResidue();
-			if(endResId < mResidues.back())
-			{
-				std::swap(mStart, mEnd);
-			}
+			reverse();
 		}
 	}
 
 	void Linker::reverse()
 	{
 		std::reverse(mResidues.begin(), mResidues.end());
-		std::swap(mStart, mEnd);
+		std::swap(mpStartStruct, mpEndStruct);
 	}
 
 	bool Linker::connects(const Linker& aLinker) const
 	{
 		bool bConnects = false;
-		if( mStart.connects(aLinker.mStart)
-			|| mStart.connects(aLinker.mEnd)
-			|| mEnd.connects(aLinker.mStart)
-			|| mEnd.connects(aLinker.mEnd) )
+		if( mResidues.front() == aLinker.mResidues.front()
+			|| mResidues.front() == aLinker.mResidues.back()
+			|| mResidues.back() == aLinker.mResidues.front()
+			|| mResidues.back() == aLinker.mResidues.back())
+		{
+			bConnects = true;
+		}else if(NULL != mpStartStruct
+					&& (mpStartStruct == aLinker.mpStartStruct
+						|| mpStartStruct == aLinker.mpEndStruct))
+		{
+			bConnects = true;
+		}else if(NULL != mpEndStruct
+				&& (mpEndStruct == aLinker.mpStartStruct
+					|| mpEndStruct == aLinker.mpEndStruct))
 		{
 			bConnects = true;
 		}
+
 		return bConnects;
 	}
 
@@ -185,119 +151,37 @@ namespace annotate
 	throw(mccore::FatalIntLibException)
 	{
 		std::set<BaseInteraction> interactions;
-		std::vector<mccore::ResId>::const_iterator itRes;
+		std::vector<LabeledResId>::const_iterator itRes;
 
 		// Get the interactions between the residues of the linkers
 		for(itRes = mResidues.begin(); itRes != mResidues.end(); ++itRes)
 		{
-			std::vector<mccore::ResId>::const_iterator itNextRes = itRes;
+			std::vector<LabeledResId>::const_iterator itNextRes = itRes;
 			itNextRes ++;
 			if(itNextRes != mResidues.end())
 			{
-				// TODO : Interactions shouldn't use 0 labels, we need to get
-				// the real adjacency interactions in the linkers
-				BaseInteraction inter(0, *itRes, 0, *itNextRes);
+				BaseLink inter(
+					itRes->label(), *itRes,
+					itNextRes->label(), *itNextRes);
 				interactions.insert(inter);
-			}
-		}
-
-		if(0 == mResidues.size())
-		{
-			appendInteractionBetweenConnections(interactions);
-		}else
-		{
-			if(mStart.isValid())
-			{
-				interactions.insert(getBaseInteractionWithConnection(mStart));
-			}
-			if(mEnd.isValid())
-			{
-				interactions.insert(getBaseInteractionWithConnection(mEnd));
 			}
 		}
 
 		return interactions;
 	}
 
-	void Linker::appendInteractionBetweenConnections(
-			std::set<BaseInteraction>& aInteractionSet) const
-			throw(mccore::FatalIntLibException)
+	std::set<LabeledResId> Linker::getSharedResIds() const
 	{
-		if(mStart.isValid() && mEnd.isValid())
+		std::set<LabeledResId> resIds;
+		if(NULL != mpStartStruct)
 		{
-			// Interaction is bewteen connections
-			aInteractionSet.insert(getBaseInteractionBetweenConnections());
-		}else
-		{
-			std::string strMsg("Linker::getBaseInteractions - Empty open linker");
-			throw mccore::FatalIntLibException(strMsg, __FILE__, __LINE__);
+			resIds.insert(mResidues.front());
 		}
-	}
-
-	BaseInteraction Linker::getBaseInteractionWithConnection(
-		const StemConnection& aConnection) const
-		throw(mccore::FatalIntLibException)
-	{
-		assert(aConnection.isValid());
-		assert(0 < mResidues.size());
-
-		// TODO : Interactions shouldn't use 0 labels, we need to get
-		// the real adjacency interactions in the linkers<
-		res_info startResInfo = getResInfo(aConnection);
-		res_info endResInfo;
-		endResInfo.first = 0;
-
-		if(startResInfo.second < std::min(mResidues.front(), mResidues.back()))
+		if(NULL != mpEndStruct)
 		{
-			// Connection is 5'
-			endResInfo.second = std::min(mResidues.front(), mResidues.back());
+			resIds.insert(mResidues.back());
 		}
-		else
-		{
-			// Connection is 3'
-			endResInfo.second = std::max(mResidues.front(), mResidues.back());
-		}
-
-		return BaseInteraction(
-			startResInfo.first, startResInfo.second,
-			endResInfo.first, endResInfo.second);
-	}
-
-	BaseInteraction Linker::getBaseInteractionBetweenConnections() const
-		throw(mccore::FatalIntLibException)
-	{
-		// Assertions
-		assert(mStart.isValid() && mEnd.isValid());
-
-		res_info startResInfo = getResInfo(mStart);
-		res_info endResInfo = getResInfo(mEnd);
-
-		return BaseInteraction(
-			startResInfo.first,
-			startResInfo.second,
-			endResInfo.first,
-			endResInfo.second);
-	}
-
-	Linker::res_info Linker::getResInfo(const StemConnection& aConnection) const
-		throw(mccore::NoSuchElementException)
-	{
-		std::pair<mccore::GraphModel::label, mccore::ResId> info;
-		BasePair bp = aConnection.getPair();
-		if(bp.fResId == aConnection.getResidue())
-		{
-			info.first = bp.first;
-			info.second = bp.fResId;
-		}else if(bp.rResId == aConnection.getResidue())
-		{
-			info.first = bp.second;
-			info.second = bp.rResId;
-		}else
-		{
-			std::string strMsg("Linker::getResInfo - Residue is not part of the connection");
-			throw mccore::NoSuchElementException(strMsg, __FILE__, __LINE__);
-		}
-		return info;
+		return resIds;
 	}
 
 };

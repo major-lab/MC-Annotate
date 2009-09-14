@@ -1,4 +1,4 @@
-//                              -*- Mode: C++ -*- 
+//                              -*- Mode: C++ -*-
 // annotate.cc
 // Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
@@ -47,10 +47,10 @@ bool binary = false;
 unsigned int environment = 0;
 bool oneModel = false;
 unsigned int modelNumber = 0;  // 1 based vector identifier, 0 means all
-unsigned char gucRelationMask = 
+unsigned char gucRelationMask =
 	mccore::Relation::adjacent_mask
-	| mccore::Relation::pairing_mask 
-	| mccore::Relation::stacking_mask 
+	| mccore::Relation::pairing_mask
+	| mccore::Relation::stacking_mask
 	| mccore::Relation::backbone_mask;
 ResIdSet residueSelection;
 const char* shortopts = "Vbe:f:hlr:vm:";
@@ -59,8 +59,8 @@ void
 version ()
 {
 	mccore::Version mccorev;
-  
-	mccore::gOut(0) 
+
+	mccore::gOut(0)
 		<< PACKAGE << " " << VERSION << " (" << __DATE__ << ")" << std::endl
 		<< "  using " << mccorev << std::endl;
 }
@@ -85,9 +85,9 @@ help ()
 		<< "  -f model number   model to print" << std::endl
 		<< "  -h                print this help" << std::endl
 		<< "  -l                be more verbose (log)" << std::endl
-		<< "  -r sel            extract these residues from the structure" << std::endl 
+		<< "  -r sel            extract these residues from the structure" << std::endl
 		<< "  -v                be verbose" << std::endl
-		<< "  -V                print the software version info" << std::endl;    
+		<< "  -V                print the software version info" << std::endl;
 }
 
 
@@ -96,7 +96,7 @@ read_options (int argc, char* argv[])
 {
 	int c;
 
-	while ((c = getopt (argc, argv, shortopts)) != EOF) 
+	while ((c = getopt (argc, argv, shortopts)) != EOF)
 	{
 		switch (c)
 		{
@@ -106,7 +106,7 @@ read_options (int argc, char* argv[])
 			break;
 		case 'b':
 			binary = true;
-			break; 
+			break;
 		case 'e':
 		{
 			long int tmp;
@@ -221,12 +221,12 @@ loadFile (const string &filename)
     {
 #ifdef HAVE_LIBRNAMLC__
       RnamlReader reader (filename.c_str (), &aFM);
-      
+
       if (0 == (molecule = reader.read ()))
 	{
 #endif
 	  izfPdbstream in;
-	  
+
 	  in.open (filename.c_str ());
 	  if (in.fail ())
 	    {
@@ -252,7 +252,7 @@ std::string getFilePrefix(const std::string& aFileName)
 		filename.erase (0, index + 1);
     }
 	if (string::npos != (index = filename.find (".")))
-    { 
+    {
 		filename.erase (index, filename.size ());
     }
 	return filename;
@@ -268,7 +268,7 @@ main (int argc, char *argv[])
 		Molecule *molecule;
 		Molecule::iterator molIt;
 		std::string filename = (std::string) argv[optind];
-      
+
 		molecule = loadFile (filename);
 		if (0 != molecule)
 		{
@@ -290,7 +290,7 @@ main (int argc, char *argv[])
 					annotate::AnnotationTertiaryPairs annTertiaryPairs;
 					annotate::AnnotationTertiaryStacks annTertiaryStacks;
 					annotate::AnnotationResSecondaryStructures annResSecondaryStructures;
-		  
+
 		  			am.addAnnotation(annInteractions);
 		  			am.addAnnotation(annChains);
 					am.addAnnotation(annStems);
@@ -299,12 +299,12 @@ main (int argc, char *argv[])
 					am.addAnnotation(annTertiaryPairs);
 					am.addAnnotation(annTertiaryStacks);
 					am.addAnnotation(annResSecondaryStructures);
-					
-					mccore::gOut (0) << "Annotating Model ------------------------------------------------" << endl;										
+
+					mccore::gOut (0) << "Annotating Model ------------------------------------------------" << endl;
 					mccore::gOut (0) << filename << std::endl;
 					am.annotate (gucRelationMask);
 					mccore::gOut(0) << am;
-					
+
 					if (oneModel)
 					{
 						break;
@@ -315,5 +315,5 @@ main (int argc, char *argv[])
 		}
 		++optind;
 	}
-	return EXIT_SUCCESS;	
+	return EXIT_SUCCESS;
 }

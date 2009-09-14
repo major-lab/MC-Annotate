@@ -71,17 +71,9 @@ namespace annotate
 		 * @brief getBaseInteractions forming the loop.
 		 * @details BaseInteractions are unspecialized interactions between
 		 * residues.  This effectively return only one interaction between any
-		 * pair of interacting residues.  The interactions are unqualified, ( no
-		 * pairing, stacking, adjacency, etc... ).
+		 * pair of interacting residues.
 		 */
 		std::set<BaseInteraction> getBaseInteractions() const;
-
-
-		/**
-		 * @brief Get a pair of set containing the links and pairs describing
-		 * the loop.
-		 */
-		std::pair<std::set<BaseLink>, std::set<BasePair> > getInteractions() const;
 
 		/**
 		 * @brief Get the res ids of the perimeter of the loop.
@@ -90,14 +82,25 @@ namespace annotate
 
 		bool checkIntegrity() const;
 
+		/**
+		 * @brief Get the set of all residue Ids shared between this secondary
+		 * structure and others.
+		 */
+		virtual std::set<LabeledResId> getSharedResIds() const;
+
 	protected:
 		std::vector<Linker> mLinkers;
+		std::set<BasePair> mStemConnections;
 
 		void clear();
 
 		void getLinkerInteractions(
 			const Linker& aLinker,
 			std::set<BaseLink>& aInteractions) const;
+
+		std::set<BasePair> getLinkerPair(
+			const Linker& aFirst,
+			const Linker& aSecond) const;
 
 		/**
 		 * @brief Append other loops linkers to this loop, in particular orders.

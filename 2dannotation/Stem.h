@@ -125,6 +125,12 @@ namespace annotate
     		throw (mccore::NoSuchElementException);
 
     	enConnection getConnection(const mccore::ResId& aId) const;
+
+    	/**
+		 * @brief Get the set of all residue Ids shared between this secondary
+		 * structure and others.
+		 */
+		virtual std::set<LabeledResId> getSharedResIds() const;
 	private:
 		/**
     	 * @brief Order base pair on increasing residue id.

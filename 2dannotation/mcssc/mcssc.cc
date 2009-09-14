@@ -295,34 +295,9 @@ annotate::Cycle computeLoopCycle(
 {
 	assert(0 < aLoop.linkers().size());
 
-	std::vector< annotate::Linker >::const_iterator it;
-
 	annotate::Cycle::interactions_set interactions;
 
-	std::pair<std::set<annotate::BaseLink>, std::set<annotate::BasePair> > interPair;
-	interPair = aLoop.getInteractions();
-
-	std::set<annotate::BaseLink>::const_iterator itLink;
-	for(itLink = interPair.first.begin();
-		itLink != interPair.first.end();
-		++ itLink)
-	{
-		annotate::BaseInteraction link(itLink->first, itLink->fResId,
-				itLink->second, itLink->rResId);
-		link.type() = annotate::BaseInteraction::eLINK;
-		interactions.insert(link);
-	}
-
-	std::set<annotate::BasePair>::const_iterator itPair;
-	for(itPair = interPair.second.begin();
-		itPair != interPair.second.end();
-		++ itPair)
-	{
-		annotate::BaseInteraction pair(itPair->first, itPair->fResId,
-				itPair->second, itPair->rResId);
-		pair.type() = annotate::BaseInteraction::ePAIR;
-		interactions.insert(pair);
-	}
+	interactions = aLoop.getBaseInteractions();
 
 	// Insert the residues in the model
 	assert(0 < interactions.size());
@@ -376,29 +351,32 @@ bool isValidNCM(const annotate::Cycle& aCycle)
 {
 	bool bIsValid = false;
 
-	if(2 < aCycle.resIds().size())
+	switch(aCycle.getType())
 	{
-		switch(aCycle.getType())
-		{
-		case annotate::Cycle::eLOOSE:
-			bIsValid = true;
-			break;
-		case annotate::Cycle::eLOOP:
-			bIsValid = true;
-			break;
-		case annotate::Cycle::e2STRANDS_TRIANGLE:
-			// Don't support the triangles
-			break;
-		case annotate::Cycle::e2STRANDS_PARALLEL:
-			bIsValid = true;
-			break;
-		case annotate::Cycle::e2STRANDS_ANTIPARALLEL:
-			bIsValid = true;
-			break;
-		case annotate::Cycle::eMULTIBRANCH:
-			bIsValid = true;
-			break;
-		}
+	case annotate::Cycle::eLOOSE:
+		std::cout << "eLOOSE" << std::endl;
+		bIsValid = true;
+		break;
+	case annotate::Cycle::eLOOP:
+		std::cout << "eLOOP" << std::endl;
+		bIsValid = true;
+		break;
+	case annotate::Cycle::e2STRANDS_TRIANGLE:
+		// Don't support the triangles
+		std::cout << "e2STRANDS_TRIANGLE" << std::endl;
+		break;
+	case annotate::Cycle::e2STRANDS_PARALLEL:
+		std::cout << "e2STRANDS_PARALLEL" << std::endl;
+		bIsValid = true;
+		break;
+	case annotate::Cycle::e2STRANDS_ANTIPARALLEL:
+		std::cout << "e2STRANDS_ANTIPARALLEL" << std::endl;
+		bIsValid = true;
+		break;
+	case annotate::Cycle::eMULTIBRANCH:
+		std::cout << "eMULTIBRANCH" << std::endl;
+		bIsValid = true;
+		break;
 	}
 	return bIsValid;
 }
@@ -406,6 +384,20 @@ bool isValidNCM(const annotate::Cycle& aCycle)
 bool isNewKnowledge(const annotate::Cycle& aCycle)
 {
 	bool bIsNew = false;
+
+	std::cout << debugCycleString(aCycle) << std::endl;
+	std::cout << "Ordered residues : ";
+	std::list<mccore::ResId>::const_iterator it = aCycle.resIds().begin();
+	for(; it != aCycle.resIds().end(); ++ it)
+	{
+		if(it != aCycle.resIds().begin())
+		{
+			std::cout << ",";
+		}
+		std::cout << *it;
+	}
+	std::cout << std::endl;
+
 	assert(isValidNCM(aCycle));
 
 	switch(aCycle.getType())
@@ -581,15 +573,14 @@ std::set<annotate::Cycle> computeSecondaryStructureCycles(
 		++ itLoop)
 	{
 		annotate::Cycle cycle = computeLoopCycle(aModel, *itLoop);
-
 		std::set<annotate::BasePair> pairs;
 		std::set<annotate::BasePair> interPairs;
 		interPairs.insert(pInteractions->pairs().begin(), pInteractions->pairs().end());
 		pairs = getDividingPairs(cycle, interPairs);
 		std::list<annotate::Cycle> dividedCycles = divideCycle(cycle, pairs);
 		cycles.insert(dividedCycles.begin(), dividedCycles.end());
+		cycles.insert(cycle);
 	}
-
 	return cycles;
 }
 
@@ -702,6 +693,7 @@ int main (int argc, char *argv[])
 				}
 				else
 				{
+					std::cout << filename << std::endl;
 					annotate::AnnotateModel &am = (annotate::AnnotateModel&) *molIt;
 					am.name(getPdbFileName(filename));
 					annotate::AnnotationInteractions annInteractions;

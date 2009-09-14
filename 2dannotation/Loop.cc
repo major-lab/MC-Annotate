@@ -244,7 +244,19 @@ namespace annotate
 
 		if(0 < mLinkers.size())
 		{
-			bClosed = mLinkers.front().connects(mLinkers.back());
+			if(1 == mLinkers.size())
+			{
+				const SecondaryStructure* pFront = mLinkers.front().start();
+				const SecondaryStructure* pEnd = mLinkers.back().end();
+				if(NULL != pFront && NULL != pEnd)
+				{
+					bClosed = pFront->isSame(*pEnd);
+				}
+			}
+			else
+			{
+				bClosed = mLinkers.front().connects(mLinkers.back());
+			}
 		}
 
 		return bClosed;
@@ -261,8 +273,8 @@ namespace annotate
 		else if(0 < mLinkers.size())
 		{
 			// ... or not connected at all
-			bool bStartConnected = mLinkers.front().getStart().isValid();
-			bool bEndConnected = mLinkers.back().getEnd().isValid();
+			bool bStartConnected = (NULL != mLinkers.front().start());
+			bool bEndConnected = (NULL != mLinkers.back().end());
 			bComplete = (!bStartConnected && !bEndConnected);
 		}
 		return bComplete;
@@ -272,66 +284,41 @@ namespace annotate
 	{
 		std::set<BaseInteraction> interactions;
 		std::vector<Linker>::const_iterator itLinker;
+		std::vector<Linker>::const_iterator itNext;
 		for(itLinker = mLinkers.begin(); itLinker != mLinkers.end(); ++itLinker)
 		{
+			itNext = itLinker;
+			++ itNext;
+			if(itNext == mLinkers.end())
+			{
+				itNext = mLinkers.begin();
+			}
+
 			std::set<BaseInteraction> linkerInteractions;
 			linkerInteractions = itLinker->getBaseInteractions();
 			interactions.insert(linkerInteractions.begin(), linkerInteractions.end());
-			assert(itLinker->getStart().isValid() || itLinker->getEnd().isValid());
-			if(itLinker->getStart().isValid())
-			{
-				BasePair basePair = itLinker->getStart().getPair();
-				BaseInteraction interact(
-					basePair.first, basePair.fResId,
-					basePair.second, basePair.rResId);
-				interactions.insert(interact);
-			}
-			if(itLinker->getEnd().isValid())
-			{
-				BasePair basePair = itLinker->getEnd().getPair();
-				BaseInteraction interact(
-					basePair.first, basePair.fResId,
-					basePair.second, basePair.rResId);
-				interactions.insert(interact);
-			}
+			std::set<BasePair> pairs = getLinkerPair(*itLinker, *itNext);
+			interactions.insert(pairs.begin(), pairs.end());
 		}
 		return interactions;
 	}
 
-	void Loop::getLinkerInteractions(
-		const Linker& aLinker,
-		std::set<BaseLink>& aInteractions) const
+	std::set<BasePair> Loop::getLinkerPair(
+		const Linker& aFirst,
+		const Linker& aSecond) const
 	{
-		std::set<BaseInteraction> links;
-		links = aLinker.getBaseInteractions();
-		std::set<BaseInteraction>::const_iterator it;
-		for(it = links.begin(); it != links.end(); ++ it)
+		std::set<BasePair> pairs;
+		if(aFirst.end() != NULL && aFirst.end() == aSecond.start())
 		{
-			BaseLink link(it->first, it->fResId, it->second, it->rResId);
-			aInteractions.insert(link);
+			// Both are pointing at the same stem
+			const Stem* pStem = dynamic_cast<const Stem*>(aFirst.end());
+			assert(NULL != pStem);
+			BasePair basePair(
+				aFirst.residues().back().label(), aFirst.residues().back(),
+				aSecond.residues().front().label(), aSecond.residues().front());
+			pairs.insert(basePair);
 		}
-	}
-
-	std::pair<std::set<BaseLink>, std::set<BasePair> > Loop::getInteractions() const
-	{
-		std::pair<std::set<BaseLink>, std::set<BasePair> > interactions;
-		std::vector<Linker>::const_iterator it;
-		for(it = mLinkers.begin(); it != mLinkers.end(); ++it)
-		{
-			getLinkerInteractions(*it, interactions.first);
-			assert(it->getStart().isValid() || it->getEnd().isValid());
-			if(it->getStart().isValid())
-			{
-				BasePair basePair = it->getStart().getPair();
-				interactions.second.insert(basePair);
-			}
-			if(it->getEnd().isValid())
-			{
-				BasePair basePair = it->getEnd().getPair();
-				interactions.second.insert(basePair);
-			}
-		}
-		return interactions;
+		return pairs;
 	}
 
 	std::set<mccore::ResId> Loop::getResIds() const
@@ -341,18 +328,6 @@ namespace annotate
 		for(it = mLinkers.begin(); it != mLinkers.end(); ++ it)
 		{
 			resids.insert(it->residues().begin(), it->residues().end());
-			if(it->getStart().isValid())
-			{
-				BasePair basePair = it->getStart().getPair();
-				resids.insert(basePair.fResId);
-				resids.insert(basePair.rResId);
-			}
-			if(it->getEnd().isValid())
-			{
-				BasePair basePair = it->getEnd().getPair();
-				resids.insert(basePair.fResId);
-				resids.insert(basePair.rResId);
-			}
 		}
 		return resids;
 	}
@@ -363,8 +338,20 @@ namespace annotate
 		std::vector<Linker>::const_iterator itLinker;
 		for(itLinker = mLinkers.begin(); itLinker != mLinkers.end() && bIntegrity; ++itLinker)
 		{
-			bIntegrity = (itLinker->getStart().isValid() || itLinker->getEnd().isValid());
+			bIntegrity = (NULL != itLinker->start() || NULL != itLinker->end());
 		}
 		return bIntegrity;
+	}
+
+	std::set<LabeledResId> Loop::getSharedResIds() const
+	{
+		std::set<LabeledResId> resIds;
+		std::vector<Linker>::const_iterator it;
+		for(it = mLinkers.begin(); it != mLinkers.end(); ++ it)
+		{
+			std::set<LabeledResId> linkerResIds = it->getSharedResIds();
+			resIds.insert(linkerResIds.begin(), linkerResIds.end());
+		}
+		return resIds;
 	}
 }

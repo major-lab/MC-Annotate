@@ -3,7 +3,7 @@
 
 #include "SecondaryStructure.h"
 #include "Stem.h"
-#include "StemConnection.h"
+#include "LabeledResId.h"
 #include <vector>
 
 namespace annotate
@@ -11,18 +11,21 @@ namespace annotate
 	class Linker : public SecondaryStructure
 	{
 	public:
-		Linker();
+		Linker() {}
 
 		Linker(
-			const std::vector<mccore::ResId>& aResidues,
-			const StemConnection& aStart,
-			const StemConnection& aEnd);
+			const std::vector<LabeledResId>& aResidues,
+			const SecondaryStructure* apStartStruct,
+			const SecondaryStructure* apEndStruct);
+
 		virtual ~Linker();
 
 		// ACCESS ---------------------------------------------------------------
-		const std::vector<mccore::ResId>& residues() const {return mResidues;}
-		const StemConnection& getStart() const {return mStart;}
-		const StemConnection& getEnd() const {return mEnd;}
+		const std::vector<LabeledResId>& residues() const {return mResidues;}
+		const SecondaryStructure* start() const {return mpStartStruct;}
+		void start(const SecondaryStructure* apStruct) {mpStartStruct = apStruct;}
+		const SecondaryStructure* end() const {return mpEndStruct;}
+		void end(const SecondaryStructure* apStruct) {mpEndStruct = apStruct;}
 
 		// OPERATORS ------------------------------------------------------------
 
@@ -45,9 +48,15 @@ namespace annotate
 		 */
 		virtual bool isSame(const SecondaryStructure& aStruct) const;
 
+		/**
+		 * @brief Get the set of all residue Ids shared between this secondary
+		 * structure and others.
+		 */
+		virtual std::set<LabeledResId> getSharedResIds() const;
+
 		bool isEmpty() const;
 		bool isAdjacent(const SecondaryStructure& aStruct) const;
-		bool contains(const mccore::ResId& aResId) const;
+		bool contains(const LabeledResId& aResId) const;
 
 		void order();
 		void reverse();
@@ -63,25 +72,17 @@ namespace annotate
 			throw(mccore::FatalIntLibException);
 
 	protected:
-		typedef std::pair<mccore::GraphModel::label, mccore::ResId> res_info;
-		std::vector<mccore::ResId> mResidues;
-		StemConnection mStart;
-		StemConnection mEnd;
+		std::vector<LabeledResId> mResidues;
+		const SecondaryStructure* mpStartStruct;
+		const SecondaryStructure* mpEndStruct;
 
 		void clear();
 
 		BaseInteraction getBaseInteractionWithConnection(
-			const StemConnection& aConnection) const
+			const LabeledResId& aConnection) const
 			throw(mccore::FatalIntLibException);
 
 		BaseInteraction getBaseInteractionBetweenConnections() const
-			throw(mccore::FatalIntLibException);
-
-		res_info getResInfo(const StemConnection& aConnection) const
-			throw(mccore::NoSuchElementException);
-
-		void appendInteractionBetweenConnections(
-			std::set<BaseInteraction>& aInteractionSet) const
 			throw(mccore::FatalIntLibException);
 	};
 }

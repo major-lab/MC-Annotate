@@ -16,8 +16,7 @@ namespace annotate
 		StemConnection(const Stem& aStem, const Stem::enConnection& aeConnect);
 
 		// ACCESS ---------------------------------------------------------------
-		// const Stem& getStem() const {return *mpStem;}
-		const SecondaryStructure* getStructure() const {return mpStem;}
+		const SecondaryStructure* getStructure() const {return mpStructure;}
 		const Stem::enConnection getConnection() const { return meConnection; }
 
 		// METHODS --------------------------------------------------------------
@@ -31,12 +30,12 @@ namespace annotate
 		 * same end of a stem.
     	 * @return true if they form the pair at the end of a stem.
     	 */
-		bool connects(const StemConnection& aConnection) const;
+		// bool connects(const StemConnection& aConnection) const;
 
 		// OPERATOR -------------------------------------------------------------
 		bool operator== (const StemConnection &other) const;
 	private:
-		const Stem* mpStem;
+		const SecondaryStructure* mpStructure;
 		Stem::enConnection meConnection;
 	};
 }

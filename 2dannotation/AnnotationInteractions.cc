@@ -377,16 +377,14 @@ namespace annotate
 			const mccore::ResId res) const
 	{
 		bool bContiguous = false;
-		std::list<const BaseInteraction*> interactions =
-			getInteractions(ref, res);
-
-		std::list<const BaseInteraction*>::const_iterator it;
-		for(it = interactions.begin();
-			it != interactions.end() && !bContiguous;
-			++it)
+		std::vector<BaseLink>::const_iterator it;
+		for(it = mLinks.begin(); it != mLinks.end() && !bContiguous; ++ it)
 		{
-			const BaseLink* pLink = dynamic_cast<const BaseLink*>(*it);
-			bContiguous = (NULL != pLink);
+			if(std::min(ref, res) == std::min(it->fResId, it->rResId)
+				&& std::max(ref, res) == std::max(it->fResId, it->rResId))
+			{
+				bContiguous = true;
+			}
 		}
 		return bContiguous;
 	}

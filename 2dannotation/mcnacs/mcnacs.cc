@@ -633,7 +633,10 @@ std::set<NACycleInfo> filterOutEnclosingCycles(
 				{
 					if(itCycle != itSubCycle)
 					{
-						bHasSubCycle = itSubCycle->isSubCycleOf(*itCycle);
+						if(itSubCycle->isSubCycleOf(*itCycle))
+						{
+							bHasSubCycle = itCycle->isSubCycleOf(*itSubCycle);
+						}
 					}
 				}
 				if(!bHasSubCycle)
@@ -643,6 +646,76 @@ std::set<NACycleInfo> filterOutEnclosingCycles(
 			}
 		}
 		filtered.insert(cycle);
+	}
+	return filtered;
+}
+
+std::set<NACycleInfo> filterOutMultibranchCycles(
+	const std::set<NACycleInfo>& aCycles)
+{
+	bool bPass;
+	std::set<NACycleInfo> filtered;
+	std::set<NACycleInfo>::const_iterator it;
+	for(it = aCycles.begin(); it != aCycles.end(); ++ it)
+	{
+		bPass = true;
+
+		unsigned int uiIndex;
+		for(uiIndex = 0;
+			uiIndex < it->getConnections().size() && bPass;
+			++ uiIndex)
+		{
+			std::set<Interaction> strand = it->getStrandInteractions(uiIndex);
+			std::set<CycleInfo> connection = it->getConnections()[uiIndex];
+			for(std::set<CycleInfo>::const_iterator itCycle = connection.begin();
+				itCycle != connection.end() && bPass;
+				++ itCycle)
+			{
+				if(itCycle->getProfile().type() == annotate::Cycle::eMULTIBRANCH)
+				{
+					bPass = false;
+				}
+			}
+		}
+		if(bPass)
+		{
+			filtered.insert(*it);
+		}
+	}
+	return filtered;
+}
+
+std::set<NACycleInfo> filterOutLooseCycles(
+	const std::set<NACycleInfo>& aCycles)
+{
+	bool bPass;
+	std::set<NACycleInfo> filtered;
+	std::set<NACycleInfo>::const_iterator it;
+	for(it = aCycles.begin(); it != aCycles.end(); ++ it)
+	{
+		bPass = true;
+
+		unsigned int uiIndex;
+		for(uiIndex = 0;
+			uiIndex < it->getConnections().size() && bPass;
+			++ uiIndex)
+		{
+			std::set<Interaction> strand = it->getStrandInteractions(uiIndex);
+			std::set<CycleInfo> connection = it->getConnections()[uiIndex];
+			for(std::set<CycleInfo>::const_iterator itCycle = connection.begin();
+				itCycle != connection.end() && bPass;
+				++ itCycle)
+			{
+				if(itCycle->getProfile().type() == annotate::Cycle::eLOOSE)
+				{
+					bPass = false;
+				}
+			}
+		}
+		if(bPass)
+		{
+			filtered.insert(*it);
+		}
 	}
 	return filtered;
 }
@@ -823,6 +896,18 @@ int main (int argc, char *argv[])
 	{
 		connectedCycles = splitAdjacency(connectedCycles);
 	}
+
+	// Remove the cycles who connects to multibranch
+	uiNbConnectedCycles = connectedCycles.size();
+	connectedCycles = filterOutMultibranchCycles(connectedCycles);
+	std::cout << "Number of ignored cycle due to multibranch connection ";
+	std::cout << (uiNbConnectedCycles - connectedCycles.size()) << std::endl;
+
+	// Remove the cycles who connects to multibranch
+	uiNbConnectedCycles = connectedCycles.size();
+	connectedCycles = filterOutLooseCycles(connectedCycles);
+	std::cout << "Number of ignored cycle due to loose connection ";
+	std::cout << (uiNbConnectedCycles - connectedCycles.size()) << std::endl;
 
 	displayConnectedCycles(connectedCycles);
 

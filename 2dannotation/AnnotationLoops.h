@@ -4,11 +4,13 @@
 #include <vector>
 
 #include "Annotation.h"
+#include "AnnotationLinkers.h"
 #include "Loop.h"
 
 namespace annotate
 {
 	class Linker;
+	class AnnotationInteractions;
 	class AnnotationLinkers;
 	class AnnotationLoops : public Annotation
 	{
@@ -35,17 +37,24 @@ namespace annotate
 		std::vector< Loop > mLoops;
 		virtual void clear();
 
-		/*
-		 * @brief For each linker identified in the model, create a loop.
-		 * @return List of loops corresponding to the linkers.
-		 */
-		loop_list createLoopsFromLinkers(const AnnotateModel& aModel) const;
+		std::list<Loop> findLoops(
+			AnnotateModel& aModel,
+			const std::vector<AnnotationLinkers::linker_info>& aLinkers) const;
 
-		/*
-		 * @brief Find loop by looking at their connectivity with one another.
-		 * @return List of loops connected to others.
-		 */
-		loop_list findLoopsByConnectivity(loop_list& aPotentials) const;
+		std::list<Loop> findLoop(
+			const AnnotationInteractions& aInteractions,
+			const std::vector<AnnotationLinkers::linker_info>& aLinkers,
+			const std::vector<AnnotationLinkers::linker_info>::const_iterator& aIt) const;
+
+		void removeLooses(
+			const std::list<Linker>& aUsed,
+			std::list<Linker>& aLooses) const;
+
+		std::vector<AnnotationLinkers::linker_info>::const_iterator advance(
+				const std::vector<AnnotationLinkers::linker_info>& aLinkers,
+				const std::vector<AnnotationLinkers::linker_info>::const_iterator& aIt,
+				const LabeledResId& aResId) const;
+
 	};
 }
 

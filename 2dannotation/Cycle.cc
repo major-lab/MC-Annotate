@@ -304,7 +304,6 @@ namespace annotate
 		{
 			bIsClosed = true;
 		}
-
 		return bIsClosed;
 	}
 
@@ -338,7 +337,7 @@ namespace annotate
 	{
 		Cycle::enType eType;
 		assert(0 < mProfile.size());
-		if(!isClosed())
+		if(mResidues.size() == 2 || !isClosed())
 		{
 			eType = eLOOSE;
 		}else if(1 == mProfile.size())

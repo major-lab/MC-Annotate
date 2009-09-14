@@ -4,6 +4,7 @@
 #include <string>
 
 #include "BaseInteraction.h"
+#include "LabeledResId.h"
 
 namespace annotate
 {
@@ -29,6 +30,12 @@ namespace annotate
 		 * @brief Check if given parameter and current structure are the same
 		 */
 		virtual bool isSame(const SecondaryStructure& aStruct) const = 0;
+
+		/**
+		 * @brief Get the set of all residue Ids shared between this secondary
+		 * structure and others.
+		 */
+		virtual std::set<LabeledResId> getSharedResIds() const = 0;
 
 		/**
 		 * @brief getBaseInteractions forming the secondary structure.

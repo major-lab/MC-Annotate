@@ -285,5 +285,21 @@ namespace annotate
 		}
 		return interactions;
 	}
+
+	std::set<LabeledResId> Stem::getSharedResIds() const
+	{
+		std::set<LabeledResId> resIds;
+		if(0 < mBasePairs.size())
+		{
+			BasePair frontBP = mBasePairs.front();
+			resIds.insert(LabeledResId(frontBP.fResId, frontBP.first));
+			resIds.insert(LabeledResId(frontBP.rResId, frontBP.second));
+
+			BasePair backBP = mBasePairs.back();
+			resIds.insert(LabeledResId(backBP.fResId, backBP.first));
+			resIds.insert(LabeledResId(backBP.rResId, backBP.second));
+		}
+		return resIds;
+	}
 };
 

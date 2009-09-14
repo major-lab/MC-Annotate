@@ -21,6 +21,8 @@ namespace annotate
 			return mStrandProfile;
 		}
 
+		const Cycle::enType& type() const {return meType;}
+
 		// METHODS -------------------------------------------------------------
 		std::string toString() const;
 	private:
