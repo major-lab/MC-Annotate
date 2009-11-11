@@ -258,11 +258,11 @@ std::set<annotate::Cycle> computeStemCycles(
 	{
 		if(it != aStem.basePairs().begin())
 		{
-			annotate::Cycle::interactions_set interactions;
+			std::list<annotate::BaseInteraction> interactions;
 
 			annotate::BasePair bp1(
-				itPrev->first, itPrev->fResId,
-				itPrev->second, itPrev->rResId);
+				itPrev->second, itPrev->rResId,
+				itPrev->first, itPrev->fResId);
 			annotate::BasePair bp2(
 				it->first, it->fResId,
 				it->second, it->rResId);
@@ -273,10 +273,10 @@ std::set<annotate::Cycle> computeStemCycles(
 				it->second, it->rResId,
 				itPrev->second, itPrev->rResId);
 
-			interactions.insert(bp1);
-			interactions.insert(bp2);
-			interactions.insert(bl1);
-			interactions.insert(bl2);
+			interactions.push_back(bl1);
+			interactions.push_back(bp2);
+			interactions.push_back(bl2);
+			interactions.push_back(bp1);
 
 			// Insert the residues in the model
 			annotate::Cycle cycle(interactions);
@@ -295,7 +295,7 @@ annotate::Cycle computeLoopCycle(
 {
 	assert(0 < aLoop.linkers().size());
 
-	annotate::Cycle::interactions_set interactions;
+	std::list<annotate::BaseInteraction> interactions;
 
 	interactions = aLoop.getBaseInteractions();
 
@@ -354,27 +354,21 @@ bool isValidNCM(const annotate::Cycle& aCycle)
 	switch(aCycle.getType())
 	{
 	case annotate::Cycle::eLOOSE:
-		std::cout << "eLOOSE" << std::endl;
 		bIsValid = true;
 		break;
 	case annotate::Cycle::eLOOP:
-		std::cout << "eLOOP" << std::endl;
 		bIsValid = true;
 		break;
 	case annotate::Cycle::e2STRANDS_TRIANGLE:
 		// Don't support the triangles
-		std::cout << "e2STRANDS_TRIANGLE" << std::endl;
 		break;
 	case annotate::Cycle::e2STRANDS_PARALLEL:
-		std::cout << "e2STRANDS_PARALLEL" << std::endl;
 		bIsValid = true;
 		break;
 	case annotate::Cycle::e2STRANDS_ANTIPARALLEL:
-		std::cout << "e2STRANDS_ANTIPARALLEL" << std::endl;
 		bIsValid = true;
 		break;
 	case annotate::Cycle::eMULTIBRANCH:
-		std::cout << "eMULTIBRANCH" << std::endl;
 		bIsValid = true;
 		break;
 	}
@@ -384,19 +378,6 @@ bool isValidNCM(const annotate::Cycle& aCycle)
 bool isNewKnowledge(const annotate::Cycle& aCycle)
 {
 	bool bIsNew = false;
-
-	std::cout << debugCycleString(aCycle) << std::endl;
-	std::cout << "Ordered residues : ";
-	std::list<mccore::ResId>::const_iterator it = aCycle.resIds().begin();
-	for(; it != aCycle.resIds().end(); ++ it)
-	{
-		if(it != aCycle.resIds().begin())
-		{
-			std::cout << ",";
-		}
-		std::cout << *it;
-	}
-	std::cout << std::endl;
 
 	assert(isValidNCM(aCycle));
 
@@ -430,21 +411,33 @@ annotate::Cycle makeCycle(
 {
 	std::set<mccore::ResId> residues;
 	residues.insert(aResidues.begin(), aResidues.end());
-	annotate::Cycle::interactions_set cycleInteractions;
-	annotate::Cycle::interactions_set interactions = aCycle.getInteractions();
-	annotate::Cycle::interactions_set::const_iterator itInter;
+	annotate::Cycle::interactions_list cycleInteractions;
+	annotate::Cycle::interactions_list interactions = aCycle.getInteractions();
+
+	annotate::Cycle::interactions_list::const_iterator itInter;
 	for(itInter = interactions.begin(); itInter != interactions.end(); ++ itInter)
 	{
 		assert(itInter->type() != annotate::BaseInteraction::eUNKNOWN);
 		if( residues.end() != residues.find(itInter->fResId)
 			&& residues.end() != residues.find(itInter->rResId))
 		{
-			cycleInteractions.insert(*itInter);
+			cycleInteractions.push_back(*itInter);
+			if(itInter->rResId == aPair.fResId)
+			{
+				cycleInteractions.push_back(aPair);
+			}else if(itInter->rResId == aPair.rResId)
+			{
+				annotate::BasePair toAdd = aPair;
+				toAdd.reverse();
+				assert(toAdd.fResId == cycleInteractions.back().rResId);
+				assert(toAdd.rResId == cycleInteractions.front().fResId);
+				cycleInteractions.push_back(toAdd);
+			}
 		}
 	}
-	cycleInteractions.insert(aPair);
 
 	annotate::Cycle cycle(cycleInteractions);
+
 
 	return cycle;
 }
@@ -454,53 +447,56 @@ std::list<annotate::Cycle> divideCycle(
 	const annotate::BasePair& aPair)
 {
 	std::list<annotate::Cycle> dividedCycles;
-	std::list<mccore::ResId> orderedResIds = aCycle.resIds();
-	std::list<mccore::ResId> cycle1ResIds;
-	std::list<mccore::ResId> cycle2ResIds;
-	std::list<mccore::ResId>::const_iterator itResId;
-
-	// Before first cutting point
-	for(itResId = orderedResIds.begin(); itResId != orderedResIds.end(); ++ itResId)
+	if(5 < aCycle.resIds().size())
 	{
-		cycle1ResIds.push_back(*itResId);
-		if(*itResId == aPair.fResId || *itResId == aPair.rResId)
-		{
-			cycle2ResIds.push_back(*itResId);
-			++ itResId;
-			break;
-		}
-	}
+		std::list<mccore::ResId> orderedResIds = aCycle.resIds();
+		std::list<mccore::ResId> cycle1ResIds;
+		std::list<mccore::ResId> cycle2ResIds;
+		std::list<mccore::ResId>::const_iterator itResId;
 
-	// Between cutting points
-	for(; itResId != orderedResIds.end(); ++ itResId)
-	{
-		cycle2ResIds.push_back(*itResId);
-		if(*itResId == aPair.fResId || *itResId == aPair.rResId)
+		// Before first cutting point
+		for(itResId = orderedResIds.begin(); itResId != orderedResIds.end(); ++ itResId)
 		{
 			cycle1ResIds.push_back(*itResId);
-			++ itResId;
-			break;
+			if(*itResId == aPair.fResId || *itResId == aPair.rResId)
+			{
+				cycle2ResIds.push_back(*itResId);
+				++ itResId;
+				break;
+			}
 		}
-	}
 
-	// After cutting points
-	for(; itResId != orderedResIds.end(); ++ itResId)
-	{
-		cycle1ResIds.push_back(*itResId);
-	}
+		// Between cutting points
+		for(; itResId != orderedResIds.end(); ++ itResId)
+		{
+			cycle2ResIds.push_back(*itResId);
+			if(*itResId == aPair.fResId || *itResId == aPair.rResId)
+			{
+				cycle1ResIds.push_back(*itResId);
+				++ itResId;
+				break;
+			}
+		}
 
-	// Create cycles
-	annotate::Cycle cycle1 = makeCycle(aCycle, cycle1ResIds, aPair);
-	annotate::Cycle cycle2 = makeCycle(aCycle, cycle2ResIds, aPair);
+		// After cutting points
+		for(; itResId != orderedResIds.end(); ++ itResId)
+		{
+			cycle1ResIds.push_back(*itResId);
+		}
 
-	// Verify that they are valid NCM cycle
-	if(isValidNCM(cycle1))
-	{
-		dividedCycles.push_back(cycle1);
-	}
-	if(isValidNCM(cycle2))
-	{
-		dividedCycles.push_back(cycle2);
+		// Create cycles
+		if(5 < cycle1ResIds.size() && 5 < cycle2ResIds.size())
+		{
+			annotate::Cycle cycle1 = makeCycle(aCycle, cycle1ResIds, aPair);
+			annotate::Cycle cycle2 = makeCycle(aCycle, cycle2ResIds, aPair);
+
+			// Verify that they are valid NCM cycle
+			if(isValidNCM(cycle1) && isValidNCM(cycle2))
+			{
+				dividedCycles.push_back(cycle1);
+				dividedCycles.push_back(cycle2);
+			}
+		}
 	}
 
 	// If there is no valid cycle, simply return the one passed in parameter
@@ -508,7 +504,6 @@ std::list<annotate::Cycle> divideCycle(
 	{
 		dividedCycles.push_back(aCycle);
 	}
-
 	return dividedCycles;
 };
 
@@ -517,23 +512,26 @@ std::list<annotate::Cycle> divideCycle(
 	const std::set<annotate::BasePair>& aPairs)
 {
 	std::list<annotate::Cycle> dividedCycles;
-	std::set<annotate::BasePair> pairs = aPairs;
-	while(!pairs.empty())
+	if(5 < aCycle.resIds().size())
 	{
-		annotate::BasePair pair = *pairs.begin();
-		pairs.erase(pairs.begin());
-		std::list<annotate::Cycle> divided = divideCycle(aCycle, pair);
-		if(1 < divided.size())
+		std::set<annotate::BasePair> pairs = aPairs;
+		while(!pairs.empty())
 		{
-			std::set<annotate::BasePair> dividingPairs1 = getDividingPairs(divided.front(), pairs);
-			std::list<annotate::Cycle> div1 = divideCycle(divided.front(), dividingPairs1);
+			annotate::BasePair pair = *pairs.begin();
+			pairs.erase(pairs.begin());
+			std::list<annotate::Cycle> divided = divideCycle(aCycle, pair);
+			if(1 < divided.size())
+			{
+				std::set<annotate::BasePair> dividingPairs1 = getDividingPairs(divided.front(), pairs);
+				std::list<annotate::Cycle> div1 = divideCycle(divided.front(), dividingPairs1);
 
-			std::set<annotate::BasePair> dividingPairs2 = getDividingPairs(divided.back(), pairs);
-			std::list<annotate::Cycle> div2 = divideCycle(divided.back(), dividingPairs2);
+				std::set<annotate::BasePair> dividingPairs2 = getDividingPairs(divided.back(), pairs);
+				std::list<annotate::Cycle> div2 = divideCycle(divided.back(), dividingPairs2);
 
-			dividedCycles.insert(dividedCycles.end(), div1.begin(), div1.end());
-			dividedCycles.insert(dividedCycles.end(), div2.begin(), div2.end());
-			break;
+				dividedCycles.insert(dividedCycles.end(), div1.begin(), div1.end());
+				dividedCycles.insert(dividedCycles.end(), div2.begin(), div2.end());
+				break;
+			}
 		}
 	}
 
@@ -693,7 +691,6 @@ int main (int argc, char *argv[])
 				}
 				else
 				{
-					std::cout << filename << std::endl;
 					annotate::AnnotateModel &am = (annotate::AnnotateModel&) *molIt;
 					am.name(getPdbFileName(filename));
 					annotate::AnnotationInteractions annInteractions;

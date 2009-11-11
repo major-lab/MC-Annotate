@@ -68,8 +68,10 @@ namespace annotate
 		 * pair of interacting residues.  The interactions are unqualified, ( no
 		 * pairing, stacking, adjacency, etc... ).
 		 */
-		std::set<BaseInteraction> getBaseInteractions() const
+		std::list<BaseInteraction> getBaseInteractions() const
 			throw(mccore::FatalIntLibException);
+
+
 
 	protected:
 		std::vector<LabeledResId> mResidues;

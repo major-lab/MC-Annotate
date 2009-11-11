@@ -44,7 +44,7 @@ namespace annotate
 		 * pair of interacting residues.  The interactions are unqualified, ( no
 		 * pairing, stacking, adjacency, etc... ).
 		 */
-		virtual std::set<BaseInteraction> getBaseInteractions() const = 0;
+		virtual std::list<BaseInteraction> getBaseInteractions() const = 0;
 	protected:
 		std::string mName;
 

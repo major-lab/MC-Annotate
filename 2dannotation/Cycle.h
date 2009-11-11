@@ -14,8 +14,7 @@ namespace annotate
 	class Cycle
 	{
 	public:
-		typedef std::set<BaseInteraction> interactions_set;
-		typedef interactions_set::const_iterator interactions_set_iterator;
+		typedef std::list<BaseInteraction> interactions_list;
 
 		enum enType
 		{
@@ -28,12 +27,17 @@ namespace annotate
 		};
 
 		// LIFECYCLE ------------------------------------------------------------
-		Cycle(const interactions_set& aInteractions);
+		Cycle(const interactions_list& aInteractions);
 
 		virtual ~Cycle();
 
 		// ACCESS ---------------------------------------------------------------
 		const std::list<mccore::ResId>& resIds() const {return mResidues;}
+
+		/**
+		 * @brief Get the interactions from the cycle (with the type member set)
+		 */
+		const interactions_list& getInteractions() const {return mInteractions;}
 
 		const std::string& name() const {return mName;}
 		void name(const std::string& aName) {mName = aName;}
@@ -47,10 +51,7 @@ namespace annotate
 		bool operator <(const Cycle& aCycle) const;
 
 		// METHODS --------------------------------------------------------------
-		/**
-		 * @brief Get the interactions from the cycle (with the type member set)
-		 */
-		const interactions_set getInteractions() const;
+
 
 		bool shareInteractions(const Cycle& aCycle) const;
 		bool isSingleChain() const;
@@ -71,24 +72,17 @@ namespace annotate
 		std::string mName;
 		std::string mModelName;
 
-		interactions_set mInteractions;
+		interactions_list mInteractions;
 		std::vector<unsigned int> mProfile;
 		std::list<mccore::ResId> mResidues;
 
 		void updateProfile();
 		void clear();
-		void setInteractions(const interactions_set& aInteractions);
 		std::list<mccore::ResId> getOrderedResidues(
-			const interactions_set& aInteractions) const;
+			const interactions_list& aInteractions) const;
 
 		void clearInteractions();
-
-		void orderResidues(
-			const interactions_set& aInteractions,
-			std::list<mccore::ResId>& aResidues) const;
-		bool isClosed(
-			const interactions_set& aInteractions,
-			std::list<mccore::ResId>& aResidues) const;
+		bool checkIntegrity() const;
 
 		bool areResiduesLinked(
 			const mccore::ResId& aRes1,

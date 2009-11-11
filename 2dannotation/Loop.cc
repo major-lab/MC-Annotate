@@ -280,9 +280,9 @@ namespace annotate
 		return bComplete;
 	}
 
-	std::set<BaseInteraction> Loop::getBaseInteractions() const
+	std::list<BaseInteraction> Loop::getBaseInteractions() const
 	{
-		std::set<BaseInteraction> interactions;
+		std::list<BaseInteraction> interactions;
 		std::vector<Linker>::const_iterator itLinker;
 		std::vector<Linker>::const_iterator itNext;
 		for(itLinker = mLinkers.begin(); itLinker != mLinkers.end(); ++itLinker)
@@ -294,20 +294,28 @@ namespace annotate
 				itNext = mLinkers.begin();
 			}
 
-			std::set<BaseInteraction> linkerInteractions;
+			std::list<BaseInteraction> linkerInteractions;
 			linkerInteractions = itLinker->getBaseInteractions();
-			interactions.insert(linkerInteractions.begin(), linkerInteractions.end());
-			std::set<BasePair> pairs = getLinkerPair(*itLinker, *itNext);
-			interactions.insert(pairs.begin(), pairs.end());
+			interactions.insert(interactions.end(), linkerInteractions.begin(), linkerInteractions.end());
+			std::list<BasePair> pairs = getLinkerPair(*itLinker, *itNext);
+			if(0 < pairs.size())
+			{
+				if(pairs.front().fResId != interactions.back().rResId)
+				{
+					pairs.front().reverse();
+				}
+				interactions.push_back(pairs.front());
+			}
 		}
 		return interactions;
 	}
 
-	std::set<BasePair> Loop::getLinkerPair(
+
+	std::list<BasePair> Loop::getLinkerPair(
 		const Linker& aFirst,
 		const Linker& aSecond) const
 	{
-		std::set<BasePair> pairs;
+		std::list<BasePair> pairs;
 		if(aFirst.end() != NULL && aFirst.end() == aSecond.start())
 		{
 			// Both are pointing at the same stem
@@ -316,7 +324,7 @@ namespace annotate
 			BasePair basePair(
 				aFirst.residues().back().label(), aFirst.residues().back(),
 				aSecond.residues().front().label(), aSecond.residues().front());
-			pairs.insert(basePair);
+			pairs.push_back(basePair);
 		}
 		return pairs;
 	}

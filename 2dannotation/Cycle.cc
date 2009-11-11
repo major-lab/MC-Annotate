@@ -10,15 +10,17 @@
 
 namespace annotate
 {
-	Cycle::Cycle(const interactions_set& aInteractions)
+	Cycle::Cycle(const interactions_list& aInteractions)
 	{
 		assert(0 < aInteractions.size());
 
-		setInteractions(aInteractions);
+		mInteractions = aInteractions;
 
 		mResidues = getOrderedResidues(mInteractions);
 
 		updateProfile();
+
+		assert(checkIntegrity());
 	}
 
 	Cycle::~Cycle()
@@ -28,132 +30,23 @@ namespace annotate
 	}
 
 	std::list<mccore::ResId> Cycle::getOrderedResidues(
-		const interactions_set& aInteractions) const
+		const interactions_list& aInteractions) const
 	{
+		assert(0 < aInteractions.size());
 		std::list<mccore::ResId> resids;
-		interactions_set interactions;
-		interactions.insert(aInteractions.begin(), aInteractions.end());
+		mccore::ResId firstResId = aInteractions.front().fResId;
+		resids.push_back(firstResId);
 
-		interactions_set::const_iterator itInter = interactions.begin();
-		if(itInter != interactions.end())
+		interactions_list::const_iterator it;
+		for(it = aInteractions.begin(); it != aInteractions.end(); ++ it)
 		{
-			resids.push_back(itInter->fResId);
-			resids.push_back(itInter->rResId);
-			interactions.erase(itInter);
-		}
-
-		unsigned int iSize = interactions.size();
-		while(0 < iSize)
-		{
-			interactions_set::const_iterator it;
-			for(it = interactions.begin(); it != interactions.end(); ++ it)
+			assert(it->fResId == resids.back());
+			if(it->rResId != firstResId)
 			{
-				if(it->fResId == resids.front())
-				{
-					resids.push_front(it->rResId);
-					interactions.erase(it);
-					break;
-				}
-				else if(it->rResId == resids.front())
-				{
-					resids.push_front(it->fResId);
-					interactions.erase(it);
-					break;
-				}
-				else if(it->fResId == resids.back())
-				{
-					resids.push_back(it->rResId);
-					interactions.erase(it);
-					break;
-				}
-				else if(it->rResId == resids.back())
-				{
-					resids.push_back(it->fResId);
-					interactions.erase(it);
-					break;
-				}
+				resids.push_back(it->rResId);
 			}
-			assert(interactions.size() < iSize);
-			iSize = interactions.size();
 		}
-
-		// Complete cycle, remove duplicates
-		if(resids.front() == resids.back())
-		{
-			resids.pop_back();
-		}
-
-		// Reorder as necessary
-		orderResidues(aInteractions, resids);
-
 		return resids;
-	}
-
-	bool Cycle::isClosed(
-		const interactions_set& aInteractions,
-		std::list<mccore::ResId>& aResidues) const
-	{
-		mccore::ResId minResId = std::min(aResidues.front(), aResidues.back());
-		mccore::ResId maxResId = std::max(aResidues.front(), aResidues.back());
-
-		interactions_set::const_iterator it;
-		for(it = aInteractions.begin(); it != aInteractions.end(); ++ it)
-		{
-			if((std::min(it->fResId, it->rResId) == minResId)
-			&& (std::max(it->fResId, it->rResId) == maxResId))
-			{
-				break;
-			}
-		}
-
-		return (it != aInteractions.end());
-	}
-
-	const Cycle::interactions_set Cycle::getInteractions() const
-	{
-		interactions_set interactions;
-		interactions.insert(mInteractions.begin(), mInteractions.end());
-		return interactions;
-	}
-
-	void Cycle::orderResidues(
-		const interactions_set& aInteractions,
-		std::list<mccore::ResId>& aResidues) const
-	{
-		BaseInteraction inter(0, aResidues.front(), 0, aResidues.back());
-
-		if(isClosed(aInteractions, aResidues))
-		{
-			// Complete cycle, rotate until the first residue is the lowest
-			std::list<mccore::ResId>::iterator itMin;
-			itMin = std::min_element(aResidues.begin(), aResidues.end());
-			std::rotate(aResidues.begin(), itMin, aResidues.end());
-
-			// Order the residue so the cycle is "slowly growing"
-			std::list<mccore::ResId>::const_iterator it = aResidues.begin();
-			it ++;
-			if(aResidues.back() < *it)
-			{
-				aResidues.reverse();
-				aResidues.push_front(aResidues.back());
-				aResidues.pop_back();
-			}
-		}
-		else if(aResidues.back() < aResidues.front())
-		{
-			// Insure the first residue is the minimum
-			aResidues.reverse();
-		}
-	}
-
-	void Cycle::setInteractions(const interactions_set& aInteractions)
-	{
-		interactions_set::const_iterator it;
-		for(it = aInteractions.begin(); it != aInteractions.end(); ++ it)
-		{
-			assert(it->type() != BaseInteraction::eUNKNOWN);
-			mInteractions.insert(*it);
-		}
 	}
 
 	void Cycle::updateProfile()
@@ -183,12 +76,28 @@ namespace annotate
 		mProfile.push_back(i);
 	}
 
+	bool Cycle::checkIntegrity() const
+	{
+		bool bIntegrity = true;
+		interactions_list::const_iterator it;
+		interactions_list::const_iterator itPrev;
+		for(it = mInteractions.begin(); it != mInteractions.end() && bIntegrity; ++ it)
+		{
+			if(it != mInteractions.begin())
+			{
+				bIntegrity = (itPrev->rResId == it->fResId);
+			}
+			itPrev = it;
+		}
+		return bIntegrity;
+	}
+
 	bool Cycle::areResiduesLinked(
 		const mccore::ResId& aRes1,
 		const mccore::ResId& aRes2) const
 	{
 		bool bLinked = false;
-		interactions_set::const_iterator it;
+		interactions_list::const_iterator it;
 		for(it = mInteractions.begin(); it != mInteractions.end() && !bLinked; ++ it)
 		{
 
@@ -207,7 +116,7 @@ namespace annotate
 		const mccore::ResId& aRes2) const
 	{
 		bool bPaired = false;
-		interactions_set::const_iterator it;
+		interactions_list::const_iterator it;
 		for(it = mInteractions.begin(); it != mInteractions.end() && !bPaired; ++ it)
 		{
 			if(it->type() == BaseInteraction::ePAIR
@@ -225,7 +134,7 @@ namespace annotate
 		const mccore::ResId& aRes2) const
 	{
 		bool bStacked = false;
-		interactions_set::const_iterator it;
+		interactions_list::const_iterator it;
 		for(it = mInteractions.begin(); it != mInteractions.end() && !bStacked; ++ it)
 		{
 			if(it->type() == BaseInteraction::eSTACK
@@ -251,11 +160,16 @@ namespace annotate
 	bool Cycle::shareInteractions(const Cycle& aCycle) const
 	{
 		bool bShare = false;
-		interactions_set interactions;
-		interactions_set::const_iterator first1 = mInteractions.begin();
-		interactions_set::const_iterator last1 = mInteractions.end();
-		interactions_set::const_iterator first2 = aCycle.mInteractions.begin();
-		interactions_set::const_iterator last2 = aCycle.mInteractions.end();
+		std::set<BaseInteraction> thisInteractions;
+		std::set<BaseInteraction> otherInteractions;
+
+		thisInteractions.insert(mInteractions.begin(), mInteractions.end());
+		otherInteractions.insert(aCycle.mInteractions.begin(), aCycle.mInteractions.end());
+
+		std::set<BaseInteraction>::const_iterator first1 = thisInteractions.begin();
+		std::set<BaseInteraction>::const_iterator last1 = thisInteractions.end();
+		std::set<BaseInteraction>::const_iterator first2 = otherInteractions.begin();
+		std::set<BaseInteraction>::const_iterator last2 = otherInteractions.end();
 		while (first1!=last1 && first2!=last2 && !bShare)
   		{
 			if (*first1<*first2)
@@ -387,15 +301,13 @@ namespace annotate
 		return strands;
 	}
 
-	Cycle::interactions_set Cycle::getBaseInteractions() const
+	std::set<BaseInteraction> Cycle::getBaseInteractions() const
 	{
-		interactions_set inters;
-		interactions_set::const_iterator it;
+		std::set<BaseInteraction> inters;
+		std::list<BaseInteraction>::const_iterator it;
 		for(it = mInteractions.begin();	it != mInteractions.end(); ++ it)
 		{
-			BaseInteraction inter = *it;
-			inter.type() = BaseInteraction::eUNKNOWN;
-			inters.insert(inter);
+			inters.insert(*it);
 		}
 
 		return inters;

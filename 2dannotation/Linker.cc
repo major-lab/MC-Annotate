@@ -147,10 +147,10 @@ namespace annotate
 		return bConnects;
 	}
 
-	std::set<BaseInteraction> Linker::getBaseInteractions() const
+	std::list<BaseInteraction> Linker::getBaseInteractions() const
 	throw(mccore::FatalIntLibException)
 	{
-		std::set<BaseInteraction> interactions;
+		std::list<BaseInteraction> interactions;
 		std::vector<LabeledResId>::const_iterator itRes;
 
 		// Get the interactions between the residues of the linkers
@@ -163,7 +163,7 @@ namespace annotate
 				BaseLink inter(
 					itRes->label(), *itRes,
 					itNextRes->label(), *itNextRes);
-				interactions.insert(inter);
+				interactions.push_back(inter);
 			}
 		}
 

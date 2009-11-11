@@ -266,21 +266,21 @@ namespace annotate
 		return eConnect;
 	}
 
-	std::set<BaseInteraction> Stem::getBaseInteractions() const
+	std::list<BaseInteraction> Stem::getBaseInteractions() const
 	{
-		std::set<BaseInteraction> interactions;
+		std::list<BaseInteraction> interactions;
 		std::vector< BasePair >::const_iterator it;
 		for(it = mBasePairs.begin(); it != mBasePairs.end(); ++ it)
 		{
-			interactions.insert(BaseInteraction(*it));
+			interactions.push_back(BaseInteraction(*it));
 			std::vector< BasePair >::const_iterator itNext = it;
 			++ itNext;
 			if(itNext != mBasePairs.end())
 			{
 				BaseInteraction link1(it->first, it->fResId, itNext->first, itNext->fResId);
 				BaseInteraction link2(itNext->second, itNext->rResId, it->second, it->rResId);
-				interactions.insert(link1);
-				interactions.insert(link2);
+				interactions.push_back(link1);
+				interactions.push_back(link2);
 			}
 		}
 		return interactions;

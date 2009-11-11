@@ -369,11 +369,11 @@ std::list<ModelInfo> getModels(
 	return models;
 }
 
-std::set<CycleInfo> getNonAdjacentCycleFromModel(
+std::pair<std::set<CycleInfo>, std::set<InteractionInfo> > getNonAdjacentCycleFromModel(
 	const std::pair<inter_map_iterator, inter_map_iterator>& interactionRange,
 	const cycle_set_range& cycleRange)
 {
-	std::set<CycleInfo> oNACycles;
+	std::pair<std::set<CycleInfo>, std::set<InteractionInfo> > returnVal;
 	inter_map_iterator interIt;
 	cycle_set_iterator cycleIt;
 	for(interIt = interactionRange.first;
@@ -384,11 +384,12 @@ std::set<CycleInfo> getNonAdjacentCycleFromModel(
 		{
 			if(cycleIt->contains(interIt->second))
 			{
-				oNACycles.insert(*cycleIt);
+				returnVal.first.insert(*cycleIt);
+				returnVal.second.insert(interIt->second);
 			}
 		}
 	}
-	return oNACycles;
+	return returnVal;
 }
 
 std::pair<cycle_set_iterator, cycle_set_iterator> getModelRange(
@@ -410,12 +411,11 @@ std::pair<cycle_set_iterator, cycle_set_iterator> getModelRange(
 	return range;
 }
 
-std::set<CycleInfo> getNonAdjacentCycle(
+std::pair<std::set<CycleInfo>, std::set<InteractionInfo> > getNonAdjacentCycle(
 	const std::multimap<ModelInfo, InteractionInfo>& aInteractions,
 	const std::set<CycleInfo>& aCycles)
 {
-	std::set<CycleInfo> oNACycles;
-
+	std::pair<std::set<CycleInfo>, std::set<InteractionInfo> > returnVal;
 	std::list<ModelInfo> models = getModels(aInteractions);
 
 	std::list<ModelInfo>::const_iterator itModel;
@@ -427,12 +427,14 @@ std::set<CycleInfo> getNonAdjacentCycle(
 		interRange = aInteractions.equal_range(*itModel);
 		cycleRange = getModelRange(aCycles, *itModel);
 
-		std::set<CycleInfo> oModelCycle;
-		oModelCycle = getNonAdjacentCycleFromModel(interRange, cycleRange);
+		// std::set<CycleInfo> oModelCycle;
+		std::pair<std::set<CycleInfo>, std::set<InteractionInfo> > cyclesAndPairs;
+		cyclesAndPairs = getNonAdjacentCycleFromModel(interRange, cycleRange);
 
-		oNACycles.insert(oModelCycle.begin(), oModelCycle.end());
+		returnVal.first.insert(cyclesAndPairs.first.begin(), cyclesAndPairs.first.end());
+		returnVal.second.insert(cyclesAndPairs.second.begin(), cyclesAndPairs.second.end());
 	}
-	return oNACycles;
+	return returnVal;
 }
 
 std::set<CycleInfo> removeCycles(
@@ -852,7 +854,9 @@ int main (int argc, char *argv[])
 
 	std::multimap<ModelInfo, InteractionInfo> interactionInfos = readPairsFile(gstrPairsFile);
 	std::set<CycleInfo> cycleInfos = readCyclesFile(gstrCyclesFile);
-	std::set<CycleInfo> cycleNAInfos = getNonAdjacentCycle(interactionInfos, cycleInfos);
+	std::pair<std::set<CycleInfo>, std::set<InteractionInfo> > cyclesAndPairs;
+	cyclesAndPairs =  getNonAdjacentCycle(interactionInfos, cycleInfos);
+	std::set<CycleInfo> cycleNAInfos = cyclesAndPairs.first;
 
 	std::cout << "Number of interactions found : " << interactionInfos.size() << std::endl;
 	std::cout << "Number of cycle found : " << cycleInfos.size() << std::endl;
@@ -865,6 +869,7 @@ int main (int argc, char *argv[])
 		std::cout << "Total number of potential cycle found : " << cycleInfos.size() << std::endl;
 	}
 	std::cout << "Number of non-adjacent cycle found : " << cycleNAInfos.size() << std::endl;
+	std::cout << "Number of interactions involved in non-adjacent cycles : " << cyclesAndPairs.second.size() << std::endl;
 
 	// Remove the non-adjacent cycle
 	cycleInfos = annotate::SetDifference(cycleInfos, cycleNAInfos);

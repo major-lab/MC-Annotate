@@ -73,7 +73,7 @@ namespace annotate
 		 * residues.  This effectively return only one interaction between any
 		 * pair of interacting residues.
 		 */
-		std::set<BaseInteraction> getBaseInteractions() const;
+		virtual std::list<BaseInteraction> getBaseInteractions() const;
 
 		/**
 		 * @brief Get the res ids of the perimeter of the loop.
@@ -98,7 +98,7 @@ namespace annotate
 			const Linker& aLinker,
 			std::set<BaseLink>& aInteractions) const;
 
-		std::set<BasePair> getLinkerPair(
+		std::list<BasePair> getLinkerPair(
 			const Linker& aFirst,
 			const Linker& aSecond) const;
 
