@@ -53,7 +53,7 @@ void usage ()
 void help ()
 {
 	mccore::gOut (0)
-		<< "This program read cycle structures and return the corresponding residue ids." << std::endl
+		<< "Merge two files containing cycles into one, removing duplicates." << std::endl
 		<< "  -h                print this help" << std::endl
 		<< "  -c				First cycles file" << std::endl
 		<< "  -s				Second cycles file" << std::endl
