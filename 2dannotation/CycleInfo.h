@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+namespace annotate {
+
 class Interaction;
 
 class CycleInfo
@@ -21,9 +23,11 @@ public:
 	typedef std::vector<residue_strand> residue_profile;
 
 	// LIFECYLE ----------------------------------------------------------------
+	CycleInfo();
 	CycleInfo(
 		const std::string& aFile,
 		unsigned int auiModel,
+		const annotate::CycleProfile& aFileProfile,
 		const annotate::CycleProfile& aProfile,
 		const residue_profile& aResIds,
 		const std::vector<std::string>& aResidues);
@@ -36,10 +40,12 @@ public:
 	const std::vector<std::vector<std::string> >& getStrandResIds() const
 	{return mResIds;}
 	const annotate::CycleProfile& getProfile() const {return mProfile;}
+	const annotate::CycleProfile& getFileProfile() const {return mFileProfile;}
 
 	// METHOD ------------------------------------------------------------------
 	const std::vector<std::string> getSequence() const;
 	bool contains(const InteractionInfo& aInteraction) const;
+	bool contains(const std::string& aResId) const;
 	std::vector<std::string> getResIds() const;
 	unsigned int getNbStrands() const {return mResIds.size();}
 	std::set<Interaction> getStrandInteractions(unsigned int auiStrand) const;
@@ -64,20 +70,25 @@ public:
 
 	// OPERATOR ----------------------------------------------------------------
 	bool operator <(const CycleInfo& aRight) const;
+
+	std::string toString(const std::string astrSeparator = ":") const;
+	std::string residuesString(const std::string& astrSep = "-") const;
+	std::string resIdsString() const;
 protected:
 	ModelInfo mModelInfo;
 	residue_profile mResIds;
 private:
 
-	annotate::CycleProfile mProfile;
+	annotate::CycleProfile mProfile; // Profile family
+	annotate::CycleProfile mFileProfile;	// Profile in order of the file
 	std::map<std::string, std::string> mIdToResMap;
 
 	int compareStrand(
 		const residue_strand& aLeft,
 		const residue_strand& aRight) const;
 	std::pair<int, int> findResId(const std::string& astrResId) const;
-
-
 };
+
+}; // namespace annotate
 
 #endif /*_CycleInfo_H_*/

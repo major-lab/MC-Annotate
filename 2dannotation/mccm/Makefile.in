@@ -49,8 +49,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
 PROGRAM = mccm
 
-SOURCES = $(PROGRAM).cc CycleInfo.cc Interaction.cc InteractionInfo.cc \
-	ModelInfo.cc
+SOURCES = $(PROGRAM).cc
 
 HEADERS = $(SOURCES:.cc=.h)
 #View.h

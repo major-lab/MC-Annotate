@@ -75,14 +75,17 @@ void usage ()
 void help ()
 {
 	mccore::gOut(0)
-		<< "This program annotate structures (and more)." << endl
-		<< "  -b                read binary files instead of pdb files" << endl
-		<< "  -m <mask>         annotation mask string: any combination of 'A' (adjacent), 'S' (stacking), 'P' (pairing) and 'B' (backbone). (default: all)" << endl
-		<< "  -f model number   model to print" << endl
-		<< "  -h                print this help" << endl
-		<< "  -l                be more verbose (log)" << endl
-		<< "  -v                be verbose" << endl
-		<< "  -V                print the software version info" << endl;
+		<< "This program annotate structures, compute a 2D layount and returns " << std::endl
+		<< "the list of interactions between non adjacent secondary structure " << std::endl
+		<< "components." << std::endl
+		<< "  -b                read binary files instead of pdb files" << std::endl
+		<< "  -m <mask>         annotation mask string: any combination of " << std::endl
+		<< "'A' (adjacent), 'S' (stacking), 'P' (pairing) and 'B' (backbone). (default: all)" << std::endl
+		<< "  -f model number   model to print" << std::endl
+		<< "  -h                print this help" << std::endl
+		<< "  -l                be more verbose (log)" << std::endl
+		<< "  -v                be verbose" << std::endl
+		<< "  -V                print the software version info" << std::endl;
 }
 
 

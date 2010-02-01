@@ -47,10 +47,9 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 %.o: %.cc
 	$(CXX) $(CXXFLAGS) $(DEFS) -I. -I.. -I$(srcdir) -c $<
 
-PROGRAM = mcnacs
+PROGRAM = mcec
 
-SOURCES = $(PROGRAM).cc CycleStatsEntry.cc InteractionTable.cc NACycleInfo.cc \
-	NAInteractionInfo.cc NonAdjacentCycleStatsApp.cc
+SOURCES = $(PROGRAM).cc ExtractCyclesApp.cc
 
 HEADERS = $(SOURCES:.cc=.h)
 #View.h

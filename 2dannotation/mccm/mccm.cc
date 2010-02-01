@@ -42,7 +42,6 @@ void version ()
 		<< "  using " << mccorev << endl;
 }
 
-
 void usage ()
 {
 	mccore::gOut (0) << "usage: " << PACKAGE
@@ -165,11 +164,11 @@ std::vector<std::vector<std::string> > getStrandResidues(
 	return strandResidues;
 }
 
-std::set<CycleInfo> readCyclesFile(const std::string& aFile)
+std::set<annotate::CycleInfo> readCyclesFile(const std::string& aFile)
 {
 	unsigned int i = 1;
 	std::ifstream infile;
-	std::set<CycleInfo> infos;
+	std::set<annotate::CycleInfo> infos;
 	infile.open (aFile.c_str(), std::ifstream::in);
 	std::string strLine;
 	std::vector<std::string> fields;
@@ -187,13 +186,14 @@ std::set<CycleInfo> readCyclesFile(const std::string& aFile)
 		std::string strResIds = fields[4];
 		std::string strSeq = fields[5];
 
-		annotate::CycleProfile prof(strPredProfile);
+		annotate::CycleProfile prof(strProfile);
+		annotate::CycleProfile predProf(strPredProfile);
 
-		CycleInfo::residue_profile resProfile;
+		annotate::CycleInfo::residue_profile resProfile;
 		resProfile = getStrandResidues(strResIds, prof);
 
 		std::vector<std::string> residues = annotate::splitStringFields(strSeq, "-");
-		CycleInfo cInfo(strPDBFile, uiModel, prof, resProfile, residues);
+		annotate::CycleInfo cInfo(strPDBFile, uiModel, predProf, prof, resProfile, residues);
 
 		infos.insert(cInfo);
 		assert(infos.size() == i);
@@ -205,14 +205,14 @@ std::set<CycleInfo> readCyclesFile(const std::string& aFile)
 	return infos;
 }
 
-std::string getModelString(const CycleInfo& aCycle)
+std::string getModelString(const annotate::CycleInfo& aCycle)
 {
 	std::ostringstream oss;
 	oss << aCycle.getModel();
 	return oss.str();
 }
 
-std::string getResIdsString(const CycleInfo& aCycle)
+std::string getResIdsString(const annotate::CycleInfo& aCycle)
 {
 	std::ostringstream oss;
 	std::vector<std::string> resIds = aCycle.getResIds();
@@ -228,7 +228,7 @@ std::string getResIdsString(const CycleInfo& aCycle)
 	return oss.str();
 }
 
-std::string getSequenceString(const CycleInfo& aCycle)
+std::string getSequenceString(const annotate::CycleInfo& aCycle)
 {
 	std::ostringstream oss;
 	std::vector<std::string> res = aCycle.getSequence();
@@ -250,11 +250,11 @@ int main (int argc, char *argv[])
 
 	read_options (argc, argv);
 
-	std::set<CycleInfo> cycles = readCyclesFile(gstrPrimaryCyclesFile);
-	std::set<CycleInfo> cycles2 = readCyclesFile(gstrSecondaryCyclesFile);
+	std::set<annotate::CycleInfo> cycles = readCyclesFile(gstrPrimaryCyclesFile);
+	std::set<annotate::CycleInfo> cycles2 = readCyclesFile(gstrSecondaryCyclesFile);
 	cycles.insert(cycles2.begin(), cycles2.end());
 
-	std::set<CycleInfo>::const_iterator it;
+	std::set<annotate::CycleInfo>::const_iterator it;
 	for(it = cycles.begin(); it != cycles.end(); ++ it)
 	{
 		std::vector<string>& tableRow = stringTable.addRow();

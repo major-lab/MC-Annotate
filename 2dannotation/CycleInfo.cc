@@ -5,15 +5,28 @@
 #include "CycleInfo.h"
 
 #include <cassert>
+#include <sstream>
+
+namespace annotate {
+
+// TODO : Remove this (currently required to allow empty map initialization)
+CycleInfo::CycleInfo()
+: 	mModelInfo("", 0),
+	mProfile("2_2"),
+	mFileProfile("2_2")
+{
+}
 
 CycleInfo::CycleInfo(
 	const std::string& aFile,
 	unsigned int auiModel,
+	const annotate::CycleProfile& aFileProfile,
 	const annotate::CycleProfile& aProfile,
 	const residue_profile& aResIds,
 	const std::vector<std::string>& aResidues)
 : 	mModelInfo(aFile, auiModel),
-	mProfile(aProfile)
+	mProfile(aProfile),
+	mFileProfile(aFileProfile)
 {
 	mResIds = aResIds;
 
@@ -177,6 +190,21 @@ bool CycleInfo::contains(const InteractionInfo& aInteraction) const
 					bContains = true;
 				}
 			}
+		}
+	}
+	return bContains;
+}
+
+bool CycleInfo::contains(const std::string& aResId) const
+{
+	bool bContains = false;
+	std::vector<std::string> resIds = getResIds();
+	unsigned int i;
+	for(i = 0; i < resIds.size() && !bContains; ++ i)
+	{
+		if(resIds[i] == aResId)
+		{
+			bContains = true;
 		}
 	}
 	return bContains;
@@ -408,3 +436,64 @@ const std::vector<std::string> CycleInfo::getSequence() const
 	return sequence;
 }
 
+std::string CycleInfo::toString(const std::string astrSeparator) const
+{
+	std::ostringstream oss;
+
+	oss << mProfile.toString();
+	oss << "\t" << astrSeparator << " ";
+	oss << resIdsString();
+	oss << " " << astrSeparator << " ";
+	oss << residuesString();
+	return oss.str();
+}
+
+std::string CycleInfo::residuesString(const std::string& astrSep) const
+{
+	std::ostringstream oss;
+
+	std::vector<std::string> sequence = getSequence();
+	std::vector<std::string>::const_iterator it;
+	for(it = sequence.begin(); it != sequence.end(); ++ it)
+	{
+		if(it != sequence.begin())
+		{
+			oss << astrSep;
+		}
+		oss << *it;
+	}
+	return oss.str();
+}
+
+std::string CycleInfo::resIdsString() const
+{
+	std::ostringstream oss;
+
+	CycleInfo::residue_profile::const_iterator itResStrand;
+	for(itResStrand = mResIds.begin();
+		itResStrand != mResIds.end();
+		++ itResStrand)
+	{
+		if(itResStrand != mResIds.begin())
+		{
+			oss << ",";
+		}
+		oss << "{";
+		CycleInfo::residue_strand::const_iterator itRes;
+		for(itRes = itResStrand->begin();
+			itRes != itResStrand->end();
+			++ itRes)
+		{
+			if(itRes != itResStrand->begin())
+			{
+				oss << "-";
+			}
+			oss << *itRes;
+		}
+		oss << "}";
+	}
+
+	return oss.str();
+}
+
+}; // namespace annotate
