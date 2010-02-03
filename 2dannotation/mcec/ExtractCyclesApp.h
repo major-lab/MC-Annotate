@@ -9,6 +9,11 @@
 #define EXTRACTCYCLESAPP_H_
 
 #include "CycleInfo.h"
+
+#include "GetModelRangeFunctor.h"
+
+#include "mccore/GraphModel.h"
+#include "mccore/Molecule.h"
 #include <list>
 #include <set>
 #include <string>
@@ -21,6 +26,7 @@ public:
 	 * Constructor.
 	 */
 	ExtractCyclesApp(int argc, char * argv []);
+	~ExtractCyclesApp();
 
 	// Console specific methods
 	void version() const;
@@ -30,23 +36,31 @@ public:
 	std::string toString() const;
 
 	// METHODS -----------------------------------------------------------------
+	std::map<annotate::CycleInfo, mccore::GraphModel> extract() const;
+	void writePDB(const std::map<annotate::CycleInfo, mccore::GraphModel>& aCycles) const;
 
 private:
-	std::string mstrCyclesFile;
+	std::list<std::string> mCyclesFiles;
 	std::string mstrInputDirectory;
 	std::string mstrOutputDirectory;
 	std::set<annotate::CycleInfo> mCycles;
+	std::map<annotate::CycleInfo, mccore::GraphModel> mCyclesModels;
 
 	void readOptions(int argc, char* argv[]);
 	void readCyclesFile();
 
-	annotate::CycleInfo readCycleFileLine(const std::string& astrLine) const;
+	std::list<annotate::ModelInfo> getModels() const;
 
-	std::vector<std::vector<std::string> > getStrandResidues(
-		const std::string& aResidues,
-		const annotate::CycleProfile& aProfile) const;
-	std::list<std::string> getResidues(
-		const std::string& aResidues) const;
+	mccore::Molecule* loadMoleculeFile (const string &filename) const;
+	mccore::Molecule::const_iterator getModel(
+		mccore::Molecule& aMolecule,
+		unsigned int auiModel) const;
+	std::map<annotate::CycleInfo, mccore::GraphModel> getCycleModels(
+		const mccore::GraphModel& aMolecule,
+		GetModelRangeFunctor<annotate::CycleInfo>::const_range& aRange) const;
+	mccore::GraphModel getCycleModel(
+		const mccore::GraphModel& aModel,
+		const annotate::CycleInfo& aCycle) const;
 };
 
 #endif /* EXTRACTCYCLESAPP_H_ */

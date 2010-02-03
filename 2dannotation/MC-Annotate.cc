@@ -258,8 +258,7 @@ std::string getFilePrefix(const std::string& aFileName)
 	return filename;
 }
 
-int
-main (int argc, char *argv[])
+int main (int argc, char *argv[])
 {
 	read_options (argc, argv);
 

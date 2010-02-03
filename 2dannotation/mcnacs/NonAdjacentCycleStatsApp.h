@@ -126,7 +126,10 @@ private:
 	std::string interactionsToString() const;
 	std::string interactionStats(
 		const InteractionTable::interacting_set& aInteracting) const;
-	void outputInteractingCyclesFiles(
+	std::string interactingCyclesFileName(
+		const std::string& astrProfile1,
+		const std::string& astrProfile2) const;
+	void outputInteractingCyclesFile(
 		const std::string& astrProfile1,
 		const std::string& astrProfile2,
 		const InteractionTable::interacting_set& aInteracting) const;

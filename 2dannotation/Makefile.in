@@ -57,7 +57,8 @@ SOURCES = AnnotateModel.cc Annotation.cc AnnotationChains.cc \
 	AnnotationInteractions.cc AnnotationLinkers.cc \
 	AnnotationLoops.cc AnnotationResSecondaryStructures.cc AnnotationStems.cc \
 	AnnotationTertiaryPairs.cc AnnotationTertiaryStacks.cc BaseLink.cc \
-	BasePair.cc BaseStack.cc Cycle.cc CycleInfo.cc CycleProfile.cc \
+	BasePair.cc BaseStack.cc \ 
+	Cycle.cc CycleInfo.cc CycleInfoFile.cc CycleProfile.cc \
 	GraphIsoUllman.cc Interaction.cc InteractionInfo.cc \
 	IsomorphismContextPerfectMatch.cc Linker.cc Loop.cc ModelInfo.cc \
 	Stem.cc StemConnection.cc StringTable.cc StringUtil.cc

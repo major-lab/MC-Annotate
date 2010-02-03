@@ -83,13 +83,13 @@ doc: html texi docbook
 
 
 html: $(HEADERS)
-	@ kdoc -f html -d html -p --strip-h-path -lmccore -z $^
+	@ kdoc -f html -d html -p --strip-h-path -z $^
 
 texi: $(HEADERS)
-	@ kdoc -f texinfo -d texi -p --strip-h-path -lmccore $^
+	@ kdoc -f texinfo -d texi -p --strip-h-path $^
 
 docbook: $(HEADERS)
-	@ kdoc -f docbook -d docbook -p --strip-h-path -lmccore $^
+	@ kdoc -f docbook -d docbook -p --strip-h-path $^
 
 
 

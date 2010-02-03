@@ -1,7 +1,5 @@
 #include "Cycle.h"
 #include "AnnotateModel.h"
-#include "mccore/AbstractModel.h"
-#include "mccore/Pdbstream.h"
 
 #include <cassert>
 #include <sstream>

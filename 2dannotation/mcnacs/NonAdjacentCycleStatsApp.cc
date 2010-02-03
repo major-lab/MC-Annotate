@@ -11,7 +11,10 @@
 
 #include "NonAdjacentCycleStatsApp.h"
 
+
+#include "CycleInfoFile.h"
 #include "Interaction.h"
+#include "StringTable.h"
 #include "StringUtil.h"
 #include <cassert>
 #include <cstdio>
@@ -173,38 +176,9 @@ void NonAdjacentCycleStatsApp::readInteractionsFile()
  */
 void NonAdjacentCycleStatsApp::readCyclesFile()
 {
-	std::ifstream infile;
-	mCycles.clear();
-	infile.open (mstrCyclesFile.c_str(), std::ifstream::in);
-	std::string strLine;
-	std::vector<std::string> fields;
-
-	while(std::getline(infile, strLine).good())
-	{
-		annotate::cleanString(strLine, ' ');
-
-		fields = annotate::splitStringFields(strLine, ":");
-
-		std::string strPDBFile = fields[0];
-		unsigned int uiModel = atol(fields[1].c_str());
-		std::string strProfile = fields[2];
-		std::string strPredProfile = fields[3];
-		std::string strResIds = fields[4];
-		std::string strSeq = fields[5];
-
-		annotate::CycleProfile prof(strProfile);
-		annotate::CycleProfile predProf(strPredProfile);
-
-		annotate::CycleInfo::residue_profile resProfile;
-		resProfile = getStrandResidues(strResIds, predProf);
-
-		std::vector<std::string> residues = annotate::splitStringFields(strSeq, "-");
-		annotate::CycleInfo cInfo(strPDBFile, uiModel, predProf, prof, resProfile, residues);
-
-		mCycles.insert(cInfo);
-	}
-
-	infile.close();
+	annotate::CycleInfoFile infile;
+	infile.read(mstrCyclesFile.c_str());
+	mCycles = infile.cycles();
 }
 
 std::vector<std::vector<std::string> > NonAdjacentCycleStatsApp::getStrandResidues(
@@ -950,11 +924,11 @@ std::string NonAdjacentCycleStatsApp::interactionsToString() const
 	std::ostringstream oss;
 
 	std::list<std::string> profileList = mInteractionTable.getProfileList();
-	std::list<std::string>::const_iterator it1 = profileList.begin();
-	for(; it1 != profileList.end(); ++ it1)
+	std::list<std::string>::const_iterator it1;
+	for(it1 = profileList.begin(); it1 != profileList.end(); ++ it1)
 	{
 		std::list<std::string>::const_iterator it2;
-		for(it2 = it1; it2 != profileList.end(); ++ it2)
+		for(it2 = profileList.begin(); it2 != profileList.end(); ++ it2)
 		{
 			oss << "//--------------------------------------------------------------" << std::endl;
 			oss << *it1 << " vs " << *it2 << std::endl;
@@ -964,13 +938,17 @@ std::string NonAdjacentCycleStatsApp::interactionsToString() const
 			InteractionTable::interacting_set::const_iterator it3;
 			for(it3 = interacting.begin(); it3 != interacting.end(); ++ it3)
 			{
-				oss << it3->first.getModelInfo().getPDBFile() << " " << it3->first.getModelInfo().getModel() << " : ";
+				oss << it3->first.getModelInfo().getPDBFile();
+				oss << " " << it3->first.getModelInfo().getModel() << " : ";
 				oss << "(" << it3->first.toString() << ") vs (";
 				oss << it3->second.toString() << ")" << std::endl;
 			}
 			if(!mstrOutputDirectory.empty())
 			{
-				outputInteractingCyclesFiles(*it1, *it2, interacting);
+				if(0 < interacting.size())
+				{
+					outputInteractingCyclesFile(*it1, *it2, interacting);
+				}
 			}
 		}
 	}
@@ -1005,35 +983,49 @@ std::string NonAdjacentCycleStatsApp::interactionStats(
 	return oss.str();
 }
 
-void NonAdjacentCycleStatsApp::outputInteractingCyclesFiles(
+std::string NonAdjacentCycleStatsApp::interactingCyclesFileName(
+	const std::string& astrProfile1,
+	const std::string& astrProfile2) const
+{
+	std::ostringstream oss;
+	oss << mstrOutputDirectory << "/";
+	oss << astrProfile1 << "_vs_" << astrProfile2;
+	oss << ".cycles";
+	return oss.str();
+}
+
+void NonAdjacentCycleStatsApp::outputInteractingCyclesFile(
 	const std::string& astrProfile1,
 	const std::string& astrProfile2,
 	const InteractionTable::interacting_set& aInteracting) const
 {
-	std::ostringstream oss;
+	annotate::StringTable stringTable(6); // This should be a constant
 	std::string strPrefix;
 	InteractionTable::interacting_set::const_iterator it;
 	std::ofstream outfile;
-	oss << mstrOutputDirectory << "/" << astrProfile1 << "_vs_" << astrProfile2;
-	oss << ".cycles";
-	outfile.open (oss.str().c_str(), ios_base::out);
+	std::string strFileName = interactingCyclesFileName(astrProfile1, astrProfile2);
+	outfile.open (strFileName.c_str(), ios_base::out);
 	for(it = aInteracting.begin(); it != aInteracting.end(); ++ it)
 	{
-		outfile << it->first.getPDBFile();
-		outfile << " : " << it->first.getModelInfo().getModel();
-		outfile << " : " << it->first.getFileProfile().toString();
-		outfile << " : " << it->first.getProfile().toString();
-		outfile << " : " << it->first.resIdsString();
-		outfile << " : " << it->first.residuesString();
-		outfile << std::endl;
+		annotate::CycleInfo cycle;
+		if(it->first.getProfile().toString() == astrProfile1)
+		{
+			cycle = it->first;
+		}else
+		{
+			cycle = it->second;
+		}
 
-		outfile << it->second.getPDBFile();
-		outfile << " : " << it->second.getModelInfo().getModel();
-		outfile << " : " << it->second.getFileProfile().toString();
-		outfile << " : " << it->second.getProfile().toString();
-		outfile << " : " << it->second.resIdsString();
-		outfile << " : " << it->second.residuesString();
-		outfile << std::endl;
+		std::ostringstream oss;
+		std::vector<string>& tableRow = stringTable.addRow();
+		tableRow[0] = cycle.getPDBFile();
+		oss << cycle.getModelInfo().getModel();
+		tableRow[1] = oss.str();
+		tableRow[2] = cycle.getFileProfile().toString();
+		tableRow[3] = cycle.getProfile().toString();
+		tableRow[4] = cycle.resIdsString();
+		tableRow[5] = cycle.residuesString();
 	}
+	outfile << stringTable.toString(" : ");
 	outfile.close();
 }

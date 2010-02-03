@@ -26,5 +26,8 @@ int main (int argc, char *argv[])
 {
 	ExtractCyclesApp theApp(argc, argv);
 
+	std::map<annotate::CycleInfo, mccore::GraphModel> results = theApp.extract();
+
+	theApp.writePDB(results);
 	return EXIT_SUCCESS;
 }

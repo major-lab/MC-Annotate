@@ -442,13 +442,13 @@ std::string CycleInfo::toString(const std::string astrSeparator) const
 
 	oss << mProfile.toString();
 	oss << "\t" << astrSeparator << " ";
-	oss << resIdsString();
+	oss << groupedResIdsString();
 	oss << " " << astrSeparator << " ";
 	oss << residuesString();
 	return oss.str();
 }
 
-std::string CycleInfo::residuesString(const std::string& astrSep) const
+std::string CycleInfo::residuesString(const std::string& astrSeparator) const
 {
 	std::ostringstream oss;
 
@@ -458,14 +458,39 @@ std::string CycleInfo::residuesString(const std::string& astrSep) const
 	{
 		if(it != sequence.begin())
 		{
-			oss << astrSep;
+			oss << astrSeparator;
 		}
 		oss << *it;
 	}
 	return oss.str();
 }
 
-std::string CycleInfo::resIdsString() const
+std::string CycleInfo::resIdsString(const std::string& astrSeparator) const
+{
+	std::ostringstream oss;
+
+	CycleInfo::residue_profile::const_iterator itResStrand;
+	for(itResStrand = mResIds.begin();
+		itResStrand != mResIds.end();
+		++ itResStrand)
+	{
+		CycleInfo::residue_strand::const_iterator itRes;
+		for(itRes = itResStrand->begin();
+			itRes != itResStrand->end();
+			++ itRes)
+		{
+			if(!(itResStrand == mResIds.begin() && itRes == itResStrand->begin()))
+			{
+				oss << "-";
+			}
+			oss << *itRes;
+		}
+	}
+
+	return oss.str();
+}
+
+std::string CycleInfo::groupedResIdsString() const
 {
 	std::ostringstream oss;
 

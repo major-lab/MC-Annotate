@@ -11,12 +11,21 @@
 
 #include "ExtractCyclesApp.h"
 
-#include "StringUtil.h"
+#include "CycleInfoFile.h"
+
+// libmcannotate
+#include "AnnotateModel.h"
+
+// libmccore
+#include "mccore/Molecule.h"
+#include "mccore/Pdbstream.h"
+#include "mccore/ResidueFactoryMethod.h"
 
 #include <cstdio>
 #include <fstream>
+#include <sstream>
 
-const char* shortopts = "Vhuc:d:";
+const char* shortopts = "Vhd:i:";
 
 ExtractCyclesApp::ExtractCyclesApp(int argc, char * argv [])
 {
@@ -24,6 +33,12 @@ ExtractCyclesApp::ExtractCyclesApp(int argc, char * argv [])
 
 	// Read the cycle files
 	readCyclesFile();
+}
+
+ExtractCyclesApp::~ExtractCyclesApp()
+{
+	mCyclesModels.clear();
+	mCycles.clear();
 }
 
 void ExtractCyclesApp::version () const
@@ -37,7 +52,7 @@ void ExtractCyclesApp::usage () const
 {
 	std::cout
 	 	<< "usage: " << PACKAGE
-		<< " [-fhuvV] [-d <output directory>] -p <distant pairs file> -c <cycles file>"
+		<< " [-hV] [-d <output directory>] -i <pdb directory> <cycles file> ..."
 		<< std::endl;
 }
 
@@ -46,14 +61,16 @@ void ExtractCyclesApp::help () const
 	std::cout
 		<< "This program read cycle structures and return the corresponding residue ids."
 		<< std::endl
-		<< "	-i directory where the PDB files are stored." << std::endl
+		<< "  -i	directory where the PDB files are stored." << std::endl
 		<< "  -d	specify an output directory" << std::endl
-		<< "  -f	filter out composite cycles" << std::endl
 		<< "  -h	print this help" << std::endl
-		<< "  -c	file containing the identified cycles" << std::endl
 		<< "  -V	print the software version info" << std::endl;
 }
 
+/**
+ * readOptions
+ * @brief Read the options from the command line.
+ */
 void ExtractCyclesApp::readOptions (int argc, char* argv[])
 {
 	int c;
@@ -66,18 +83,15 @@ void ExtractCyclesApp::readOptions (int argc, char* argv[])
         	version ();
 			exit (EXIT_SUCCESS);
 			break;
-		case 'c':
-		{
-			mstrCyclesFile = optarg;
-			break;
-		}
 		case 'd':
 		{
 			mstrOutputDirectory = optarg;
+			break;
 		}
 		case 'i':
 		{
 			mstrInputDirectory = optarg;
+			break;
 		}
 		case 'h':
 			usage ();
@@ -90,15 +104,22 @@ void ExtractCyclesApp::readOptions (int argc, char* argv[])
 		}
 	}
 
+	while (optind < argc)
+	{
+		mCyclesFiles.push_back((std::string) argv[optind]);
+		++ optind;
+	}
+
 	if(mstrInputDirectory.empty())
 	{
 		usage ();
 		exit (EXIT_FAILURE);
-	} else if(mstrCyclesFile.empty())
+	} else if(0 == mCyclesFiles.size())
 	{
 		usage ();
 		exit (EXIT_FAILURE);
 	}
+
 }
 
 /**
@@ -107,114 +128,154 @@ void ExtractCyclesApp::readOptions (int argc, char* argv[])
  */
 void ExtractCyclesApp::readCyclesFile()
 {
-	std::ifstream infile;
-	mCycles.clear();
-	infile.open (mstrCyclesFile.c_str(), std::ifstream::in);
-	std::string strLine;
-	// std::vector<std::string> fields;
-
-	while(std::getline(infile, strLine).good())
+	std::list<std::string>::const_iterator it;
+	for(it = mCyclesFiles.begin(); it != mCyclesFiles.end(); ++ it)
 	{
-		annotate::CycleInfo cInfo = readCycleFileLine(strLine);
-		/*
-		annotate::cleanString(strLine, ' ');
-
-		fields = annotate::splitStringFields(strLine, ":");
-
-		std::string strPDBFile = fields[0];
-		unsigned int uiModel = atol(fields[1].c_str());
-		std::string strProfile = fields[2];
-		std::string strPredProfile = fields[3];
-		std::string strResIds = fields[4];
-		std::string strSeq = fields[5];
-
-		annotate::CycleProfile prof(strProfile);
-		annotate::CycleProfile predProf(strPredProfile);
-
-		CycleInfo::residue_profile resProfile;
-		resProfile = getStrandResidues(strResIds, predProf);
-
-		std::vector<std::string> residues = annotate::splitStringFields(strSeq, "-");
-		CycleInfo cInfo(strPDBFile, uiModel, predProf, prof, resProfile, residues);*/
-
-		mCycles.insert(cInfo);
+		annotate::CycleInfoFile infile;
+		infile.read(it->c_str());
+		std::set<annotate::CycleInfo> cycles = infile.cycles();
+		mCycles.insert(cycles.begin(), cycles.end());
 	}
-
-	infile.close();
 }
 
-annotate::CycleInfo ExtractCyclesApp::readCycleFileLine(const std::string& astrLine) const
+/**
+ * getModels
+ * @brief Get a list of models from the cycles
+ * @return List of models from which the cycles are originating
+ */
+std::list<annotate::ModelInfo> ExtractCyclesApp::getModels() const
 {
-	std::string strLine = astrLine;
-	annotate::cleanString(strLine, ' ');
-
-	std::vector<std::string> fields = annotate::splitStringFields(strLine, ":");
-
-	std::string strPDBFile = fields[0];
-	unsigned int uiModel = atol(fields[1].c_str());
-	std::string strFileProfile = fields[2];
-	std::string strProfile = fields[3];
-	std::string strResIds = fields[4];
-	std::string strSeq = fields[5];
-
-	annotate::CycleProfile prof(strProfile);
-	annotate::CycleProfile fileProf(strFileProfile);
-
-	annotate::CycleInfo::residue_profile resProfile;
-	resProfile = getStrandResidues(strResIds, fileProf);
-
-	std::vector<std::string> residues = annotate::splitStringFields(strSeq, "-");
-	return annotate::CycleInfo(strPDBFile, uiModel, fileProf, prof, resProfile, residues);
-}
-
-std::vector<std::vector<std::string> > ExtractCyclesApp::getStrandResidues(
-	const std::string& aResidues,
-	const annotate::CycleProfile& aProfile) const
-{
-	std::list<std::string> residues = getResidues(aResidues);
-	std::vector<std::vector<std::string> > strandResidues;
-
-	std::list<std::string>::const_iterator itRes = residues.begin();
-	std::list<unsigned int>::const_iterator itProf;
-	for(itProf = aProfile.strandProfile().begin();
-		itProf != aProfile.strandProfile().end();
-		++ itProf)
+	std::list<annotate::ModelInfo> models;
+	std::set<annotate::CycleInfo>::const_iterator it;
+	const annotate::ModelInfo* pInfo = NULL;
+	for(it = mCycles.begin(); it != mCycles.end(); ++ it)
 	{
-		std::vector<std::string> strand;
-		unsigned int iRes = 0;
-		for(iRes = 0; iRes < *itProf; ++ iRes)
+		if(it != mCycles.begin() && (*pInfo != it->getModelInfo()))
 		{
-			strand.push_back(*itRes);
-			++ itRes;
+			models.push_back(*pInfo);
 		}
-		strandResidues.push_back(strand);
-		strand.clear();
+		pInfo = &(it->getModelInfo());
 	}
-	return strandResidues;
+	if(NULL != pInfo)
+	{
+		models.push_back(*pInfo);
+	}
+	return models;
 }
 
-std::list<std::string> ExtractCyclesApp::getResidues(
-	const std::string& aResidues) const
+mccore::Molecule* ExtractCyclesApp::loadMoleculeFile (const std::string &filename) const
 {
-	std::list<std::string> residues;
-	std::string strResidues = aResidues;
+	mccore::Molecule *pMolecule = NULL;
+	mccore::ResidueFM rFM;
+	annotate::AnnotateModelFM aFM (ResIdSet(), 0/*environment*/, &rFM);
 
-	annotate::cleanString(strResidues, ' ');
-	while(0 < strResidues.size())
+	mccore::izfPdbstream in;
+
+	in.open (filename.c_str ());
+	if (in.fail ())
 	{
-		std::string strRes;
-		std::size_t sep = strResidues.rfind('-');
-		if(sep != std::string::npos)
+		mccore::gErr (0) << PACKAGE << ": cannot open pdb file '" << filename << "'." << std::endl;
+		return 0;
+	}else
+	{
+		pMolecule = new Molecule (&aFM);
+		in >> *pMolecule;
+		in.close ();
+	}
+	return pMolecule;
+}
+
+mccore::Molecule::const_iterator ExtractCyclesApp::getModel(
+	mccore::Molecule& aMolecule,
+	unsigned int auiModel) const
+{
+	unsigned int uiModel = 1;
+	mccore::Molecule::const_iterator molIt;
+	for (molIt = aMolecule.begin(); molIt != aMolecule.end (); ++molIt)
+	{
+
+		if (uiModel != auiModel)
 		{
-			strRes = strResidues.substr(sep + 1, strResidues.size() - (sep + 1));
-			strResidues.erase(sep);
+			++uiModel;
 		}
 		else
 		{
-			strRes = strResidues;
-			strResidues.clear();
+			break;
 		}
-		residues.push_front(strRes);
 	}
-	return residues;
+	return molIt;
+}
+
+std::map<annotate::CycleInfo, mccore::GraphModel> ExtractCyclesApp::extract() const
+{
+	std::map<annotate::CycleInfo, mccore::GraphModel> results;
+	std::list<annotate::ModelInfo> models = getModels();
+	std::list<annotate::ModelInfo>::const_iterator itModel;
+	for(itModel = models.begin(); itModel != models.end(); ++ itModel)
+	{
+		std::ostringstream oss;
+		mccore::Molecule* pMolecule = NULL;
+		oss << mstrInputDirectory << "/" << itModel->getPDBFile() << ".pdb.gz";
+		pMolecule = loadMoleculeFile(oss.str());
+		mccore::Molecule::const_iterator itMol = getModel(*pMolecule, itModel->getModel());
+		GetModelRangeFunctor<annotate::CycleInfo> rangeFunctor;
+		GetModelRangeFunctor<annotate::CycleInfo>::const_range modelRange;
+		modelRange = rangeFunctor(mCycles, *itModel);
+		std::map<annotate::CycleInfo, mccore::GraphModel> cyclesModels;
+		mccore::GraphModel test = *itMol;
+		cyclesModels = getCycleModels(*itMol, modelRange);
+		results.insert(cyclesModels.begin(), cyclesModels.end());
+		delete pMolecule;
+	}
+	return results;
+}
+
+std::map<annotate::CycleInfo, mccore::GraphModel> ExtractCyclesApp::getCycleModels(
+	const mccore::GraphModel& aModel,
+	GetModelRangeFunctor<annotate::CycleInfo>::const_range& aRange) const
+{
+	std::map<annotate::CycleInfo, mccore::GraphModel> models;
+	std::set<annotate::CycleInfo>::const_iterator it;
+	for(it = aRange.first; it != aRange.second; ++ it)
+	{
+		mccore::GraphModel model = getCycleModel(aModel, *it);
+		models.insert(std::pair<annotate::CycleInfo, mccore::GraphModel>(*it, model));
+	}
+	return models;
+}
+
+mccore::GraphModel ExtractCyclesApp::getCycleModel(
+	const mccore::GraphModel& aModel,
+	const annotate::CycleInfo& aCycle) const
+{
+	mccore::GraphModel model;
+	std::vector<std::string> resids = aCycle.getResIds();
+	std::vector<std::string>::const_iterator it;
+	for(it = resids.begin(); it != resids.end(); ++ it)
+	{
+		mccore::GraphModel::const_iterator itRes;
+		itRes = aModel.find(mccore::ResId(it->c_str()));
+		model.insert(*itRes);
+	}
+	return model;
+}
+
+void ExtractCyclesApp::writePDB(
+	const std::map<annotate::CycleInfo, mccore::GraphModel>& aCycles) const
+{
+	std::map<annotate::CycleInfo, mccore::GraphModel>::const_iterator it;
+	for(it = aCycles.begin(); it != aCycles.end(); ++ it)
+	{
+		std::ostringstream oss;
+		ozfPdbstream outfile;
+		oss << mstrOutputDirectory << "/";
+		oss << it->first.getModelInfo().getPDBFile();
+		oss << "." << it->first.getModelInfo().getModel();
+		oss << "." << it->first.getProfile().toString();
+		oss << "." << it->first.resIdsString();
+		oss << ".pdb.gz";
+		outfile.open(oss.str().c_str());
+		outfile << it->second;
+		outfile.close();
+	}
 }

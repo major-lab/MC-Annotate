@@ -37,8 +37,7 @@ public:
 	const ModelInfo& getModelInfo() const {return mModelInfo;}
 	const std::string& getPDBFile() const {return mModelInfo.getPDBFile();}
 	unsigned int getModel() const {return mModelInfo.getModel();}
-	const std::vector<std::vector<std::string> >& getStrandResIds() const
-	{return mResIds;}
+	const residue_profile& getStrandResIds() const {return mResIds;}
 	const annotate::CycleProfile& getProfile() const {return mProfile;}
 	const annotate::CycleProfile& getFileProfile() const {return mFileProfile;}
 
@@ -72,8 +71,9 @@ public:
 	bool operator <(const CycleInfo& aRight) const;
 
 	std::string toString(const std::string astrSeparator = ":") const;
-	std::string residuesString(const std::string& astrSep = "-") const;
-	std::string resIdsString() const;
+	std::string residuesString(const std::string& astrSeparator = "-") const;
+	std::string resIdsString(const std::string& astrSeparator = "-") const;
+	std::string groupedResIdsString() const;
 protected:
 	ModelInfo mModelInfo;
 	residue_profile mResIds;
