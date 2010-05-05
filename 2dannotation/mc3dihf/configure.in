@@ -1,0 +1,121 @@
+#                               -*- Mode: Sh -*- 
+# configure.in
+# Copyright © 2010 Laboratoire de Biologie Informatique et Théorique.
+#                     Université de Montréal
+# Author           : Marc-Frédérick Blanchet
+# Created On       : Sun May 2 12:04:00 2010
+# $Revision: 39 $
+# $Id: configure.in 39 2010-05-03 10:04:00 blanchmf $
+
+
+dnl Process this file with autoconf to produce a configure script.
+
+AC_INIT(mc3dihf.cc)
+AC_CONFIG_HEADER(config.h)
+
+PACKAGE=mc3dihf
+VERSION=0.1
+AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE")
+AC_DEFINE_UNQUOTED(VERSION, "$VERSION")
+
+AC_PROG_MAKE_SET
+
+AC_CANONICAL_HOST
+AC_PROG_CXX
+AC_LANG(C++)
+AC_PROG_INSTALL
+AC_PATH_X
+
+AC_PATH_PROG(GTK_CONFIG,pkg-config)
+if test "$GTK_CONFIG" = NO; then
+    AC_MSG_ERROR(*** GTK not found ***)
+fi
+
+CXXFLAGS="$CXXFLAGS `pkg-config --cflags gtk+-2.0`"
+if eval "test -z \"`echo $GXX`\""; then # not gnu compiler
+    case "$host" in
+    *-sgi-*)
+	CXXFLAGS="$CXXFLAGS -O2 -LANG:std"
+  	DEPFLAGS="-M"
+	echo "appending values of CPLUS_INCLUDE_PATH to include path..."
+	for t in `echo $CPLUS_INCLUDE_PATH | sed "s/\.*:/ /g"`; do
+	  CXXFLAGS="$CXXFLAGS -I$t";
+ 	  DEPFLAGS="$DEPFLAGS -I$t";
+	  echo "        " $t;
+	done
+	echo "appending values of LIBRARY_PATH to lib path..."
+	for t in `echo $LIBRARY_PATH | sed "s/\.*:/ /g"`; do
+	  LDFLAGS="-L$t $LDFLAGS";    
+	  echo "        " $t;
+	done
+	AC_CHECK_LIB(z,gzopen)
+	AC_CHECK_LIB(m,exp)
+	LIBS="`pkg-config --libs gtk+-2.0` $LIBS"
+	AC_ARG_WITH(rnaml,
+	    [  --with-rnaml            include rnaml reader and writer classes],
+	    AC_CHECK_LIB(rnamlc++,xmlcpginit),
+	)
+	AC_MSG_CHECKING([for Vector3D in -lmccore])
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include "mccore/Vector3D.h"
+	using namespace mccore;]],
+		[[new Vector3D ();]])],
+	    AC_MSG_RESULT([yes])
+	    AC_DEFINE(HAVE_LIBMCCORE)
+	    LIBS="-lmccore $LIBS",
+	    AC_MSG_RESULT([no]))
+	LINKOPTIONS="-LANG:std"
+  	;;
+    *-sun-*)
+	CXXFLAGS="$CXXFLAGS -xO2"
+	CXXFLAGS="$CXXFLAGS `pkg-config --cflags gtkglext-1.0`"
+	DEPFLAGS="-xM"
+	echo "appending values of CPLUS_INCLUDE_PATH to include path..."
+	for t in `echo $CPLUS_INCLUDE_PATH | sed "s/\.*:/ /g"`; do
+	  CXXFLAGS="$CXXFLAGS -I$t";
+ 	  DEPFLAGS="$DEPFLAGS -I$t";
+	  echo "        " $t;
+	done
+	echo "appending values of LD_LIBRARY_PATH to lib path..."
+	for t in `echo $LD_LIBRARY_PATH | sed "s/\.*:/ /g"`; do
+	  LDFLAGS="-L$t $LDFLAGS";    
+	  echo "        " $t;
+	done
+	LINKOPTIONS=""
+	AC_CHECK_LIB(z,gzopen)
+	AC_CHECK_LIB(m,exp)
+	LIBS="`pkg-config --libs gtk+-2.0` $LIBS"
+	AC_ARG_WITH(rnaml,
+	    [  --with-rnaml            include rnaml reader and writer classes],
+	    AC_CHECK_LIB(rnamlc++,xmlcpginit),
+	)
+	AC_MSG_CHECKING([for Vector3D in -lmccore])
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include "mccore/Vector3D.h"
+	using namespace mccore;]],
+		[[new Vector3D ();]])],
+	    AC_MSG_RESULT([yes])
+	    AC_DEFINE(HAVE_LIBMCCORE)
+	    LIBS="-lmccore $LIBS",
+	    AC_MSG_RESULT([no]))
+	;;
+    esac;
+elif eval "test \"`echo $GXX`\" = yes"; then     # gnu compiler
+        AC_CHECK_LIB(z,main)
+	AC_CHECK_LIB(pdf,main)
+	AC_ARG_WITH(rnaml,
+	    [  --with-rnaml            include rnaml reader and writer classes],
+	    AC_CHECK_LIB(rnamlc++,main),
+	)
+	AC_CHECK_LIB(mccore,main)
+	LIBS="`pkg-config --libs gtk+-2.0` $LIBS"
+	CXXFLAGS="$CXXFLAGS -Wall"
+	DEPFLAGS="-MM"
+	LINKOPTIONS=""
+fi
+
+AC_SUBST(PACKAGE)
+AC_SUBST(VERSION)
+AC_SUBST(DEPFLAGS)
+AC_SUBST(LDFLAGS)
+AC_SUBST(LINKOPTIONS)
+
+AC_OUTPUT( Makefile )
