@@ -1,0 +1,90 @@
+domain1=data/P6ab.indexed_cycles
+domain2=data/P5bL5b.indexed_cycles
+t1hypothese1=../t1buildtable/RNA3D.t1
+t2hypothese1=../t2buildtable/RNA-PDB-2009-08-13.h1.t2
+t2hypothese2=../t2buildtable/RNA-PDB-2009-08-13.h2.t2
+t2hypothese3=../t2buildtable/RNA-PDB-2009-08-13.h3.t2
+t3hypothese1=../t3buildtable/RNA-PDB-2009-08-13.v2.h1.t3
+t3hypothese2=../t3buildtable/RNA-PDB-2009-08-13.v2.h2.t3
+t3hypothese3=../t3buildtable/RNA-PDB-2009-08-13.v2.h3.t3
+t4hypothese1=../t4buildtable/RNA-PDB-2009-08-13.h1.t4
+
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 > P5_vs_P6_1_0_0_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese1 > P5_vs_P6_0_1_0_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese2 > P5_vs_P6_0_2_0_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese3 > P5_vs_P6_0_3_0_0.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese1 > P5_vs_P6_1_1_0_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese2 > P5_vs_P6_1_2_0_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese3 > P5_vs_P6_1_3_0_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -3 $t3hypothese1 > P5_vs_P6_0_0_1_0.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -3 $t3hypothese1 > P5_vs_P6_1_0_1_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese1 -3 $t3hypothese1 > P5_vs_P6_0_1_1_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese2 -3 $t3hypothese1 > P5_vs_P6_0_2_1_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese3 -3 $t3hypothese1 > P5_vs_P6_0_3_1_0.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese1 -3 $t3hypothese1 > P5_vs_P6_1_1_1_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese2 -3 $t3hypothese1 > P5_vs_P6_1_2_1_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese3 -3 $t3hypothese1 > P5_vs_P6_1_3_1_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -3 $t3hypothese2 > P5_vs_P6_0_0_2_0.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -3 $t3hypothese2 > P5_vs_P6_1_0_2_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese1 -3 $t3hypothese2 > P5_vs_P6_0_1_2_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese2 -3 $t3hypothese2 > P5_vs_P6_0_2_2_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese3 -3 $t3hypothese2 > P5_vs_P6_0_3_2_0.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese1 -3 $t3hypothese2 > P5_vs_P6_1_1_2_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese2 -3 $t3hypothese2 > P5_vs_P6_1_2_2_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese3 -3 $t3hypothese2 > P5_vs_P6_1_3_2_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -3 $t3hypothese3 > P5_vs_P6_0_0_3_0.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -3 $t3hypothese3 > P5_vs_P6_1_0_3_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese1 -3 $t3hypothese3 > P5_vs_P6_0_1_3_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese2 -3 $t3hypothese3 > P5_vs_P6_0_2_3_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese3 -3 $t3hypothese3 > P5_vs_P6_0_3_3_0.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese1 -3 $t3hypothese3 > P5_vs_P6_1_1_3_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese2 -3 $t3hypothese3 > P5_vs_P6_1_2_3_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese3 -3 $t3hypothese3 > P5_vs_P6_1_3_3_0.txt &
+./mc3dihg -a $domain1 -b $domain2 -4 $t4hypothese1 > P5_vs_P6_0_0_0_1.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -4 $t4hypothese1 > P5_vs_P6_1_0_0_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese1 -4 $t4hypothese1 > P5_vs_P6_0_1_0_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese2 -4 $t4hypothese1 > P5_vs_P6_0_2_0_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese3 -4 $t4hypothese1 > P5_vs_P6_0_3_0_1.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese1 -4 $t4hypothese1 > P5_vs_P6_1_1_0_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese2 -4 $t4hypothese1 > P5_vs_P6_1_2_0_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese3 -4 $t4hypothese1 > P5_vs_P6_1_3_0_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -3 $t3hypothese1 -4 $t4hypothese1 > P5_vs_P6_0_0_1_1.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -3 $t3hypothese1 -4 $t4hypothese1 > P5_vs_P6_1_0_1_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese1 -3 $t3hypothese1 -4 $t4hypothese1 > P5_vs_P6_0_1_1_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese2 -3 $t3hypothese1 -4 $t4hypothese1 > P5_vs_P6_0_2_1_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese3 -3 $t3hypothese1 -4 $t4hypothese1 > P5_vs_P6_0_3_1_1.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese1 -3 $t3hypothese1 -4 $t4hypothese1 > P5_vs_P6_1_1_1_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese2 -3 $t3hypothese1 -4 $t4hypothese1 > P5_vs_P6_1_2_1_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese3 -3 $t3hypothese1 -4 $t4hypothese1 > P5_vs_P6_1_3_1_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -3 $t3hypothese2 -4 $t4hypothese1 > P5_vs_P6_0_0_2_1.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -3 $t3hypothese2 -4 $t4hypothese1 > P5_vs_P6_1_0_2_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese1 -3 $t3hypothese2 -4 $t4hypothese1 > P5_vs_P6_0_1_2_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese2 -3 $t3hypothese2 -4 $t4hypothese1 > P5_vs_P6_0_2_2_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese3 -3 $t3hypothese2 -4 $t4hypothese1 > P5_vs_P6_0_3_2_1.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese1 -3 $t3hypothese2 -4 $t4hypothese1 > P5_vs_P6_1_1_2_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese2 -3 $t3hypothese2 -4 $t4hypothese1 > P5_vs_P6_1_2_2_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese3 -3 $t3hypothese2 -4 $t4hypothese1 > P5_vs_P6_1_3_2_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -3 $t3hypothese3 -4 $t4hypothese1 > P5_vs_P6_0_0_3_1.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -3 $t3hypothese3 -4 $t4hypothese1 > P5_vs_P6_1_0_3_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese1 -3 $t3hypothese3 -4 $t4hypothese1 > P5_vs_P6_0_1_3_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese2 -3 $t3hypothese3 -4 $t4hypothese1 > P5_vs_P6_0_2_3_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -2 $t2hypothese3 -3 $t3hypothese3 -4 $t4hypothese1 > P5_vs_P6_0_3_3_1.txt &
+wait
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese1 -3 $t3hypothese3 -4 $t4hypothese1 > P5_vs_P6_1_1_3_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese2 -3 $t3hypothese3 -4 $t4hypothese1 > P5_vs_P6_1_2_3_1.txt &
+./mc3dihg -a $domain1 -b $domain2 -1 $t1hypothese1 -2 $t2hypothese3 -3 $t3hypothese3 -4 $t4hypothese1 > P5_vs_P6_1_3_3_1.txt &
+./mc3dihg -a $domain1 -b $domain2 > P5_vs_P6_0_0_0_0.txt &
