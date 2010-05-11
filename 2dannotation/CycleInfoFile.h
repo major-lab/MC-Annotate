@@ -25,17 +25,17 @@ public:
 	const std::set<CycleInfo>& cycles() const {return mCycles;}
 
 	// METHODS -----------------------------------------------------------------
-	void read(const char* aszFilename);
+	void read(const std::string& astrFilename, bool abFileProfile = true);
 
 
 private:
 	std::set<CycleInfo> mCycles;
 
-	CycleInfo readLine(const std::string& astrLine) const;
-	std::vector<std::vector<std::string> > getStrandResidues(
+	CycleInfo readLine(const std::string& astrLine, bool abFileProfile) const;
+	CycleInfo::residue_profile getStrandResidues(
 		const std::string& aResidues,
 		const CycleProfile& aProfile) const;
-	std::list<std::string> getResidues(const std::string& aResidues) const;
+	CycleInfo::residue_strand getResidues(const std::string& aResidues) const;
 };
 
 };

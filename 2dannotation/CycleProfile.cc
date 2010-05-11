@@ -102,4 +102,24 @@ namespace annotate
 			assert(false);
 		}
 	}
+
+	// A profile is symmetric if all the strands have the same length
+	bool CycleProfile::isSymmetric() const
+	{
+		std::list<unsigned int>::const_iterator it;
+		bool bSymmetric = true;
+		unsigned int uiLength = 0;
+
+		for(it = mStrandProfile.begin(); it != mStrandProfile.end() && bSymmetric; ++ it)
+		{
+			if(it == mStrandProfile.begin())
+			{
+				uiLength = *it;
+			}else if(uiLength != *it)
+			{
+				bSymmetric = false;
+			}
+		}
+		return bSymmetric;
+	}
 };

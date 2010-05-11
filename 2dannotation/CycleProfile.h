@@ -26,6 +26,7 @@ namespace annotate
 		// METHODS -------------------------------------------------------------
 		std::string toString() const;
 		void fromString(const std::string& astrString);
+		bool isSymmetric() const;
 	private:
 		std::list<unsigned int> mStrandProfile;
 		Cycle::enType			meType;

@@ -37,7 +37,7 @@ CycleInfo::CycleInfo(
 		residue_strand::const_iterator itRes;
 		for(itRes = itStrand->begin(); itRes != itStrand->end(); ++ itRes)
 		{
-			mIdToResMap.insert(std::pair<std::string, std::string>(*itRes, *it));
+			mIdToResMap.insert(std::pair<mccore::ResId, std::string>(*itRes, *it));
 			++ it;
 		}
 	}
@@ -80,6 +80,28 @@ bool CycleInfo::operator <(const CycleInfo& aRight) const
 	return bLess;
 }
 
+bool CycleInfo::operator ==(const CycleInfo& aRight) const
+{
+	bool bLess = true;
+
+	if(mModelInfo == aRight.mModelInfo && mResIds.size() == aRight.mResIds.size())
+	{
+		residue_profile::const_iterator itLeft = mResIds.begin();
+		residue_profile::const_iterator itRight = aRight.mResIds.begin();
+		for(;
+			itLeft != mResIds.end() && itRight != aRight.mResIds.end() && bLess;
+			++ itLeft, ++ itRight)
+		{
+			int iCompare = compareStrand(*itLeft, *itRight);
+			bLess = (iCompare == 0);
+		}
+	}else
+	{
+		bLess = false;
+	}
+	return bLess;
+}
+
 int CycleInfo::compareStrand(
 	const residue_strand& aLeft,
 	const residue_strand& aRight) const
@@ -91,13 +113,15 @@ int CycleInfo::compareStrand(
 		residue_strand::const_iterator leftIt = aLeft.begin();
 		residue_strand::const_iterator rightIt = aRight.begin();
 		for(;
-			leftIt != aLeft.end() && rightIt != aRight.end();
+			leftIt != aLeft.end() && rightIt != aRight.end() && 0 == iCompare;
 			++leftIt, ++rightIt)
 		{
-			iCompare = leftIt->compare(*rightIt);
-			if(iCompare != 0)
+			if(*leftIt < *rightIt)
 			{
-				break;
+				iCompare = -1;
+			}else if(*rightIt < *leftIt)
+			{
+				iCompare = 1;
 			}
 		}
 	}
@@ -112,9 +136,9 @@ int CycleInfo::compareStrand(
 	return iCompare;
 }
 
-std::vector<std::string> CycleInfo::getResIds() const
+std::vector<mccore::ResId> CycleInfo::getResIds() const
 {
-	std::vector<std::string> residues;
+	std::vector<mccore::ResId> residues;
 	residue_profile::const_iterator itStrand;
 	for(itStrand = mResIds.begin(); itStrand != mResIds.end(); ++ itStrand)
 	{
@@ -127,7 +151,7 @@ std::vector<std::string> CycleInfo::getResIds() const
 	return residues;
 }
 
-std::pair<int, int> CycleInfo::findResId(const std::string& astrResId) const
+std::pair<int, int> CycleInfo::findResId(const mccore::ResId& astrResId) const
 {
 	std::pair<int, int> coord(-1, -1);
 	for(int iRow = 0; iRow < (int)mResIds.size(); ++ iRow)
@@ -147,20 +171,20 @@ std::pair<int, int> CycleInfo::findResId(const std::string& astrResId) const
 bool CycleInfo::contains(const InteractionInfo& aInteraction) const
 {
 	bool bContains = false;
-	std::vector<std::string> resIds = getResIds();
+	std::vector<mccore::ResId> resIds = getResIds();
 	if(2 < resIds.size())
 	{
 		unsigned int i;
 		for(i = 0; i < resIds.size(); ++ i)
 		{
-			if(resIds[i] == aInteraction.getRes1())
+			if(resIds[i] == aInteraction.resId1())
 			{
 				break;
 			}
 		}
 		if(i < resIds.size())
 		{
-			std::string res2 = aInteraction.getRes2();
+			mccore::ResId res2 = aInteraction.resId2();
 			if(0 == i)
 			{
 				if(resIds[i + 1] == res2)
@@ -195,10 +219,10 @@ bool CycleInfo::contains(const InteractionInfo& aInteraction) const
 	return bContains;
 }
 
-bool CycleInfo::contains(const std::string& aResId) const
+bool CycleInfo::contains(const mccore::ResId& aResId) const
 {
 	bool bContains = false;
-	std::vector<std::string> resIds = getResIds();
+	std::vector<mccore::ResId> resIds = getResIds();
 	unsigned int i;
 	for(i = 0; i < resIds.size() && !bContains; ++ i)
 	{
@@ -217,8 +241,8 @@ std::set<Interaction> CycleInfo::getStrandInteractions(
 
 	assert(auiStrand < mResIds.size());
 
-	std::vector<std::string>::const_iterator it;
-	std::vector<std::string>::const_iterator itPrev;
+	std::vector<mccore::ResId>::const_iterator it;
+	std::vector<mccore::ResId>::const_iterator itPrev;
 	for(it = mResIds[auiStrand].begin();
 		it != mResIds[auiStrand].end();
 		++ it)
@@ -427,7 +451,7 @@ const std::vector<std::string> CycleInfo::getSequence() const
 		residue_strand::const_iterator itRes;
 		for(itRes = itStrand->begin(); itRes != itStrand->end(); ++ itRes)
 		{
-			std::map<std::string, std::string>::const_iterator it;
+			std::map<mccore::ResId, std::string>::const_iterator it;
 			it = mIdToResMap.find(*itRes);
 			assert(it != mIdToResMap.end());
 			sequence.push_back(it->second);
@@ -436,12 +460,20 @@ const std::vector<std::string> CycleInfo::getSequence() const
 	return sequence;
 }
 
+std::string CycleInfo::getNucleotideString(const mccore::ResId& aResId) const
+{
+	std::map<mccore::ResId, std::string>::const_iterator it;
+	it = mIdToResMap.find(aResId);
+	assert(it != mIdToResMap.end());
+	return it->second;
+}
+
 std::string CycleInfo::toString(const std::string astrSeparator) const
 {
 	std::ostringstream oss;
 
 	oss << mProfile.toString();
-	oss << "\t" << astrSeparator << " ";
+	oss << " " << astrSeparator << " ";
 	oss << groupedResIdsString();
 	oss << " " << astrSeparator << " ";
 	oss << residuesString();
@@ -519,6 +551,87 @@ std::string CycleInfo::groupedResIdsString() const
 	}
 
 	return oss.str();
+}
+
+const std::vector<std::string> CycleInfo::getFlipStrandSequence() const
+{
+	std::vector<std::string> sequence;
+	residue_strand::const_iterator itRes;
+	for(itRes = mResIds[1].begin(); itRes != mResIds[1].end(); ++ itRes)
+	{
+		std::map<mccore::ResId, std::string>::const_iterator it;
+		it = mIdToResMap.find(*itRes);
+		assert(it != mIdToResMap.end());
+		sequence.push_back(it->second);
+	}
+	for(itRes = mResIds[0].begin(); itRes != mResIds[0].end(); ++ itRes)
+	{
+		std::map<mccore::ResId, std::string>::const_iterator it;
+		it = mIdToResMap.find(*itRes);
+		assert(it != mIdToResMap.end());
+		sequence.push_back(it->second);
+	}
+	return sequence;
+}
+
+CycleInfo CycleInfo::flipStrand(const CycleInfo& aCycleInfo)
+{
+	CycleInfo newCycle;
+
+	if(aCycleInfo.getNbStrands() == 2)
+	{
+		std::vector<std::vector<mccore::ResId> > flipResidueProfile;
+		std::vector<std::string> flipResidues;
+
+		flipResidueProfile.resize(2);
+		flipResidueProfile[0] = aCycleInfo.mResIds[1];
+		flipResidueProfile[1] = aCycleInfo.mResIds[0];
+
+		flipResidues = aCycleInfo.getFlipStrandSequence();
+
+		newCycle = CycleInfo(
+			aCycleInfo.getPDBFile(),
+			aCycleInfo.getModel(),
+			aCycleInfo.mFileProfile,
+			aCycleInfo.mProfile,
+			flipResidueProfile,
+			flipResidues);
+	}
+	else
+	{
+		newCycle = aCycleInfo;
+	}
+
+	return newCycle;
+}
+
+std::set<char> CycleInfo::getChains() const
+{
+	std::set<char> chains;
+	residue_profile::const_iterator it;
+	for(it = mResIds.begin();it != mResIds.end(); ++ it)
+	{
+		residue_strand::const_iterator itRes = it->begin();
+		for(itRes = it->begin(); itRes != it->end(); ++ itRes)
+		{
+			chains.insert(itRes->getChainId());
+		}
+	}
+	return chains;
+}
+
+void CycleInfo::setChainAndOffset(char acChain, int aiOffset)
+{
+	residue_profile::iterator it;
+	for(it = mResIds.begin();it != mResIds.end(); ++ it)
+	{
+		residue_strand::iterator itRes = it->begin();
+		for(itRes = it->begin(); itRes != it->end(); ++ itRes)
+		{
+			itRes->setChainId(acChain);
+			itRes->setResNo(itRes->getResNo() + aiOffset);
+		}
+	}
 }
 
 }; // namespace annotate

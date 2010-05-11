@@ -9,6 +9,7 @@
 
 #include "StringUtil.h"
 
+#include <cassert>
 #include <fstream>
 
 namespace annotate {
@@ -21,24 +22,24 @@ CycleInfoFile::~CycleInfoFile()
 	mCycles.clear();
 }
 
-void CycleInfoFile::read(const char* aszFileName)
+void CycleInfoFile::read(const std::string& astrFileName, bool abFileProfile)
 {
 	std::ifstream infile;
-	infile.open(aszFileName, std::ios_base::in);
+	infile.open(astrFileName.c_str(), std::ios_base::in);
 	mCycles.clear();
 	if(infile.good())
 	{
 		std::string strLine;
 		while(std::getline(infile, strLine).good())
 		{
-			CycleInfo cInfo = readLine(strLine);
+			CycleInfo cInfo = readLine(strLine, abFileProfile);
 			mCycles.insert(cInfo);
 		}
 	}
 	else
 	{
 		// TODO : This should be an exception
-		std::cout << "Error opening file " << aszFileName << std::endl;
+		std::cout << "Error opening file " << astrFileName << std::endl;
 	}
 	infile.close();
 }
@@ -48,17 +49,30 @@ void CycleInfoFile::read(const char* aszFileName)
  * @brief Read a line from a CycleInfo file.
  * @return CycleInfo corresponding to that line.
  */
-CycleInfo CycleInfoFile::readLine(const std::string& astrLine) const
+CycleInfo CycleInfoFile::readLine(const std::string& astrLine, bool abFileProfile) const
 {
 	std::string strLine = astrLine;
 	cleanString(strLine, ' ');
 	std::vector<std::string> fields = splitStringFields(strLine, ":");
 	std::string strPDBFile = fields[0];
 	unsigned int uiModel = atol(fields[1].c_str());
-	std::string strFileProfile = fields[2];
-	std::string strProfile = fields[3];
-	std::string strResIds = fields[4];
-	std::string strSeq = fields[5];
+	std::string strProfile = fields[2];
+	std::string strFileProfile;
+	std::string strResIds;
+	std::string strSeq;
+	if(abFileProfile)
+	{
+		assert(6 == fields.size());
+		strFileProfile = fields[3];
+		strResIds = fields[4];
+		strSeq = fields[5];
+	}else
+	{
+		assert(5 == fields.size());
+		strFileProfile = strProfile;
+		strResIds = fields[3];
+		strSeq = fields[4];
+	}
 
 	CycleProfile prof(strProfile);
 	CycleProfile fileProf(strFileProfile);
@@ -66,23 +80,28 @@ CycleInfo CycleInfoFile::readLine(const std::string& astrLine) const
 	resProfile = getStrandResidues(strResIds, fileProf);
 
 	std::vector<std::string> residues = splitStringFields(strSeq, "-");
-	return CycleInfo(strPDBFile, uiModel, fileProf, prof, resProfile, residues);
+	CycleInfo returnVal(strPDBFile, uiModel, fileProf, prof, resProfile, residues);
+	if(strProfile != strFileProfile)
+	{
+		returnVal = CycleInfo::flipStrand(returnVal);
+	}
+	return returnVal;
 }
 
-std::vector<std::vector<std::string> > CycleInfoFile::getStrandResidues(
+std::vector<std::vector<mccore::ResId> > CycleInfoFile::getStrandResidues(
 	const std::string& aResidues,
 	const annotate::CycleProfile& aProfile) const
 {
-	std::list<std::string> residues = getResidues(aResidues);
-	std::vector<std::vector<std::string> > strandResidues;
+	CycleInfo::residue_strand residues = getResidues(aResidues);
+	CycleInfo::residue_profile strandResidues;
 
-	std::list<std::string>::const_iterator itRes = residues.begin();
+	CycleInfo::residue_strand::const_iterator itRes = residues.begin();
 	std::list<unsigned int>::const_iterator itProf;
 	for(itProf = aProfile.strandProfile().begin();
 		itProf != aProfile.strandProfile().end();
 		++ itProf)
 	{
-		std::vector<std::string> strand;
+		CycleInfo::residue_strand strand;
 		unsigned int iRes = 0;
 		for(iRes = 0; iRes < *itProf; ++ iRes)
 		{
@@ -95,28 +114,19 @@ std::vector<std::vector<std::string> > CycleInfoFile::getStrandResidues(
 	return strandResidues;
 }
 
-std::list<std::string> CycleInfoFile::getResidues(
+CycleInfo::residue_strand CycleInfoFile::getResidues(
 	const std::string& aResidues) const
 {
-	std::list<std::string> residues;
+	CycleInfo::residue_strand residues;
 	std::string strResidues = aResidues;
 
 	annotate::cleanString(strResidues, ' ');
-	while(0 < strResidues.size())
+	std::vector<std::string> residuesString = splitStringFields(strResidues, "-");
+	std::vector<std::string>::const_iterator it = residuesString.begin();
+	for(it = residuesString.begin(); it != residuesString.end(); ++it)
 	{
-		std::string strRes;
-		std::size_t sep = strResidues.rfind('-');
-		if(sep != std::string::npos)
-		{
-			strRes = strResidues.substr(sep + 1, strResidues.size() - (sep + 1));
-			strResidues.erase(sep);
-		}
-		else
-		{
-			strRes = strResidues;
-			strResidues.clear();
-		}
-		residues.push_front(strRes);
+		mccore::ResId res(it->c_str());
+		residues.push_back(res);
 	}
 	return residues;
 }
