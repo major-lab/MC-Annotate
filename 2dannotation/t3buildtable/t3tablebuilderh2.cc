@@ -46,11 +46,17 @@ void T3TableBuilderH2::initializeTables()
 	mInteractionsCount.resize(mProfileMap.size());
 	for(unsigned int i = 0; i < mProfileMap.size(); ++ i)
 	{
-		unsigned int uiSize = profileSize(i);
 		mInteractionsCount[i].resize(mInteractionTypeMap.size());
 		for(unsigned int k = 0; k < mInteractionTypeMap.size(); ++ k)
 		{
-			mInteractionsCount[i][k].resize(uiSize, 0);
+			std::pair<unsigned int, unsigned int> sizes = profileSizes(i);
+			if(sizes.first == sizes.second)
+			{
+				mInteractionsCount[i][k].resize(sizes.first, 0);
+			}else
+			{
+				mInteractionsCount[i][k].resize(sizes.first + sizes.second, 0);
+			}
 		}
 	}
 
@@ -109,9 +115,10 @@ void T3TableBuilderH2::computeFrequencies()
 		countLeft.resize(uiSize1, 0);
 		for(unsigned int k = 0; k < mInteractionTypeMap.size(); ++ k)
 		{
-			for(unsigned int l = 0; l < uiSize1; ++ l)
+			for(unsigned int l = 0; l < mInteractionsCount[i][k].size(); ++ l)
 			{
-				countLeft[l] += mInteractionsCount[i][k][l];
+				unsigned int uiLeftPos = getNucleotideSymetricPosition(i, l);
+				countLeft[uiLeftPos] += mInteractionsCount[i][k][uiLeftPos];
 			}
 		}
 		for(unsigned int j = 0; j < mProfileMap.size(); ++ j)
@@ -121,9 +128,10 @@ void T3TableBuilderH2::computeFrequencies()
 			countRight.resize(uiSize2, 0);
 			for(unsigned int k = 0; k < mInteractionTypeMap.size(); ++ k)
 			{
-				for(unsigned int m = 0; m < uiSize2; ++ m)
+				for(unsigned int m = 0; m < mInteractionsCount[j][k].size(); ++ m)
 				{
-					countRight[m] += mInteractionsCount[j][k][m];
+					unsigned int uiRightPos = getNucleotideSymetricPosition(j, m);
+					countRight[uiRightPos] += mInteractionsCount[j][k][uiRightPos];
 				}
 			}
 
@@ -131,14 +139,16 @@ void T3TableBuilderH2::computeFrequencies()
 			{
 				for(unsigned int l = 0; l < uiSize1; ++ l)
 				{
+					unsigned int uiLeftPos = getNucleotideSymetricPosition(i, l);
 					if(0 < countLeft[l])
 					{
-						float fLeft = ((float)mInteractionsCount[i][k][l]) / ((float)countLeft[l]);
+						float fLeft = ((float)mInteractionsCount[i][k][uiLeftPos]) / ((float)countLeft[uiLeftPos]);
 						for(unsigned int m = 0; m < uiSize2; ++ m)
 						{
+							unsigned int uiRightPos = getNucleotideSymetricPosition(j, m);
 							if(0 < countRight[m])
 							{
-								float fRight = ((float)mInteractionsCount[j][k][m]) / ((float)countRight[m]);
+								float fRight = ((float)mInteractionsCount[j][k][uiRightPos]) / ((float)countRight[uiRightPos]);
 								mFrequencies[i][j][k][l][m] = std::min(fLeft, fRight);
 							}
 						}

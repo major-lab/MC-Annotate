@@ -43,26 +43,58 @@ void T3BuildTableH1::computeStatistics()
 void T3BuildTableH1::initializeTables()
 {
 	// Initialize the count and frequencies to 0
-	mInteractionsCount.resize(mProfileMap.size());
 	mFrequencies.resize(mProfileMap.size());
 	for(unsigned int i = 0; i < mProfileMap.size(); ++ i)
 	{
 		unsigned int uiSize1 = profileSize(i);
-		mInteractionsCount[i].resize(mProfileMap.size());
 		mFrequencies[i].resize(mProfileMap.size());
 		for(unsigned int j = 0; j < mProfileMap.size(); ++ j)
 		{
 			unsigned int uiSize2 = profileSize(j);
-			mInteractionsCount[i][j].resize(mInteractionTypeMap.size());
 			mFrequencies[i][j].resize(mInteractionTypeMap.size());
 			for(unsigned int k = 0; k < mInteractionTypeMap.size(); ++ k)
 			{
-				mInteractionsCount[i][j][k].resize(uiSize1);
 				mFrequencies[i][j][k].resize(uiSize1);
 				for(unsigned int l = 0; l < uiSize1; ++ l)
 				{
-					mInteractionsCount[i][j][k][l].resize(uiSize2, 0);
 					mFrequencies[i][j][k][l].resize(uiSize2, 0.0f);
+				}
+			}
+		}
+	}
+
+	// Initialize the count and frequencies to 0
+	mInteractionsCount.resize(mProfileMap.size());
+	for(unsigned int i = 0; i < mProfileMap.size(); ++ i)
+	{
+		mInteractionsCount[i].resize(mProfileMap.size());
+		for(unsigned int j = 0; j < mProfileMap.size(); ++ j)
+		{
+			unsigned int uiSize2 = profileSize(j);
+			mInteractionsCount[i][j].resize(mInteractionTypeMap.size());
+			for(unsigned int k = 0; k < mInteractionTypeMap.size(); ++ k)
+			{
+				unsigned int uiSize1 = 0;
+				std::pair<unsigned int, unsigned int> sizes = profileSizes(i);
+				if(sizes.first == sizes.second)
+				{
+					uiSize1 = sizes.first;
+				}else
+				{
+					uiSize1 = sizes.first + sizes.second;
+				}
+				mInteractionsCount[i][j][k].resize(uiSize1);
+				for(unsigned int l = 0; l < mInteractionsCount[i][j][k].size(); ++ l)
+				{
+					std::pair<unsigned int, unsigned int> sizes2 = profileSizes(j);
+					if(sizes2.first == sizes2.second)
+					{
+						uiSize2 = sizes2.first;
+					}else
+					{
+						uiSize2 = sizes2.first + sizes2.second;
+					}
+					mInteractionsCount[i][j][k][l].resize(uiSize2, 0);
 				}
 			}
 		}
@@ -127,21 +159,25 @@ void T3BuildTableH1::computeFrequencies(
 	{
 		for(unsigned int l = 0; l < uiProfileSize1; ++ l)
 		{
+			unsigned int uiLeftPos = getNucleotideSymetricPosition(auiProfile1, l);
 			for(unsigned int m = 0; m < uiProfileSize2; ++ m)
 			{
-				count[l][m] += mInteractionsCount[auiProfile1][auiProfile2][k][l][m]; // TODO : Make this unique
+				unsigned int uiRightPos = getNucleotideSymetricPosition(auiProfile2, m);
+				count[uiLeftPos][uiRightPos] += mInteractionsCount[auiProfile1][auiProfile2][k][uiLeftPos][uiRightPos]; // TODO : Make this unique
 			}
 		}
 	}
 
 	for(unsigned int l = 0; l < uiProfileSize1; ++ l)
 	{
+		unsigned int uiLeftPos = getNucleotideSymetricPosition(auiProfile1, l);
 		for(unsigned int m = 0; m < uiProfileSize2; ++ m)
 		{
-			if(0 < count[l][m])
+			unsigned int uiRightPos = getNucleotideSymetricPosition(auiProfile2, m);
+			if(0 < count[uiLeftPos][uiRightPos])
 			{
-				float fCountPos = (float)mInteractionsCount[auiProfile1][auiProfile2][auiTypeId][l][m];
-				float fFreq =  fCountPos / ((float)count[l][m]);
+				float fCountPos = (float)mInteractionsCount[auiProfile1][auiProfile2][auiTypeId][uiLeftPos][uiRightPos];
+				float fFreq =  fCountPos / ((float)count[uiLeftPos][uiRightPos]);
 				mFrequencies[auiProfile1][auiProfile2][auiTypeId][l][m] = fFreq;
 			}
 		}

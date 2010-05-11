@@ -389,6 +389,7 @@ std::string T3TableBuilder::profileString(unsigned int auiProfile) const
 	return strProfile;
 }
 
+
 std::string T3TableBuilder::interactionTypeString(unsigned int auiTypeId) const
 {
 	const char* szTypes[] = {
@@ -431,11 +432,34 @@ unsigned int T3TableBuilder::getNucleotidePosition(
 	uiPosition = i;
 	if(2 == uiNbStrands)
 	{
-			annotate::CycleInfo::residue_profile resProf = aCycle.getStrandResIds();
+		annotate::CycleInfo::residue_profile resProf = aCycle.getStrandResIds();
 		if(resProf[0].size() == resProf[1].size())
 		{
 			// Symmetric cycle
 			uiPosition %= resProf[0].size();
+		}
+	}
+	return uiPosition;
+}
+
+unsigned int T3TableBuilder::getNucleotideSymetricPosition(
+	unsigned int auiProfileId,
+	unsigned int auiPosition) const
+{
+	std::pair<unsigned int, unsigned int> sizes = profileSizes(auiProfileId);
+	unsigned int uiPosition = 0;
+	assert(auiPosition < sizes.first + sizes.second);
+	unsigned int uiNbStrands = 0;
+	if(sizes.first != 0) uiNbStrands ++;
+	if(sizes.second != 0) uiNbStrands ++;
+	assert(0 < uiNbStrands && uiNbStrands < 3);
+	uiPosition = auiPosition;
+	if(2 == uiNbStrands)
+	{
+		if(sizes.first == sizes.second)
+		{
+			// Symmetric cycle
+			uiPosition = (auiPosition % sizes.first);
 		}
 	}
 	return uiPosition;
@@ -488,4 +512,62 @@ unsigned int T3TableBuilder::profileSize(unsigned int auiProfileId) const
 		break;
 	}
 	return uiSize;
+}
+
+std::pair<unsigned int, unsigned int> T3TableBuilder::profileSizes(unsigned int auiProfile) const
+{
+	std::pair<unsigned int, unsigned int> sizes(0,0);
+
+	switch(auiProfile)
+	{
+	case 0:
+		sizes.first = 3;
+		break;
+	case 1:
+		sizes.first = 4;
+		break;
+	case 2:
+		sizes.first = 5;
+		break;
+	case 3:
+		sizes.first = 6;
+		break;
+	case 4:
+		sizes.first = 2;
+		sizes.second = 2;
+		break;
+	case 5:
+		sizes.first = 2;
+		sizes.second = 3;
+		break;
+	case 6:
+		sizes.first = 2;
+		sizes.second = 4;
+		break;
+	case 7:
+		sizes.first = 2;
+		sizes.second = 5;
+		break;
+	case 8:
+		sizes.first = 2;
+		sizes.second = 6;
+		break;
+	case 9:
+		sizes.first = 3;
+		sizes.second = 3;
+		break;
+	case 10:
+		sizes.first = 3;
+		sizes.second = 4;
+		break;
+	case 11:
+		sizes.first = 3;
+		sizes.second = 5;
+		break;
+	case 12:
+		sizes.first = 4;
+		sizes.second = 4;
+		break;
+	}
+	return sizes;
 }

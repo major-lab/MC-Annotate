@@ -57,7 +57,12 @@ void T3TableBuilderH3::initializeTables()
 	mInteractionsCount.resize(mProfileMap.size());
 	for(unsigned int i = 0; i < mProfileMap.size(); ++ i)
 	{
-		unsigned int uiSize = profileSize(i);
+		std::pair<unsigned int, unsigned int> sizes = profileSizes(i);
+		unsigned int uiSize = sizes.first;
+		if(sizes.first != sizes.second)
+		{
+			uiSize += sizes.second;
+		}
 		mInteractionsCount[i].resize(mOrientedFaceMap.size());
 		for(unsigned int k = 0; k < mOrientedFaceMap.size(); ++ k)
 		{
@@ -123,17 +128,19 @@ void T3TableBuilderH3::computeFrequencies()
 			{
 				for(unsigned int l = 0; l < uiProfile1; ++ l)
 				{
-					unsigned int uiCount1 = count[i][l];
+					unsigned int uiLeftPos = getNucleotideSymetricPosition(i, l);
+					unsigned int uiCount1 = count[i][uiLeftPos];
 					if(0 < uiCount1)
 					{
 						for(unsigned int m = 0; m < uiProfile2; ++ m)
 						{
-							unsigned int uiCount2 = count[j][m];
+							unsigned int uiRightPos = getNucleotideSymetricPosition(j, m);
+							unsigned int uiCount2 = count[j][uiRightPos];
 							if(0 < uiCount2)
 							{
 								std::pair<unsigned int, unsigned int> faces = getFacesIdFromTypeId(k);
-								float fLeftCount = (float)mInteractionsCount[i][faces.first][l];
-								float fRightCount = (float)mInteractionsCount[j][faces.second][m];
+								float fLeftCount = (float)mInteractionsCount[i][faces.first][uiLeftPos];
+								float fRightCount = (float)mInteractionsCount[j][faces.second][uiRightPos];
 								float fLeft = fLeftCount / ((float)uiCount1);
 								float fRight = fRightCount / ((float)uiCount2);;
 								mFrequencies[i][j][k][l][m] = std::min(fLeft, fRight);
@@ -223,11 +230,10 @@ std::vector<std::vector<unsigned int> > T3TableBuilderH3::computeInteractionsByP
 	count.resize(mProfileMap.size());
 	for(unsigned int i = 0; i < mProfileMap.size(); ++ i)
 	{
-		unsigned int uiSize = profileSize(i);
 		count[i].resize(mOrientedFaceMap.size(), 0);
 		for(unsigned int k = 0; k < mOrientedFaceMap.size(); ++ k)
 		{
-			for(unsigned int l = 0; l < uiSize; ++ l)
+			for(unsigned int l = 0; l < mInteractionsCount[i][k].size(); ++ l)
 			{
 				count[i][l] += mInteractionsCount[i][k][l];
 			}

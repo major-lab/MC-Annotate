@@ -47,7 +47,11 @@ protected:
 
 	interaction_coordinate getInteractionCoordinates(const interaction_cycle_pair& aInteraction) const;
 	unsigned int getNucleotidePosition(const annotate::CycleInfo& aCycle, const mccore::ResId& aResId) const;
+	std::pair<unsigned int, unsigned int> profileSizes(unsigned int auiProfile) const;
 	unsigned int profileSize(unsigned int auiProfileId) const;
+	unsigned int getNucleotideSymetricPosition(
+		unsigned int auiProfileId,
+		unsigned int auiPosition) const;
 private:
 	void readInteractions(const std::string& astrInteractions);
 	void readPDBGroups(const std::string& astrGroups);
