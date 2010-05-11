@@ -1,16 +1,16 @@
 //                              -*- Mode: C++ -*-
-// mc3dicp.cc
+// mc3dssc.cc
 // Copyright © 2001-10 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
 // Author           : Marc-Frédérick Blanchet
-// Created On       : Wed Mar 22 10:22:00 2010
+// Created On       : Wed Mar 18 14:04:00 2010
 
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
-#include "mc3dicp.h"
+#include "mc3dssc.h"
 
 #include "CycleInfo.h"
 
@@ -26,7 +26,7 @@
 
 static const char* shortopts = "Vhlvc:p:";
 
-MC3DInteractingCyclePairs::MC3DInteractingCyclePairs(int argc, char * argv [])
+MC3DSecondaryStructureCycles::MC3DSecondaryStructureCycles(int argc, char * argv [])
 {
 	// Read the command line options
 	readOptions(argc, argv);
@@ -53,21 +53,14 @@ MC3DInteractingCyclePairs::MC3DInteractingCyclePairs(int argc, char * argv [])
 		++ itCycle)
 	{
 		annotate::ModelInfo model = itCycle->getModelInfo();
-		annotate::CycleInfo cycle = *itCycle;
-		if(2 == cycle.getNbStrands() && cycle.getStrandResIds()[0].size() > cycle.getStrandResIds()[1].size())
-		{
-			std::cout << "Flipping strand" << std::endl;
-			assert(false);
-			cycle = annotate::CycleInfo::flipStrand(cycle);
-		}
-		mCycles[model].insert(cycle);
+		mCycles[model].insert(*itCycle);
 		mModels.insert(model);
 	}
 
-	identifyPairs();
+	identifyCycles();
 }
 
-void MC3DInteractingCyclePairs::version () const
+void MC3DSecondaryStructureCycles::version () const
 {
 	mccore::Version mccorev;
 
@@ -77,27 +70,27 @@ void MC3DInteractingCyclePairs::version () const
 }
 
 
-void MC3DInteractingCyclePairs::usage () const
+void MC3DSecondaryStructureCycles::usage () const
 {
 	mccore::gOut(0) << "usage: " << PACKAGE
 		<< " [-hlvV] -c <cycles file> -p <distant pairs file>"
 		<< std::endl;
 }
 
-void MC3DInteractingCyclePairs::help () const
+void MC3DSecondaryStructureCycles::help () const
 {
 	mccore::gOut (0)
-		<< "This program identifies pairs of cycles interacting together." << std::endl
+		<< "This program identifies cycles belonging to the secondary structure." << std::endl
 		<< "  -c	file containing the identified cycles" << std::endl
 		<< "  -p	file containing the non-adjacent interacting pairs" << std::endl
-		<< "  -h                print this help" << std::endl
-		<< "  -l                be more verbose (log)" << std::endl
-		<< "  -v                be verbose" << std::endl
-		<< "  -V                print the software version info" << std::endl;
+		<< "  -h	print this help" << std::endl
+		<< "  -l	be more verbose (log)" << std::endl
+		<< "  -v	be verbose" << std::endl
+		<< "  -V	print the software version info" << std::endl;
 }
 
 
-void MC3DInteractingCyclePairs::readOptions (int argc, char* argv[])
+void MC3DSecondaryStructureCycles::readOptions (int argc, char* argv[])
 {
 	int c;
 
@@ -143,94 +136,98 @@ void MC3DInteractingCyclePairs::readOptions (int argc, char* argv[])
 	}
 }
 
-void MC3DInteractingCyclePairs::identifyPairs()
+void MC3DSecondaryStructureCycles::identifyCycles()
 {
 	std::set<annotate::ModelInfo>::const_iterator itModel;
 	for(itModel = mModels.begin(); itModel != mModels.end(); ++ itModel)
 	{
-		identifyModelPairs(*itModel);
+		identifyModelCycles(*itModel);
 	}
 }
 
-void MC3DInteractingCyclePairs::identifyModelPairs(const annotate::ModelInfo& aModel)
+void MC3DSecondaryStructureCycles::identifyModelCycles(const annotate::ModelInfo& aModel)
 {
-	std::map<annotate::ModelInfo, interaction_set >::const_iterator itInterSet = mInteractions.find(aModel);
-	std::map<annotate::ModelInfo, cycle_set >::const_iterator itCycleSet = mCycles.find(aModel);
+	std::map<annotate::ModelInfo, interaction_set >::iterator itInterSet = mInteractions.find(aModel);
+	std::map<annotate::ModelInfo, cycle_set >::iterator itCycleSet = mCycles.find(aModel);
 	if(itInterSet != mInteractions.end() && itCycleSet != mCycles.end())
 	{
+		cycle_set cycleSet = itCycleSet->second;
+		cycle_set::const_iterator itCycle;
+
+		// Remove cycles with parallel profile or happening between different
+		// molecules
+		cycle_set toRemove;
+		for(itCycle = cycleSet.begin(); itCycle != cycleSet.end(); ++ itCycle)
+		{
+			if( itCycle->getProfile().type() == annotate::Cycle::e2STRANDS_PARALLEL
+							    || !singleChain(*itCycle))
+			{
+				toRemove.insert(*itCycle);
+			}
+		}
+		cycleSet = annotate::SetDifference(cycleSet, toRemove);
+		toRemove.clear();
+
+		// Remove cycles containing tertiary interaction
 		interaction_set::const_iterator itInter;
 		for(itInter = itInterSet->second.begin();
 			itInter != itInterSet->second.end();
 			++ itInter)
 		{
-			cycle_set::const_iterator itCycle;
-			std::set<annotate::CycleInfo> left;
-			std::set<annotate::CycleInfo> right;
-			for(itCycle = itCycleSet->second.begin();
-				itCycle != itCycleSet->second.end();
-				++ itCycle)
+			for(itCycle = cycleSet.begin(); itCycle != cycleSet.end(); ++ itCycle)
 			{
-				if(itCycle->contains(itInter->getRes1()) && !itCycle->contains(*itInter))
+				if(itCycle->contains(*itInter))
 				{
-					left.insert(*itCycle);
-				}
-				if(itCycle->contains(itInter->getRes2()) && !itCycle->contains(*itInter))
-				{
-					right.insert(*itCycle);
+					toRemove.insert(*itCycle);
 				}
 			}
-			outputPairs(left, right);
 		}
+		cycleSet = annotate::SetDifference(cycleSet, toRemove);
+		outputCycles(cycleSet);
 	}
 }
 
-void MC3DInteractingCyclePairs::outputPairs(
-	std::set<annotate::CycleInfo>& aLeft,
-	std::set<annotate::CycleInfo>& aRight)
+bool MC3DSecondaryStructureCycles::singleChain(const annotate::CycleInfo& aCycle) const
 {
-	std::set<std::pair<annotate::CycleInfo, annotate::CycleInfo> > pairs;
-	std::set<annotate::CycleInfo>::const_iterator it1 = aLeft.begin();
-	std::set<annotate::CycleInfo>::const_iterator it2 = aRight.begin();
-	for(it1 = aLeft.begin(); it1 != aLeft.end(); ++ it1)
+	bool bSingle = true;
+	char chChainId = ' ';
+	std::vector<mccore::ResId> ids = aCycle.getResIds();
+	std::vector<mccore::ResId>::const_iterator it;
+	for(it = ids.begin(); it != ids.end() && bSingle; ++ it)
 	{
-		for(it2 = aRight.begin(); it2 != aRight.end(); ++ it2)
+		try
 		{
-			std::pair<annotate::CycleInfo, annotate::CycleInfo> interactingPair;
-			if(*it1 < *it2)
-			{
-				interactingPair.first = *it1;
-				interactingPair.second = *it2;
-			}else
-			{
-				interactingPair.first = *it2;
-				interactingPair.second = *it1;
-			}
-			pairs.insert(interactingPair);
+		if(it == ids.begin())
+		{
+			chChainId = it->getChainId();
+		}else if(it->getChainId() != chChainId)
+		{
+			bSingle = false;
+		}
+		} catch(mccore::FatalLibException except)
+		{
+			std::cerr << except << " : " << *it << std::endl;
 		}
 	}
-	std::set<std::pair<annotate::CycleInfo, annotate::CycleInfo> >::const_iterator itPair;
-	for(itPair = pairs.begin(); itPair != pairs.end(); ++ itPair)
+	return bSingle;
+}
+
+void MC3DSecondaryStructureCycles::outputCycles(
+	std::set<annotate::CycleInfo>& aCycles) const
+{
+	std::set<annotate::CycleInfo>::const_iterator it = aCycles.begin();
+	for(it = aCycles.begin(); it != aCycles.end(); ++ it)
 	{
-		// Model
-		std::cout << itPair->first.getPDBFile() << " : " << itPair->first.getModel();
-
-		// First Cycle
-		std::cout << " ; " << itPair->first.getProfile().toString();
-		std::cout << " : " << itPair->first.resIdsString("-");
-		std::cout << " : " << itPair->first.residuesString("-");
-
-		// Second cycle
-		std::cout << " ; " << itPair->second.getProfile().toString();
-		std::cout << " : " << itPair->second.resIdsString("-");
-		std::cout << " : " << itPair->second.residuesString("-");
-
-		std::cout << std::endl;
+		std::cout << it->getPDBFile() << " : " << it->getModel();
+		std::cout << " : " << it->getProfile().toString();
+		std::cout << " : " << it->resIdsString("-");
+		std::cout << " : " << it->residuesString("-") << std::endl;
 	}
 }
 
 int main (int argc, char *argv[])
 {
-	MC3DInteractingCyclePairs theApp(argc, argv);
+	MC3DSecondaryStructureCycles theApp(argc, argv);
 
 	return EXIT_SUCCESS;
 }
