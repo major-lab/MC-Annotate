@@ -48,6 +48,11 @@ namespace annotate
 		std::list<const BaseInteraction*> getInteractions(
 			const std::set<mccore::ResId>& aResIds) const;
 
+		// Get the list of stacks split in two list, the first one contains the
+		// adjacent stack and the second contains
+		std::pair<std::list< BaseStack >, std::list<BaseStack> >
+					getSplitStacksAdjacencies() const;
+
 		/**
 		 * @brief Checks if two residues have a link relation between them
 		 */
@@ -64,7 +69,6 @@ namespace annotate
     	std::vector< BaseStack > mStacks;
 		std::vector< BaseLink > mLinks;
 		std::set<BasePair> mWWPairs;
-    	std::vector< unsigned int > mMarks;
     	interaction_multiset mInteractions;
 		virtual void clear();
 
@@ -80,6 +84,31 @@ namespace annotate
 			std::ostringstream& oss,
 			const BasePair& aBasePair) const;
 		void outputStacks(std::ostringstream& oss) const;
+
+		/*
+		 * Utility method to output a list of stacks
+		 */
+		void outputStacks(
+			std::ostringstream& oss,
+			const std::list< BaseStack >& aStacks) const;
+
+		/*
+		 * Method to create a new base stack from a relation with the
+		 * proper annotation.
+		 * TODO : This should be in the BaseStack class.
+		 */
+		BaseStack* newBaseStack(
+			const mccore::GraphModel& aModel,
+			const mccore::Relation& aRelation) const;
+
+		/*
+		 * Method to create a new base pair from a relation with the proper
+		 * annotation.
+		 * TODO : This should be in the BasePair class.
+		 */
+		BasePair* newBasePair(
+			const mccore::GraphModel& aModel,
+			const mccore::Relation& aRelation) const;
 	};
 }
 

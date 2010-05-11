@@ -3,8 +3,10 @@
 #include "mccore/Pdbstream.h"
 #include "mccore/GraphModel.h"
 
-#include <sstream>
+#include <cassert>
 #include <iterator>
+#include <sstream>
+
 
 namespace annotate
 {
@@ -25,7 +27,6 @@ namespace annotate
 		mPairs.clear();
     	mStacks.clear();
 		mLinks.clear();
-    	mMarks.clear();
 
     	std::multiset< BaseInteraction*, less_ptr<BaseInteraction> >::const_iterator it;
     	for(it = mInteractions.begin(); it != mInteractions.end(); ++ it)
@@ -40,13 +41,13 @@ namespace annotate
 		mpModel = &aModel;
 
 		clear();
-		mMarks.resize (aModel.size (), 0);
 		mccore::GraphModel::edge_const_iterator eit;
 		for (eit = aModel.edge_begin (); aModel.edge_end () != eit; ++eit)
 		{
 			const mccore::Residue *ref;
 			const mccore::Residue *res;
 
+			// Insure we're entering the relation only once
 			if ((ref = (*eit)->getRef ())->getResId () < (res = (*eit)->getRes ())->getResId ())
 			{
 				const mccore::ResId refId = ref->getResId();
@@ -56,9 +57,7 @@ namespace annotate
 
 				if ((*eit)->isPairing ())
 				{
-					mMarks[refLabel] |= PAIRING_MARK;
-					mMarks[resLabel] |= PAIRING_MARK;
-					BasePair* pInteraction = new BasePair(refLabel, refId, resLabel, resId);
+					BasePair* pInteraction = newBasePair(aModel, *(*eit));
 					mPairs.push_back(*pInteraction);
 					mInteractions.insert(pInteraction);
 				}
@@ -70,7 +69,7 @@ namespace annotate
 				}
 				if ((*eit)->isStacking ())
 				{
-					BaseStack* pInteraction = new BaseStack(refLabel, refId, resLabel, resId);
+					BaseStack* pInteraction = newBaseStack(aModel, *(*eit));
 					mStacks.push_back(*pInteraction);
 					mInteractions.insert(pInteraction);
 				}
@@ -89,6 +88,79 @@ namespace annotate
 		update(*pModel);
 	}
 
+	BaseStack* AnnotationInteractions::newBaseStack(
+		const mccore::GraphModel& aModel,
+		const mccore::Relation& aRelation) const
+	{
+		assert(aRelation.isStacking());
+		const mccore::Residue *ref = aRelation.getRef ();
+		const mccore::Residue *res = aRelation.getRes ();
+
+		// Insure the relation is in the right order
+		assert(ref->getResId () < res->getResId ());
+
+		const mccore::ResId refId = ref->getResId();
+		const mccore::ResId resId = res->getResId();
+		mccore::GraphModel::label refLabel = aModel.getVertexLabel (const_cast< mccore::Residue* > (ref));
+		mccore::GraphModel::label resLabel = aModel.getVertexLabel (const_cast< mccore::Residue* > (res));
+		BaseStack::enAdjacency eAdjacency = BaseStack::eUnconnected;
+		if(aRelation.is(PropertyType::pAdjacent5p))
+		{
+			eAdjacency = BaseStack::eAdjacent5p;
+		}else if(aRelation.is(PropertyType::pAdjacent3p))
+		{
+			eAdjacency = BaseStack::eAdjacent3p;
+		}
+		BaseStack::enStackingType eStacking = BaseStack::eUpward;
+		if(aRelation.is(PropertyType::pUpward))
+		{
+			eStacking = BaseStack::eUpward;
+		}else if(aRelation.is(PropertyType::pDownward))
+		{
+			eStacking = BaseStack::eDownward;
+		}else if(aRelation.is(PropertyType::pInward))
+		{
+			eStacking = BaseStack::eInward;
+		}else if(aRelation.is(PropertyType::pOutward))
+		{
+			eStacking = BaseStack::eOutward;
+		}
+		BaseStack* pInteraction = new BaseStack(refLabel, refId, resLabel, resId, eAdjacency);
+		return pInteraction;
+	}
+
+	BasePair* AnnotationInteractions::newBasePair(
+			const mccore::GraphModel& aModel,
+			const mccore::Relation& aRelation) const
+	{
+		assert(aRelation.isPairing());
+		const mccore::Residue *ref = aRelation.getRef ();
+		const mccore::Residue *res = aRelation.getRes ();
+
+		// Insure the relation is in the right order
+		assert(ref->getResId () < res->getResId ());
+
+		const std::vector< std::pair< const mccore::PropertyType*, const mccore::PropertyType* > > &faces = aRelation.getPairedFaces ();
+
+		const mccore::ResId refId = ref->getResId();
+		const mccore::ResId resId = res->getResId();
+		mccore::GraphModel::label refLabel = aModel.getVertexLabel (const_cast< mccore::Residue* > (ref));
+		mccore::GraphModel::label resLabel = aModel.getVertexLabel (const_cast< mccore::Residue* > (res));
+		BasePair* pInteraction = new BasePair(refLabel, refId, resLabel, resId, faces);
+
+		if(aRelation.is(mccore::PropertyType::pCis))
+		{
+			pInteraction->orientation(BasePair::eCis);
+		}else if(aRelation.is(mccore::PropertyType::pTrans))
+		{
+			pInteraction->orientation(BasePair::eTrans);
+		}else
+		{
+			pInteraction->orientation(BasePair::eUnknown);
+		}
+		return pInteraction;
+	}
+
 	std::string AnnotationInteractions::output() const
 	{
 		std::ostringstream oss;
@@ -102,43 +174,53 @@ namespace annotate
 	{
 		if(NULL != mpModel)
 		{
-			std::vector< BaseStack > nonAdjacentStacks;
-			std::vector< BaseStack >::const_iterator bsit;
+			std::pair<std::list< BaseStack >, std::list<BaseStack> > stacks;
+			stacks = getSplitStacksAdjacencies();
 
 			oss << "Adjacent stackings ----------------------------------------------" << endl;
-
-			for (bsit = mStacks.begin (); mStacks.end () != bsit; ++bsit)
-			{
-				const mccore::Relation *rel = mpModel->internalGetEdge (bsit->first, bsit->second);
-				if (rel->is (PropertyType::pAdjacent))
-				{
-					const std::set< const mccore::PropertyType* > &labels = rel->getLabels ();
-
-					oss << bsit->fResId << "-" << bsit->rResId << " : ";
-		    		std::copy (labels.begin (), labels.end (), ostream_iterator< const mccore::PropertyType* > (oss, " "));
-					oss << endl;
-				}
-				else
-				{
-					nonAdjacentStacks.push_back (*bsit);
-				}
-			}
+			outputStacks(oss, stacks.first);
 
 		    oss << "Non-Adjacent stackings ------------------------------------------" << endl;
-
-			for (bsit = nonAdjacentStacks.begin (); nonAdjacentStacks.end () != bsit; ++bsit)
-			{
-				const std::set< const mccore::PropertyType* > &labels = mpModel->internalGetEdge (bsit->first, bsit->second)->getLabels ();
-
-				oss << bsit->fResId << "-" << bsit->rResId << " : ";
-				std::copy (labels.begin (), labels.end (), ostream_iterator< const mccore::PropertyType* > (oss, " "));
-				oss << endl;
-			}
-
+		    outputStacks(oss, stacks.second);
 	    	oss << "Number of stackings = " << mStacks.size () << endl
-		    	<< "Number of adjacent stackings = " << mStacks.size () - nonAdjacentStacks.size () << endl
-			    << "Number of non adjacent stackings = " << nonAdjacentStacks.size () << endl;
+		    	<< "Number of adjacent stackings = " << stacks.first.size () - stacks.second.size () << endl
+			    << "Number of non adjacent stackings = " << stacks.second.size () << endl;
 		}
+	}
+
+	void AnnotationInteractions::outputStacks(
+		std::ostringstream& oss,
+		const std::list< BaseStack >& aStacks) const
+	{
+		std::list< BaseStack >::const_iterator it;
+		for (it = aStacks.begin (); aStacks.end () != it; ++ it)
+		{
+			const mccore::Relation *rel = mpModel->internalGetEdge (it->first, it->second);
+			const std::set< const mccore::PropertyType* > &labels = rel->getLabels ();
+			oss << it->fResId << "-" << it->rResId << " : ";
+			std::copy (labels.begin (), labels.end (), ostream_iterator< const mccore::PropertyType* > (oss, " "));
+			oss << endl;
+		}
+	}
+
+	std::pair<std::list< BaseStack >, std::list<BaseStack> >
+	AnnotationInteractions::getSplitStacksAdjacencies() const
+	{
+		std::pair<std::list< BaseStack >, std::list<BaseStack> > stacks;
+		std::vector<BaseStack>::const_iterator it;
+		for (it = mStacks.begin (); mStacks.end () != it; ++ it)
+		{
+			const mccore::Relation *rel = mpModel->internalGetEdge (it->first, it->second);
+			if (rel->is (PropertyType::pAdjacent))
+			{
+				stacks.first.push_back(*it);
+			}
+			else
+			{
+				stacks.second.push_back(*it);
+			}
+		}
+		return stacks;
 	}
 
 	void AnnotationInteractions::outputPair (std::ostringstream& oss, const BasePair& aBasePair) const
@@ -147,7 +229,6 @@ namespace annotate
 		{
 			const mccore::Relation &rel = *mpModel->internalGetEdge (aBasePair.first, aBasePair.second);
 			const std::set< const mccore::PropertyType* > &labels = rel.getLabels ();
-			const std::vector< std::pair< const mccore::PropertyType*, const mccore::PropertyType* > > &faces = rel.getPairedFaces ();
 			std::vector< pair< const mccore::PropertyType*, const mccore::PropertyType* > >::const_iterator pfit;
 
 			oss << aBasePair.fResId << '-' << aBasePair.rResId << " : ";
@@ -155,7 +236,7 @@ namespace annotate
 				<< "-"
 				<< mccore::Pdbstream::stringifyResidueType (rel.getRes ()->getType ())
 				<< " ";
-			for (pfit = faces.begin (); faces.end () != pfit; ++pfit)
+			for (pfit = aBasePair.faces().begin (); aBasePair.faces().end () != pfit; ++pfit)
 			{
 				oss << *pfit->first << "/" << *pfit->second << ' ';
 			}

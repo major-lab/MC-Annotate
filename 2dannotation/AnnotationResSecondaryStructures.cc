@@ -8,30 +8,30 @@ namespace annotate
 {
 	// Static members
 	std::string AnnotationResSecondaryStructures::mstrAnnotationName = "ResSecondaryStructures";
-	
-	// Methods	
-	AnnotationResSecondaryStructures::AnnotationResSecondaryStructures() 
+
+	// Methods
+	AnnotationResSecondaryStructures::AnnotationResSecondaryStructures()
 	{
 		addRequirement<AnnotationLoops>();
 		addRequirement<AnnotationStems>();
 	}
-	
-	AnnotationResSecondaryStructures::~AnnotationResSecondaryStructures() 
+
+	AnnotationResSecondaryStructures::~AnnotationResSecondaryStructures()
 	{
 		clear();
 	}
-	
+
 	void AnnotationResSecondaryStructures::clear()
 	{
 		mMapping.clear();
 	}
-		
+
 	void AnnotationResSecondaryStructures::update(AnnotateModel& aModel)
 	{
 		// This model contains no stems, there is only one open loop
 		const AnnotationLoops* pAnnotLoops = aModel.getAnnotation<AnnotationLoops>();
 		const AnnotationStems* pAnnotStems = aModel.getAnnotation<AnnotationStems>();
-		
+
 		if(NULL != pAnnotLoops && NULL != pAnnotStems)
 		{
 			const SecondaryStructure* pStruct = NULL;
@@ -41,8 +41,8 @@ namespace annotate
 				pStruct = NULL;
 				mccore::ResId resId = itRes->getResId();
 				std::vector< Stem >::const_iterator itStem;
-				for(itStem = pAnnotStems->getStems().begin(); 
-					itStem != pAnnotStems->getStems().end() && NULL == pStruct; 
+				for(itStem = pAnnotStems->getStems().begin();
+					itStem != pAnnotStems->getStems().end() && NULL == pStruct;
 					++itStem)
 				{
 					if(itStem->contains(resId))
@@ -50,10 +50,10 @@ namespace annotate
 						pStruct = &(*itStem);
 					}
 				}
-				
+
 				std::vector< Loop >::const_iterator itLoop;
-				for(itLoop = pAnnotLoops->getLoops().begin(); 
-					itLoop != pAnnotLoops->getLoops().end() && NULL == pStruct; 
+				for(itLoop = pAnnotLoops->getLoops().begin();
+					itLoop != pAnnotLoops->getLoops().end() && NULL == pStruct;
 					++itLoop)
 				{
 					if(itLoop->contains(resId))
@@ -61,22 +61,23 @@ namespace annotate
 						pStruct = &(*itLoop);
 					}
 				}
-				
-				if(NULL == pStruct)
+
+				/* if(NULL == pStruct)
 				{
 					mccore::gOut(0) << "Residue " << resId;
 					mccore::gOut(0) << " is associated with no structure";
 					mccore::gOut(0) << std::endl;
-					
+
 				}
-				else
+				else*/
+				if(NULL != pStruct)
 				{
 					mMapping[resId] = pStruct;
 				}
-			}			
+			}
 		}
 	}
-	
+
 	std::string AnnotationResSecondaryStructures::output() const
 	{
 		std::ostringstream oss;
