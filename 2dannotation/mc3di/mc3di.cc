@@ -252,8 +252,8 @@ std::string MC3DInteractions::faceString(
 	case annotate::InteractionInfo::eRibose:
 		strFace = "Ribose";
 		break;
-	case annotate::InteractionInfo::eBackbone:
-		strFace = "Backbone";
+	case annotate::InteractionInfo::ePhosphate:
+		strFace = "Phosphate";
 		break;
 	}
 	return strFace;
