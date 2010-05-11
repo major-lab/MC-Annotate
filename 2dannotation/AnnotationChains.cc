@@ -1,20 +1,21 @@
 #include "AnnotationChains.h"
 #include "AnnotateModel.h"
+#include <cassert>
 #include <sstream>
 
 namespace annotate
 {
 	std::string AnnotationChains::mstrAnnotationName = "Chains";
-	
+
 	AnnotationChains::AnnotationChains()
 	{
 	}
-	
+
 	AnnotationChains::~AnnotationChains()
 	{
 		clear();
 	}
-	
+
 	void AnnotationChains::clear()
 	{
 		chain_map::iterator it;
@@ -24,11 +25,11 @@ namespace annotate
 		}
 		mChains.clear();
 	}
-		
+
 	void AnnotationChains::update(AnnotateModel& aModel)
 	{
 		clear();
-		
+
 		chain_content chain;
 		mccore::GraphModel::const_iterator it = aModel.begin();
 		char cPrevChain = it->getResId().getChainId();
@@ -47,18 +48,18 @@ namespace annotate
 			mChains.insert(chain_entry(cPrevChain, chain));
 		}
 	}
-	
+
 	std::string AnnotationChains::output() const
 	{
 		ostringstream oss;
-		
+
 		chain_map::const_iterator itChain;
 		for(itChain = mChains.begin(); mChains.end() != itChain; ++itChain)
 	    {
 	    	oss << "Chain " << itChain->first << " : ";
 	    	chain_content::const_iterator itRes;
-	    	for(itRes = itChain->second.begin(); 
-	    		itRes != itChain->second.end(); 
+	    	for(itRes = itChain->second.begin();
+	    		itRes != itChain->second.end();
 	    		++ itRes)
 	    	{
 	    		if(itRes != itChain->second.begin())
@@ -69,7 +70,16 @@ namespace annotate
 	    	}
 	    	oss << std::endl;
 	    }
-	  	
-		return oss.str();		
+
+		return oss.str();
+	}
+
+	const std::list<mccore::ResId>& AnnotationChains::getChain(unsigned char aucChainId) const
+	{
+		chain_map::const_iterator it;
+		it = mChains.find(aucChainId);
+		std::cout << "Last chain looked for : " << aucChainId << std::endl;
+		assert(it != mChains.end());
+		return it->second;
 	}
 }
