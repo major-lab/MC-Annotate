@@ -8,10 +8,65 @@
 #ifndef _annotate_RNAGroupFile_H_
 #define _annotate_RNAGroupFile_H_
 
+#include <list>
+#include <map>
 #include <string>
 
 namespace annotate
 {
+
+// PROTOTYPES ------------------------------------------------------------------
+class CycleInfo;
+class InteractionInfo;
+
+class RNAGroupFileEntry
+{
+public:
+	// LIFECYLE ----------------------------------------------------------------
+	RNAGroupFileEntry(
+		const std::string astrPDB,
+		unsigned int auiModel,
+		char acChain,
+		int aiOffset)
+	{
+		mstrName = astrPDB;
+		muiModel = auiModel;
+		mcChain = acChain;
+		miOffset = aiOffset;
+	}
+
+	// ACCESSOR ----------------------------------------------------------------
+	std::string name() const {return mstrName;}
+	unsigned int model() const {return muiModel;}
+	char chain() const {return mcChain;}
+	int& offset() {return miOffset;}
+	int offset() const {return miOffset;}
+
+	// METHODS -----------------------------------------------------------------
+	bool operator<(const RNAGroupFileEntry& aEntry) const
+	{
+		bool bLess = true;
+		if(mstrName > aEntry.mstrName)
+		{
+			bLess = false;
+		}else if(mstrName == aEntry.mstrName)
+		{
+			if(muiModel > aEntry.muiModel)
+			{
+				bLess = false;
+			}else
+			{
+				bLess = (mcChain < aEntry.mcChain);
+			}
+		}
+		return bLess;
+	}
+private:
+	std::string mstrName;
+	unsigned int muiModel;
+	char mcChain;
+	int miOffset;
+};
 
 class RNAGroupFile
 {
@@ -21,19 +76,22 @@ public:
 	~RNAGroupFile();
 
 	// ACCESSOR ----------------------------------------------------------------
+	const std::map<unsigned int, std::list<RNAGroupFileEntry> >& groups() const
+	{return mGroups;}
 
 	// METHODS -----------------------------------------------------------------
-	void read(const char* aszFilename);
+	void read(const std::string& astrFilename);
+	unsigned int getGroup(const RNAGroupFileEntry& aEntry) const;
+	unsigned int getGroup(const CycleInfo& aCycle) const;
+	unsigned int getGroup(const InteractionInfo& aCycle) const;
 
 private:
-	struct stGroupFileEntry
-	{
-		std::string strName;
-		unsigned int uiModel;
-		char cChain;
-		int iOffset;
-	};
-	std::map<unsigned int, std::list<stGroupFileEntry> > mGroups;
+	std::map<unsigned int, std::list<RNAGroupFileEntry> > mGroups;
+	std::map<RNAGroupFileEntry, unsigned int> mEntryGroupMap;
+
+
+	void readLine(const std::string& astrLine);
+	void renumberOffsets();
 };
 
 };
