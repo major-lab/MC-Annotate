@@ -53,15 +53,16 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
 PROGSOURCES = MC-Annotate.cc
 
-SOURCES = AnnotateModel.cc Annotation.cc AnnotationChains.cc \
-	AnnotationInteractions.cc AnnotationLinkers.cc \
+SOURCES = AnnotateModel.cc AnnotatedModelSQLExporter.cc Annotation.cc \
+    AnnotationChains.cc AnnotationInteractions.cc AnnotationLinkers.cc \
 	AnnotationLoops.cc AnnotationResSecondaryStructures.cc AnnotationStems.cc \
 	AnnotationTertiaryPairs.cc AnnotationTertiaryStacks.cc BaseLink.cc \
-	BasePair.cc BaseStack.cc \ 
-	Cycle.cc CycleInfo.cc CycleInfoFile.cc CycleProfile.cc \
-	GraphIsoUllman.cc Interaction.cc InteractionInfo.cc \
+	BasePair.cc BaseStack.cc Cycle.cc CycleInfo.cc CycleInfoFile.cc \
+	CycleProfile.cc GraphIsoUllman.cc Interaction.cc InteractionInfo.cc \
+	InteractionInfoFile.cc \
 	IsomorphismContextPerfectMatch.cc Linker.cc Loop.cc ModelInfo.cc \
-	Stem.cc StemConnection.cc StringTable.cc StringUtil.cc
+	RNAGroupModel.cc SmithWaterman.cc \
+	sqlstream.cc Stem.cc StemConnection.cc StringTable.cc StringUtil.cc RNAGroupFile.cc
 
 ALLSOURCES = $(SOURCES) $(PROGSOURCES)
 
@@ -77,7 +78,9 @@ DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(ALLSOURCES) $(HEADERS) \
 config.guess config.h.in config.sub configure configure.in install-sh \
 mkinstalldirs stamp-h.in
 
-SUBDIRS = mccm mcec mcsc2resids mcnaip mcnacs mcssc
+SUBDIRS = mc3di mc3dicp mc3dihf mc3dihg mc3dssc mccm mcec mcsc2resids mcnaip \
+	mcnacs mcrecept mcssc mctopo molsepRNA RNAGroups rnaselect2 t1buildtable \
+	t1buildtable_v2 t2buildtable t3buildtable t4buildtable
 
 RELEASESUBDIRS = $($SUBDIRS)
 

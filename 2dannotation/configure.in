@@ -134,6 +134,24 @@ AC_SUBST(LIBALLFLAGSTOP)
 AC_SUBST(ARXX)
 AC_SUBST(AROPTIONS)
 
-AC_CONFIG_FILES([mcsc2resids/Makefile])
+AC_CONFIG_FILES([
+	mcsc2resids/Makefile
+	mc3di/Makefile
+	mc3dicp/Makefile
+	mc3dihf/Makefile
+	mc3dihg/Makefile
+	mc3dssc/Makefile
+	mccm/Makefile
+	mcec/Makefile
+	mcnacs/Makefile
+	mcnaip/Makefile
+	mcrecept/Makefile
+	mcssc/Makefile
+	mctopo/Makefile
+	t1buildtable/Makefile
+	t2buildtable/Makefile
+	t2buildtable_v2/Makefile
+	t3buildtable/Makefile
+	t4buildtable/Makefile])
 
 AC_OUTPUT( Makefile, echo timestamp > stamp-h )
