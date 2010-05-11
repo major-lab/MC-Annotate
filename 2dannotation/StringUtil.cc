@@ -43,4 +43,20 @@ namespace annotate
 			}
 		}
 	}
+
+	void cleanStringStart(std::string& aString, const char& aChar)
+	{
+		std::string::iterator it = aString.begin();
+		while(it != aString.end() && *it == aChar)
+		{
+			it = aString.erase(it);
+		}
+	}
+
+	std::string cutStringAfter(const std::string& aString, const std::string& astrCutPoint)
+	{
+		std::string strCutString;
+		std::size_t end_pos = aString.find(astrCutPoint);
+		return aString.substr(0, end_pos);
+	}
 };
