@@ -20,6 +20,7 @@
 #include "mccore/Messagestream.h"
 #include "mccore/Version.h"
 
+#include <cassert>
 #include <cstdio>
 #include <cstdlib>
 
@@ -45,14 +46,19 @@ MC3DInteractingCyclePairs::MC3DInteractingCyclePairs(int argc, char * argv [])
 
 	// Read the cycles
 	annotate::CycleInfoFile infileCycles;
-	infileCycles.read(mstrCyclesFile.c_str());
+	infileCycles.read(mstrCyclesFile.c_str(), false);
 	std::set<annotate::CycleInfo>::const_iterator itCycle;
 	for(itCycle = infileCycles.cycles().begin();
 		itCycle != infileCycles.cycles().end();
 		++ itCycle)
 	{
 		annotate::ModelInfo model = itCycle->getModelInfo();
-		mCycles[model].insert(*itCycle);
+		annotate::CycleInfo cycle = *itCycle;
+		if(2 == cycle.getNbStrands() && cycle.getStrandResIds()[0].size() > cycle.getStrandResIds()[1].size())
+		{
+			cycle = annotate::CycleInfo::flipStrand(cycle);
+		}
+		mCycles[model].insert(cycle);
 		mModels.insert(model);
 	}
 
@@ -140,7 +146,6 @@ void MC3DInteractingCyclePairs::identifyPairs()
 	std::set<annotate::ModelInfo>::const_iterator itModel;
 	for(itModel = mModels.begin(); itModel != mModels.end(); ++ itModel)
 	{
-
 		identifyModelPairs(*itModel);
 	}
 }
@@ -163,11 +168,11 @@ void MC3DInteractingCyclePairs::identifyModelPairs(const annotate::ModelInfo& aM
 				itCycle != itCycleSet->second.end();
 				++ itCycle)
 			{
-				if(itCycle->contains(itInter->getRes1()) && !itCycle->contains(*itInter))
+				if(itCycle->contains(itInter->resId1()) && !itCycle->contains(*itInter))
 				{
 					left.insert(*itCycle);
 				}
-				if(itCycle->contains(itInter->getRes2()) && !itCycle->contains(*itInter))
+				if(itCycle->contains(itInter->resId2()) && !itCycle->contains(*itInter))
 				{
 					right.insert(*itCycle);
 				}
