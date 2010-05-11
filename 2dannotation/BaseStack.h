@@ -26,19 +26,34 @@ namespace annotate
   {
 
   public:
+	  enum enAdjacency
+	  {
+		  eAdjacent5p,
+		  eAdjacent3p,
+		  eUnconnected
+	  };
+	  enum enStackingType
+	  {
+		  eUpward,
+		  eDownward,
+		  eInward,
+		  eOutward
+	  };
 
     // LIFECYCLE ------------------------------------------------------------
 
-    BaseStack (GraphModel::label l, const ResId &fResId, GraphModel::label r, const ResId &rResId)
+    BaseStack (GraphModel::label l, const ResId &fResId, GraphModel::label r, const ResId &rResId, const enAdjacency& aeAdjacency)
       : BaseInteraction(l, fResId, r, rResId)
     {
     	meType = BaseInteraction::eSTACK;
+    	meAdjacency = aeAdjacency;
     }
 
     BaseStack (const BaseStack& aStack)
           : BaseInteraction(aStack.first, aStack.fResId, aStack.second, aStack.rResId)
     {
     	meType = BaseInteraction::eSTACK;
+    	meAdjacency = aStack.meAdjacency;
     }
 
     ~BaseStack () { }
@@ -94,6 +109,9 @@ namespace annotate
     // METHODS --------------------------------------------------------------
 
     // I/O  -----------------------------------------------------------------
+
+  private:
+	  enAdjacency meAdjacency;
 
   };
 
