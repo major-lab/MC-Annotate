@@ -4,13 +4,15 @@
 #include <string>
 #include <utility>
 
+#include <mccore/ResId.h>
+
 namespace annotate {
 
-class Interaction : public std::pair<std::string, std::string>
+class Interaction : public std::pair<mccore::ResId, mccore::ResId>
 {
 public:
 	// LIFECYLCE ---------------------------------------------------------------
-	Interaction(const std::string& aRes1, const std::string& aRes2);
+	Interaction(const mccore::ResId& aRes1, const mccore::ResId& aRes2);
 
 	// OPERATORS ---------------------------------------------------------------
 	bool operator <(const Interaction& aRight) const;

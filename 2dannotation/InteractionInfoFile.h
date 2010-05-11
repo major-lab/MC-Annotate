@@ -9,6 +9,10 @@
 #define _annotate_InteractionInfoFile_H_
 
 #include "InteractionInfo.h"
+
+// Annotate lib
+#include "BasePair.h"
+
 #include <set>
 
 namespace annotate
@@ -29,6 +33,9 @@ public:
 
 private:
 	std::set<InteractionInfo> mInteractions;
+
+	BasePair::enOrientation getOrientation(const std::string& astrOrient) const;
+	InteractionInfo::enFace getFace(const std::string& astrGeneralFaces) const;
 };
 
 };

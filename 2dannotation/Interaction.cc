@@ -2,8 +2,8 @@
 
 namespace annotate {
 
-Interaction::Interaction(const std::string& aRes1, const std::string& aRes2)
-: std::pair<std::string, std::string>(aRes1, aRes2)
+Interaction::Interaction(const mccore::ResId& aRes1, const mccore::ResId& aRes2)
+: std::pair<mccore::ResId, mccore::ResId>(aRes1, aRes2)
 {
 }
 
