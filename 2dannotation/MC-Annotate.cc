@@ -34,6 +34,7 @@
 #include "mccore/Version.h"
 
 #include "AnnotateModel.h"
+#include "AnnotatedModelSQLExporter.h"
 #include "AnnotationChains.h"
 #include "AnnotationInteractions.h"
 #include "AnnotationLinkers.h"
@@ -53,7 +54,8 @@ unsigned char gucRelationMask =
 	| mccore::Relation::stacking_mask
 	| mccore::Relation::backbone_mask;
 ResIdSet residueSelection;
-const char* shortopts = "Vbe:f:hlr:vm:";
+std::string gstrSQLFile = "";
+const char* shortopts = "Vbe:f:hlr:vm:s:";
 
 void
 version ()
@@ -70,7 +72,7 @@ void
 usage ()
 {
 	mccore::gOut(0) << "usage: " << PACKAGE
-		<< " [-bhlvV] [-e num] [-f <model number>] [-r <residue ids>] [-m <relation mask>] <structure file> ..."
+		<< " [-bhlvV] [-e num] [-f <model number>] [-r <residue ids>] [-m <relation mask>] [-s <SQL file>] <structure file> ..."
 		<< std::endl;
 }
 
@@ -86,6 +88,7 @@ help ()
 		<< "  -h                print this help" << std::endl
 		<< "  -l                be more verbose (log)" << std::endl
 		<< "  -r sel            extract these residues from the structure" << std::endl
+		<< "  -s <SQL file> 	export the annotation in SQL as relational database" << std::endl
 		<< "  -v                be verbose" << std::endl
 		<< "  -V                print the software version info" << std::endl;
 }
@@ -178,6 +181,11 @@ read_options (int argc, char* argv[])
 				exit (EXIT_FAILURE);
 			}
 			break;
+		case 's':
+			{
+				gstrSQLFile = optarg;
+			}
+			break;
 		case 'v':
 			mccore::gOut.setVerboseLevel (mccore::gOut.getVerboseLevel () + 1);
 			break;
@@ -258,9 +266,98 @@ std::string getFilePrefix(const std::string& aFileName)
 	return filename;
 }
 
+bool pseudoKnots(const std::vector<annotate::Stem>& usedStems, const annotate::Stem& otherStem)
+{
+	bool bPseudoKnots = false;
+	std::vector<annotate::Stem>::const_iterator it;
+	for(it = usedStems.begin(); it != usedStems.end() && !bPseudoKnots; ++ it)
+	{
+		bPseudoKnots = it->pseudoKnots(otherStem);
+	}
+	return bPseudoKnots;
+}
+
+std::string toDotBracket(
+	const annotate::AnnotationStems& aStems,
+	const annotate::AnnotationChains& aChains)
+{
+	std::ostringstream oss;
+	const std::vector< annotate::Stem >& stems = aStems.getStems();
+	std::vector< annotate::Stem> usedStems;
+
+	std::vector< annotate::Stem >::const_iterator it;
+	for(it = stems.begin(); it != stems.end(); ++ it)
+	{
+		if(!pseudoKnots(usedStems, *it))
+		{
+			usedStems.push_back(*it);
+		}
+	}
+
+	std::map<mccore::ResId, char> dBrackets;
+	const std::list<mccore::ResId>& chain = aChains.getChain('A');
+	std::list<mccore::ResId>::const_iterator itResId;
+	for(itResId = chain.begin(); itResId != chain.end(); ++ itResId)
+	{
+		dBrackets[*itResId] = '.';
+	}
+
+	for(it = usedStems.begin(); it != usedStems.end(); ++ it)
+	{
+		mccore::ResId r1 = it->basePairs().front().fResId;
+		mccore::ResId r2 = it->basePairs().back().fResId;
+		mccore::ResId r3= it->basePairs().front().rResId;
+		mccore::ResId r4 = it->basePairs().back().rResId;
+		std::map<mccore::ResId, char>::iterator it1 = dBrackets.find(r1);
+		std::map<mccore::ResId, char>::iterator it2 = dBrackets.find(r2);
+		std::map<mccore::ResId, char>::iterator it3 = dBrackets.find(r3);
+		std::map<mccore::ResId, char>::iterator it4 = dBrackets.find(r4);
+
+		std::map<mccore::ResId, char>::iterator itWrite;
+		for(itWrite = it1; itWrite != it2; itWrite ++)
+		{
+			itWrite->second = '(';
+		}
+		itWrite->second = '(';
+		for(itWrite = it4; itWrite != it3; itWrite ++)
+		{
+			itWrite->second = ')';
+		}
+		itWrite->second = ')';
+	}
+	oss << "Number of resids : " << dBrackets.size() << std::endl;
+	std::map<mccore::ResId, char>::iterator itDB;
+	// Output sequence
+	for(itDB = dBrackets.begin(); itDB != dBrackets.end(); ++ itDB)
+	{
+		oss << itDB->first << "-";
+	}
+	oss << std::endl;
+	// Output dot-brackets
+	for(itDB = dBrackets.begin(); itDB != dBrackets.end(); ++ itDB)
+	{
+		oss << itDB->second;
+	}
+	oss << std::endl;
+	return oss.str();
+}
+
 int main (int argc, char *argv[])
 {
 	read_options (argc, argv);
+
+	std::ofstream oSQLFile;
+	annotate::AnnotatedModelSQLExporter oSQLExporter;
+
+	if(!gstrSQLFile.empty())
+	{
+		oSQLFile.open (gstrSQLFile.c_str(), ios_base::out);
+		if(oSQLFile.fail())
+		{
+			mccore::gErr (0) << PACKAGE << ": cannot open output SQL file '" << gstrSQLFile << "'." << endl;
+			exit(EXIT_FAILURE);
+		}
+	}
 
 	while (optind < argc)
     {
@@ -271,6 +368,7 @@ int main (int argc, char *argv[])
 		molecule = loadFile (filename);
 		if (0 != molecule)
 		{
+			unsigned int uiCurrentModel = 1;
 			for (molIt = molecule->begin (); molecule->end () != molIt; ++molIt)
 			{
 				if (0 != modelNumber)
@@ -280,7 +378,9 @@ int main (int argc, char *argv[])
 				else
 				{
 					annotate::AnnotateModel &am = (annotate::AnnotateModel&) *molIt;
-					am.name(getFilePrefix(filename));
+					std::string strPDBPrefix = getFilePrefix(filename);
+					am.name(strPDBPrefix);
+					am.id(uiCurrentModel);
 					annotate::AnnotationInteractions annInteractions;
 					annotate::AnnotationChains annChains;
 					annotate::AnnotationStems annStems;
@@ -304,15 +404,32 @@ int main (int argc, char *argv[])
 					am.annotate (gucRelationMask);
 					mccore::gOut(0) << am;
 
+					// Stems to dot bracket
+					// TODO : Fix this so the chains are handled properly.
+					// std::string strDotBrackets = toDotBracket(annStems, annChains);
+					// mccore::gOut(0) << strDotBrackets << std::endl;
+
+					if(oSQLFile.is_open())
+					{
+						oSQLExporter.addModel(am);
+					}
+
 					if (oneModel)
 					{
 						break;
 					}
 				}
+				uiCurrentModel ++;
 			}
 			delete molecule;
 		}
 		++optind;
+	}
+
+	if(oSQLFile.is_open())
+	{
+		oSQLFile << oSQLExporter.toSQL();
+		oSQLFile.close();
 	}
 	return EXIT_SUCCESS;
 }
