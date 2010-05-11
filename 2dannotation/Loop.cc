@@ -321,9 +321,11 @@ namespace annotate
 			// Both are pointing at the same stem
 			const Stem* pStem = dynamic_cast<const Stem*>(aFirst.end());
 			assert(NULL != pStem);
+			// Note : Ignore faces of pair
 			BasePair basePair(
 				aFirst.residues().back().label(), aFirst.residues().back(),
-				aSecond.residues().front().label(), aSecond.residues().front());
+				aSecond.residues().front().label(), aSecond.residues().front(),
+				BasePair::face_vector());
 			pairs.push_back(basePair);
 		}
 		return pairs;
