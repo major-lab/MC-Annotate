@@ -1,0 +1,5 @@
+for file in $*; 
+do
+	./mc3dihf -i $file > $file.mc3dihf
+done
+
