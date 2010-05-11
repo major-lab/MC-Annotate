@@ -20,10 +20,16 @@ namespace annotate {
 class SmithWaterman
 {
 public:
-	SmithWaterman();
-	void align(
+	typedef std::list<std::pair<int, int> > alignment;
+
+	SmithWaterman(
 		const std::vector<mccore::Residue>& aSeq1,
 		const std::vector<mccore::Residue>& aSeq2);
+	void align();
+	const std::vector<mccore::Residue>& sequence1() const {return mSequence1;}
+	const std::vector<mccore::Residue>& sequence2() const {return mSequence2;}
+	const alignment& bestAlignment() const {return mBestAlignment;}
+
 private:
 	struct stCell
 	{
@@ -38,10 +44,11 @@ private:
 	float mfGapScore;
 	float mfMatchScore;
 	float mfMismatchScore;
+	alignment mBestAlignment;
 
-	void fillTable();
 	float fillCell(int aiSeq1, int aiSeq2);
 	bool match(const mccore::Residue& aRes1, const mccore::Residue& aRes2) const;
+	alignment getSingleBestAlignment() const;
 };
 
 }; // namespace annotate
