@@ -1,4 +1,4 @@
-//                              -*- Mode: C++ -*- 
+//                              -*- Mode: C++ -*-
 // AnnotateModel.h
 // Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
@@ -39,9 +39,9 @@ namespace annotate
 {
   class AnnotateModel;
   class Annotation;
-  
+
   typedef int strandId;
-  
+
   enum stype { BULGE_OUT, BULGE, INTERNAL_LOOP, LOOP, HELIX, OTHER };
 
   /**
@@ -78,8 +78,8 @@ namespace annotate
      * @param fm the residue factory method.
      */
     AnnotateModelFM (
-    	const mccore::ResIdSet &rs, 
-    	unsigned int env, 
+    	const mccore::ResIdSet &rs,
+    	unsigned int env,
     	const mccore::ResidueFactoryMethod *fm = 0)
 	: mccore::ModelFactoryMethod (fm),
 		residueSelection (rs),
@@ -100,7 +100,7 @@ namespace annotate
     {
       return (mccore::ModelFactoryMethod*) new AnnotateModelFM (*this);
     }
-  
+
     /**
      * Destroys the object.
      */
@@ -136,12 +136,12 @@ namespace annotate
     virtual mccore::oBinstream& write (mccore::oBinstream& obs) const;
 
   };
-  
+
 
   /**
    * AnnotateModel
-   * @author 
-   * @version 
+   * @author
+   * @version
    */
   class AnnotateModel : public mccore::GraphModel
   {
@@ -149,7 +149,12 @@ namespace annotate
      * The model name.
      */
     std::string mName;
-    
+
+    /**
+     * Model number in the pdb file
+     */
+    unsigned int muiId;
+
     /**
      * The relation mask used for the annotation
      */
@@ -161,14 +166,14 @@ namespace annotate
     mccore::ResIdSet residueSelection;
 
     unsigned int environment;
-    
+
     std::vector<Annotation *> annotations;
     std::set<std::string> mProvidedAnnotations;
-        
+
   public:
-    
+
     // LIFECYCLE ------------------------------------------------------------
-    
+
     /**
      * Initializes the object.
      * @param rs a ResIdSet of residues to annotate.
@@ -178,10 +183,10 @@ namespace annotate
      * residues (default is @ref ExtendedResidueFM).
      */
     AnnotateModel (
-    	const mccore::ResIdSet &rs, 
-    	unsigned int env, 
+    	const mccore::ResIdSet &rs,
+    	unsigned int env,
     	const mccore::ResidueFactoryMethod *fm = 0);
-    
+
     /**
      * Initializes the object with the right's content (deep copy).
      * @param right the object to copy.
@@ -192,57 +197,61 @@ namespace annotate
      * residues (default is @ref ExtendedResidueFM).
      */
     AnnotateModel (
-    	const mccore::AbstractModel &right, 
-    	const mccore::ResIdSet &rs, 
-    	unsigned int env, 
+    	const mccore::AbstractModel &right,
+    	const mccore::ResIdSet &rs,
+    	unsigned int env,
     	const mccore::ResidueFactoryMethod *fm = 0);
 
     /**
      * Destroys the object.
      */
     virtual ~AnnotateModel ();
-    
+
     // OPERATORS ------------------------------------------------------------
-    
+
     // ACCESS ---------------------------------------------------------------
 	const Annotation* getAnnotation(const std::string& astrAnnotName) const;
-    
+
     template<class T>
     const T* getAnnotation() const
     {
     	return dynamic_cast<const T*>(getAnnotation(T::AnnotationName()));
     }
-    
+
     const mccore::Molecule& getCyclesMolecule() const
     {
     	return mCyclesMolecule;
     }
-    
+
     const std::string& name() const {return mName;}
     void name(const std::string& aName) {mName = aName;}
-    
+
+    // id of the model in the pdb file
+    unsigned int id() const {return muiId;}
+    void id(unsigned int auiId) {muiId = auiId;}
+
     unsigned char relationMask() const {return mucRelationMask;}
-    
+
     // METHODS --------------------------------------------------------------
 
     /**
      * Builds the graph of relations, find strands and helices.
      */
-    void annotate (unsigned char aspb = 
+    void annotate (unsigned char aspb =
     	mccore::Relation::adjacent_mask
     	|mccore::Relation::pairing_mask
     	|mccore::Relation::stacking_mask
     	|mccore::Relation::backbone_mask);
-    
+
     /**
      * Computes the union of minimum cycle bases.
      */
     void computeUnionMinimumCycleBases();
-    
+
     void addAnnotation(Annotation& aAnnotation);
-    
+
   private :
-  
+
     bool isPairing (const mccore::Relation *r)
     {
       return r->is (mccore::PropertyType::pPairing);
@@ -252,15 +261,13 @@ namespace annotate
     {
       return areConnected (i, j) && isPairing (getEdge (i, j));
     }
-   
+
   public:
- 
- 	// void findChains();
- 	// void dumpChains () const;
+
     void dumpConformations () const;
 
     // I/O  -----------------------------------------------------------------
-  
+
     /**
      * Ouputs the model to the stream.
      * @param os the output stream.
@@ -274,7 +281,7 @@ namespace annotate
      * @return the consumed pdb stream.
      */
     virtual mccore::iPdbstream& input (mccore::iPdbstream &is);
-  
+
     /**
      * Reads the model from a binary input stream.
      * @param is the binary data stream.
@@ -296,7 +303,7 @@ namespace std
    * @return the output stream.
    */
   ostream& operator<< (ostream &os, const annotate::AnnotateModel &am);
-  
+
 }
-  
+
 #endif

@@ -1,4 +1,4 @@
-//                              -*- Mode: C++ -*- 
+//                              -*- Mode: C++ -*-
 // AnnotateModel.cc
 // Copyright © 2001-06 Laboratoire de Biologie Informatique et Théorique.
 //                     Université de Montréal
@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <iterator>
 #include <list>
+#include <sstream>
 
 #include "mccore/Binstream.h"
 #include "mccore/Messagestream.h"
@@ -28,40 +29,39 @@
 #include "AlgorithmExtra.h"
 
 namespace annotate
-{  
+{
 	mccore::AbstractModel* AnnotateModelFM::createModel () const
 	{
 		return new AnnotateModel (residueSelection, environment, rFM);
 	}
-
 
 	mccore::AbstractModel* AnnotateModelFM::createModel(
 		const mccore::AbstractModel &model) const
 	{
 		return new AnnotateModel (model, residueSelection, environment, rFM);
 	}
-  
 
 	mccore::oBinstream& AnnotateModelFM::write (mccore::oBinstream& obs) const
 	{
 		return obs;
 	}
-  
+
 	AnnotateModel::AnnotateModel (
-  		const mccore::ResIdSet &rs, 
-  		unsigned int env, 
+  		const mccore::ResIdSet &rs,
+  		unsigned int env,
   		const mccore::ResidueFactoryMethod *fm)
   	: mccore::GraphModel (fm),
 		residueSelection (rs),
 		environment (env)
     {
+  		muiId = 0;
     	mucRelationMask = 0;
     }
-    
+
     AnnotateModel::AnnotateModel (
-    	const mccore::AbstractModel &right, 
-    	const mccore::ResIdSet &rs, 
-    	unsigned int env, 
+    	const mccore::AbstractModel &right,
+    	const mccore::ResIdSet &rs,
+    	unsigned int env,
     	const mccore::ResidueFactoryMethod *fm)
     : mccore::GraphModel (right, fm),
 		residueSelection (rs),
@@ -69,21 +69,21 @@ namespace annotate
     {
     	mucRelationMask = 0;
     }
-    
+
     AnnotateModel::~AnnotateModel ()
     {
     	annotations.clear();
     }
 
-	void AnnotateModel::addAnnotation(Annotation& aAnnotation) 
+	void AnnotateModel::addAnnotation(Annotation& aAnnotation)
 	{
 		// Check dependencies
 		std::set<std::string> requirements = aAnnotation.requires();
-		
+
 		std::set<std::string> match = SetIntersection<std::string>(
-			requirements, 
+			requirements,
 			mProvidedAnnotations);
-			
+
 		if(match.size() == requirements.size())
 		{
 			annotations.push_back(&aAnnotation);
@@ -94,7 +94,7 @@ namespace annotate
 			// TODO : throw an exception
 		}
 	}
-	
+
 	const Annotation* AnnotateModel::getAnnotation(
 		const std::string& astrAnnotName) const
 	{
@@ -114,10 +114,10 @@ namespace annotate
 	void AnnotateModel::annotate (unsigned char aspb)
 	{
 		mucRelationMask = aspb;
-		
+
 		mccore::gOut(3) << "Computing basic annotation ..." << std::endl;
 		GraphModel::annotate (aspb);
-    
+
 		// Compute all the requested annotations
 		std::vector<Annotation*>::const_iterator it = annotations.begin();
 		for(;it != annotations.end(); ++it)
@@ -127,16 +127,16 @@ namespace annotate
 			(*it)->update(*this);
 		}
 	}
-	
+
 	void AnnotateModel::computeUnionMinimumCycleBases()
 	{
 		unionMinimumCycleBases(mCyclesMolecule);
 	}
-  
+
 	void AnnotateModel::dumpConformations () const
 	{
 		const_iterator i;
-    
+
 		for (i = begin (); i != end (); ++i)
 		{
 			mccore::gOut(0) << i->getResId () << " : ";
@@ -155,7 +155,7 @@ namespace annotate
 	{
 		mccore::gOut(0) << "Residue conformations -------------------------------------------" << endl;
 		dumpConformations ();
-	
+
 		// Compute all the requested annotations
 		std::vector<Annotation*>::const_iterator it = annotations.begin();
 		for(;it != annotations.end(); ++it)
@@ -165,7 +165,7 @@ namespace annotate
 			strAnnotationName.append(65 - strAnnotationName.size(), '-');
 			mccore::gOut(0) << strAnnotationName << std::endl;
 			mccore::gOut(0) << (*it)->output();
-		}	
+		}
 		return os;
 	}
 
@@ -173,7 +173,7 @@ namespace annotate
 	{
 		return GraphModel::input (is);
 	}
-  
+
 	mccore::iBinstream& AnnotateModel::input (mccore::iBinstream &is)
 	{
 		return GraphModel::input (is);
