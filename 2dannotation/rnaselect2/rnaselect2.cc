@@ -570,7 +570,6 @@ void ComputeGroups( void )
 //----------------------------------------------------------------------
 void ShowGroups( void )
 {
-	char szNumber[64];
 	int iNewColor = 1;
 	vector< string > vecRemove;
 	map< string, CDataNode * >::iterator pos1;
