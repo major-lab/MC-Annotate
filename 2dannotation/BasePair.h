@@ -22,20 +22,32 @@ namespace annotate
   {
 
   public:
+	  typedef std::vector< std::pair< const mccore::PropertyType*, const mccore::PropertyType* > > face_vector;
+	  enum enOrientation
+	  {
+		  eCis,
+		  eTrans,
+		  eUnknown
+	  };
 
     // LIFECYCLE ------------------------------------------------------------
 
     BasePair (	mccore::GraphModel::label l,
     			const mccore::ResId &fResId,
     			mccore::GraphModel::label r,
-    			const mccore::ResId &rResId)
-      : BaseInteraction(l, fResId, r, rResId)
+    			const mccore::ResId &rResId,
+    			const face_vector& aFaces)
+      : BaseInteraction(l, fResId, r, rResId),
+      mFaces(aFaces),
+      meOrientation(eUnknown)
     {
     	meType = BaseInteraction::ePAIR;
     }
 
     BasePair (const BasePair& aPair)
-	: BaseInteraction(aPair.first, aPair.fResId, aPair.second, aPair.rResId)
+	: BaseInteraction(aPair.first, aPair.fResId, aPair.second, aPair.rResId),
+		mFaces(aPair.mFaces),
+		meOrientation(aPair.meOrientation)
     {
     	meType = BaseInteraction::ePAIR;
     }
@@ -52,12 +64,15 @@ namespace annotate
     BasePair& operator= (const BasePair &right)
     {
       if (this != &right)
-	{
-	  first = right.first;
-	  second = right.second;
-	  fResId = right.fResId;
-	  rResId = right.rResId;
-	}
+      {
+    	  first = right.first;
+    	  second = right.second;
+    	  fResId = right.fResId;
+    	  rResId = right.rResId;
+    	  mFaces = right.mFaces;
+    	  meOrientation = right.meOrientation;
+      }
+
       return *this;
     }
 
@@ -89,6 +104,9 @@ namespace annotate
     }
 
     // ACCESS ---------------------------------------------------------------
+    const face_vector& faces() const {return mFaces;}
+    const enOrientation& orientation() const {return meOrientation;}
+    void orientation(const enOrientation& aOrient) {meOrientation = aOrient;}
 
     // METHODS --------------------------------------------------------------
 	bool areContiguous(const BasePair &aBasePair) const
@@ -102,11 +120,19 @@ namespace annotate
     {
       std::swap (first, second);
       std::swap (fResId, rResId);
+      mFaces = reverseFaces(mFaces);
     }
+
+    static face_vector reverseFaces(const face_vector& aFaces);
+
+
 
     // I/O  -----------------------------------------------------------------
 
-  };
+	private:
+		std::vector< std::pair< const mccore::PropertyType*, const mccore::PropertyType* > > mFaces;
+		enOrientation meOrientation;
+	};
 }
 
 #endif
