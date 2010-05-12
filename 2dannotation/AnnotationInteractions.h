@@ -60,6 +60,11 @@ namespace annotate
 			const mccore::ResId ref,
 			const mccore::ResId res) const;
 
+		void outputPairs(std::ostringstream& oss) const;
+		void outputPair (
+			std::ostringstream& oss,
+			const BasePair& aBasePair) const;
+
 	private:
 		static std::string mstrAnnotationName;
 		typedef std::multiset< BaseInteraction*, less_ptr<BaseInteraction> > interaction_multiset;
@@ -79,10 +84,6 @@ namespace annotate
 		bool checkFacesRelax(const mccore::Relation &aRelation) const;
 		bool checkOrientation(const mccore::Relation &aRelation) const;
 
-		void outputPairs(std::ostringstream& oss) const;
-		void outputPair (
-			std::ostringstream& oss,
-			const BasePair& aBasePair) const;
 		void outputStacks(std::ostringstream& oss) const;
 
 		/*

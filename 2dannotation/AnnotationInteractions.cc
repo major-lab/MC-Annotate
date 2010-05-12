@@ -241,7 +241,6 @@ namespace annotate
 				oss << *pfit->first << "/" << *pfit->second << ' ';
 			}
 			copy (labels.begin (), labels.end (), ostream_iterator< const PropertyType* > (oss, " "));
-			oss << endl;
 		}
 	}
 
@@ -253,6 +252,7 @@ namespace annotate
 		for (bpit = mPairs.begin (); mPairs.end () != bpit; ++bpit)
 		{
 			outputPair(oss, *bpit);
+			oss << std::endl;
 		}
 	}
 
