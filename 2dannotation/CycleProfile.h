@@ -27,6 +27,7 @@ namespace annotate
 		std::string toString() const;
 		void fromString(const std::string& astrString);
 		bool isSymmetric() const;
+		static CycleProfile Rotate(const CycleProfile& aProfile);
 	private:
 		std::list<unsigned int> mStrandProfile;
 		Cycle::enType			meType;

@@ -2,6 +2,7 @@
 
 #include "StringUtil.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdlib>
 #include <sstream>
@@ -121,5 +122,14 @@ namespace annotate
 			}
 		}
 		return bSymmetric;
+	}
+
+	CycleProfile CycleProfile::Rotate(const CycleProfile& aProfile)
+	{
+		CycleProfile profile = aProfile;
+		std::list<unsigned int>::iterator it = profile.mStrandProfile.begin();
+		it ++;
+		std::rotate(profile.mStrandProfile.begin(),it, profile.mStrandProfile.end());
+		return profile;
 	}
 };
