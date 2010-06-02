@@ -1,5 +1,5 @@
 /*
- * mc3dihf.cc
+ * mc3dihg.cc
  *
  *  Created on: May 4, 2010
  *      Author: blanchmf
@@ -24,15 +24,11 @@ MC3DInteractionHypothesisGenerator::MC3DInteractionHypothesisGenerator(int argc,
 mstrAppName("MC3DInteractionHypothesisGenerator")
 {
 	read_options (argc, argv);
-
 	initializeMaps();
-
 	read_database();
 	mIndexedCycleFile1 = readIndexedCycleFile(mstrFirstCycles);
 	mIndexedCycleFile2 = readIndexedCycleFile(mstrSecondCycles);
-
 	computeScores();
-
 	displayHypothesis();
 }
 
@@ -195,24 +191,10 @@ void MC3DInteractionHypothesisGenerator::read_database()
 	readTerm4();
 }
 
-MC3DInteractionHypothesisGenerator::cycle_key MC3DInteractionHypothesisGenerator::cycleKey(const std::string& astrKey) const
+MC3DInteractionHypothesisGenerator::indexed_cycles MC3DInteractionHypothesisGenerator::readIndexedCycleFile(
+	const std::string& astrFileName) const
 {
-	std::string strKey = astrKey;
-	annotate::cleanString(strKey, ' ');
-	std::vector<std::string> fields = annotate::splitStringFields(strKey, ":");
-	return cycle_key(fields[0], fields[1]);
-}
-
-std::string MC3DInteractionHypothesisGenerator::cycleKeyToString(const MC3DInteractionHypothesisGenerator::cycle_key& aKey) const
-{
-	std::ostringstream oss;
-	oss << aKey.first << " : " << aKey.second;
-	return oss.str();
-}
-
-MC3DInteractionHypothesisGenerator::indexed_cycles MC3DInteractionHypothesisGenerator::readIndexedCycleFile(const std::string& astrFileName) const
-{
-	std::map<std::string, cycle_key> indexedCycleFile;
+	std::list<cycle_prob_pair> indexedCycleFile;
 	std::ifstream infile;
 	infile.open(astrFileName.c_str(), std::ios_base::in);
 	if(infile.good())
@@ -229,12 +211,15 @@ MC3DInteractionHypothesisGenerator::indexed_cycles MC3DInteractionHypothesisGene
 
 				// Read the data
 				std::vector<std::string> fields = annotate::splitStringFields(strLine, ":");
+				assert(5 == fields.size());
 				std::string strIndex = fields[0].c_str();
 				std::string strProfile = fields[1];
 				std::string strSequence = fields[2];
-				cycle_key key(strProfile, strSequence);
-				key = forceSymmetric(key);
-				indexedCycleFile.insert(std::pair<std::string, cycle_key>(strIndex, key));
+				std::string strIds = fields[3];
+				float fProb = atof(fields[4].c_str());
+				annotate::CycleInfo cycle = getCycleInfo(strIndex, strProfile, strIds, strSequence);
+				indexedCycleFile.push_back(cycle_prob_pair(cycle, fProb));
+
 			}
 		}
 	}
@@ -244,7 +229,10 @@ MC3DInteractionHypothesisGenerator::indexed_cycles MC3DInteractionHypothesisGene
 		std::cout << "Error opening file " << astrFileName << std::endl;
 	}
 	infile.close();
-	return indexedCycleFile;
+	std::vector<std::pair<annotate::CycleInfo, float> > cycles;
+	cycles.resize(indexedCycleFile.size());
+	std::copy(indexedCycleFile.begin(), indexedCycleFile.end(), cycles.begin());
+	return cycles;
 }
 
 void MC3DInteractionHypothesisGenerator::readTerm1()
@@ -475,34 +463,6 @@ void MC3DInteractionHypothesisGenerator::readTerm4()
 	}
 }
 
-MC3DInteractionHypothesisGenerator::cycle_key MC3DInteractionHypothesisGenerator::forceSymmetric(const cycle_key& aKey) const
-{
-	cycle_key symKey = aKey;
-	std::vector<std::string> fields = annotate::splitStringFields(aKey.first, "_");
-	if(2 == fields.size())
-	{
-		unsigned int uiStrand1 = atol(fields[0].c_str());
-		unsigned int uiStrand2 = atol(fields[1].c_str());
-		if(uiStrand1 == uiStrand2)
-		{
-			// May be symmetric, try inversing strands
-			std::string strFlippedSeq = flipSequence(uiStrand1, uiStrand2, aKey.second);
-			if(strFlippedSeq < aKey.second)
-			{
-				symKey.second = strFlippedSeq;
-			}
-		}else if(uiStrand1 > uiStrand2)
-		{
-			std::ostringstream oss;
-			oss << uiStrand2 << "_" << uiStrand1;
-			symKey.first = oss.str();
-			std::string strFlippedSeq = flipSequence(uiStrand1, uiStrand2, aKey.second);
-			symKey.second = strFlippedSeq;
-		}
-	}
-	return symKey;
-}
-
 std::string MC3DInteractionHypothesisGenerator::flipSequence(
 	unsigned int auiStrand1,
 	unsigned int auiStrand2,
@@ -534,11 +494,12 @@ void MC3DInteractionHypothesisGenerator::computeScores()
 	indexed_cycles::const_iterator it2;
 	for(it1 = mIndexedCycleFile1.begin(); it1 != mIndexedCycleFile1.end(); ++ it1)
 	{
-		// float fProbI1 = freqTertiary(it1->second);
 		for(it2 = mIndexedCycleFile2.begin(); it2 != mIndexedCycleFile2.end(); ++ it2)
 		{
-			unsigned int uiProfile1 = mProfileMap[it1->second.first];
-			unsigned int uiProfile2 = mProfileMap[it2->second.first];
+			std::string strProf1 = it1->first.getProfile().toString();
+			std::string strProf2 = it2->first.getProfile().toString();
+			unsigned int uiProfile1 = mProfileMap[strProf1];
+			unsigned int uiProfile2 = mProfileMap[strProf2];
 			unsigned int uiProfSize1 = profileSize(uiProfile1);
 			unsigned int uiProfSize2 = profileSize(uiProfile2);
 			float fTerm1 = mTerm1[uiProfile1][uiProfile2];
@@ -550,18 +511,18 @@ void MC3DInteractionHypothesisGenerator::computeScores()
 				std::vector<std::vector<float> >& vTerm3 = mTerm3[uiProfile1][uiProfile2][uiTypeId];
 				for(unsigned int uiPos1 = 0; uiPos1 < uiProfSize1; ++ uiPos1)
 				{
-					unsigned int uiNuc1 = nucleotideId(getNucleotide(it1->second, uiPos1));
+					unsigned int uiNuc1 = nucleotideId(it1->first.getSequence()[uiPos1]);
 					std::vector<float>& vTerm3a = vTerm3[uiPos1];
 					for(unsigned int uiPos2 = 0; uiPos2 < uiProfSize2; ++ uiPos2)
 					{
-						unsigned int uiNuc2 = nucleotideId(getNucleotide(it2->second, uiPos2));
+						unsigned int uiNuc2 = nucleotideId(it2->first.getSequence()[uiPos2]);
 						float fTerm3 = vTerm3a[uiPos2];
 						float fTerm1_2_3 = fTerm1_2 * fTerm3;
 
 						float fTerm4 = mTerm4[uiNuc1][uiNuc2][uiTypeId];
 						float fScore = fTerm4 * fTerm1_2_3;
 
-						InteractionHypothesis hyp(it1->first,it2->first, uiTypeId, uiPos1, uiPos2);
+						InteractionHypothesis hyp(it1->first,it2->first, uiTypeId, uiPos1, uiPos2, it1->second, it2->second);
 						mScoredHypothesis.insert(std::pair<float, InteractionHypothesis>(fScore, hyp));
 					}
 				}
@@ -579,7 +540,12 @@ void MC3DInteractionHypothesisGenerator::displayHypothesis() const
 		std::cout << " : " << interactionTypeIdToString(it->second.muiType);
 		std::cout << " : " << it->second.muiPos1;
 		std::cout << " : " << it->second.muiPos2;
-		std::cout << " : " << it->second.mstrCycle1 << " : " << it->second.mstrCycle2;
+		std::cout << " : " << it->second.mpCycle1->getPDBFile();
+		std::cout << " : " << it->second.mpCycle2->getPDBFile();
+		std::cout << " : " << it->second.mpCycle1->getResIds()[it->second.muiPos1];
+		std::cout << " : " << it->second.mpCycle2->getResIds()[it->second.muiPos2];
+		std::cout << " : " << it->second.mProbabilities.first;
+		std::cout << " : " << it->second.mProbabilities.second;
 		std::cout << std::endl;
 	}
 }
@@ -684,12 +650,64 @@ unsigned int MC3DInteractionHypothesisGenerator::nucleotideId(const std::string&
 	return it->second;
 }
 
-std::string MC3DInteractionHypothesisGenerator::getNucleotide(
-	const cycle_key& aCycle,
-	unsigned int auiPosition) const
+annotate::CycleInfo MC3DInteractionHypothesisGenerator::getCycleInfo(
+	const std::string& astrIdentifier,
+	const std::string& astrProfile,
+	const std::string& astrResIds,
+	const std::string& astrSequence) const
 {
-	std::vector<std::string> fields = annotate::splitStringFields(aCycle.second, "-");
-	return fields[auiPosition];
+	annotate::CycleProfile fileProfile(astrProfile);
+	std::vector<std::vector<mccore::ResId> > resIds;
+	resIds.resize(fileProfile.strandProfile().size());
+	std::vector<unsigned int>::const_iterator it = fileProfile.strandProfile().begin();
+	unsigned int iCursor = 0;
+	unsigned int iStrand = 0;
+	std::vector<mccore::ResId> resIdsFields = getResIds(astrResIds);
+	for(; it != fileProfile.strandProfile().end(); ++ it, ++iStrand)
+	{
+		resIds[iStrand].resize(*it);
+		for(unsigned int i = 0; i < *it; ++ i)
+		{
+			resIds[iStrand][i] = resIdsFields[i + iCursor];
+		}
+		iCursor += *it;
+	}
+	std::vector<std::string> sequenceFields;
+
+	annotate::CycleProfile profile = fileProfile;
+	if(resIds.size() == 2 && resIds[1].size() < resIds[0].size())
+	{
+		// We need to flip the profile, resids and sequence
+		std::vector<mccore::ResId> strand1 = resIds[1];
+		std::vector<mccore::ResId> strand2 = resIds[0];
+		resIds[0] = strand1;
+		resIds[1] = strand2;
+
+		sequenceFields = annotate::splitStringFields(flipSequence(resIds[1].size(), resIds[0].size(), astrSequence), "-");
+		profile = annotate::CycleProfile::Rotate(profile);
+	}else
+	{
+		sequenceFields = annotate::splitStringFields(astrSequence, "-");
+	}
+	return annotate::CycleInfo(astrIdentifier, 0, fileProfile, profile, resIds, sequenceFields);
+}
+
+// TODO : This is duplicate from table builders
+annotate::CycleInfo::residue_strand MC3DInteractionHypothesisGenerator::getResIds(
+	const std::string& aResidues) const
+{
+	annotate::CycleInfo::residue_strand residues;
+	std::string strResidues = aResidues;
+
+	annotate::cleanString(strResidues, ' ');
+	std::vector<std::string> residuesString = annotate::splitStringFields(strResidues, "-");
+	std::vector<std::string>::const_iterator it = residuesString.begin();
+	for(it = residuesString.begin(); it != residuesString.end(); ++it)
+	{
+		mccore::ResId res(it->c_str());
+		residues.push_back(res);
+	}
+	return residues;
 }
 
 int main(int argc, char* argv[])

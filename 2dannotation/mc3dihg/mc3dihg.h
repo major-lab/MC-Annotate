@@ -14,36 +14,40 @@
 
 #include "InteractionInfo.h"
 #include "BasePair.h"
+#include "CycleInfo.h"
 
 class InteractionHypothesis
 {
 public:
 	InteractionHypothesis(
-		const std::string& astrCycle1,
-		const std::string& astrCycle2,
+		const annotate::CycleInfo& aCycle1,
+		const annotate::CycleInfo& aCycle2,
 		unsigned int auiType,
 		unsigned int auiPos1,
-		unsigned int auiPos2) :
-	mstrCycle1(astrCycle1),
-	mstrCycle2(astrCycle2),
+		unsigned int auiPos2,
+		float afProb1,
+		float afProb2) :
+	mpCycle1(&aCycle1),
+	mpCycle2(&aCycle2),
 	muiType(auiType),
 	muiPos1(auiPos1),
-	muiPos2(auiPos2)
+	muiPos2(auiPos2),
+	mProbabilities(afProb1, afProb2)
 	{
 	}
 
 	bool operator <(const InteractionHypothesis& aRight) const
 	{
 		bool bLess = false;
-		if(mstrCycle1 < aRight.mstrCycle1)
+		if(*mpCycle1 < *aRight.mpCycle1)
 		{
 			bLess = true;
-		}else if(mstrCycle1 == aRight.mstrCycle1)
+		}else if(*mpCycle1 == *aRight.mpCycle1)
 		{
-			if(mstrCycle2 < aRight.mstrCycle2)
+			if(*mpCycle2 < *aRight.mpCycle2)
 			{
 				bLess = true;
-			}else if(mstrCycle2 == aRight.mstrCycle2)
+			}else if(*mpCycle2 == *aRight.mpCycle2)
 			{
 				if(muiType < aRight.muiType)
 				{
@@ -72,11 +76,12 @@ public:
 		return bLess;
 	}
 
-	std::string mstrCycle1;
-	std::string mstrCycle2;
+	const annotate::CycleInfo* mpCycle1;
+	const annotate::CycleInfo* mpCycle2;
 	unsigned int muiType;
 	unsigned int muiPos1;
 	unsigned int muiPos2;
+	std::pair<float, float> mProbabilities;
 };
 
 class MC3DInteractionHypothesisGenerator
@@ -89,9 +94,8 @@ public:
 	void usage () const;
 	void help () const;
 private:
-	typedef std::pair<std::string, std::string> cycle_key;
-	typedef std::pair<cycle_key, cycle_key> junction_key;
-	typedef std::map<std::string, cycle_key> indexed_cycles;
+	typedef std::pair<annotate::CycleInfo, float> cycle_prob_pair;
+	typedef std::vector<cycle_prob_pair > indexed_cycles;
 
 	typedef annotate::InteractionInfo::enFace face;
 	typedef std::pair<face, face> face_pair;
@@ -131,9 +135,6 @@ private:
 
 	indexed_cycles readIndexedCycleFile(const std::string& astrFileName) const;
 
-	cycle_key cycleKey(const std::string& astrKey) const;
-	std::string cycleKeyToString(const cycle_key& aKey) const;
-	cycle_key forceSymmetric(const cycle_key& aKey) const;
 	std::string flipSequence(unsigned int auiStrand1, unsigned int auiStrand2, const std::string& astrSequence) const;
 
 	unsigned int profileSize(unsigned int auiProfileId) const;
@@ -144,9 +145,13 @@ private:
 	std::string nucleotideString(unsigned int auiNucId) const;
 	unsigned int nucleotideId(const std::string& astrNucleotide) const;
 
-	std::string getNucleotide(const cycle_key& aCycle, unsigned int auiPosition) const;
-
 	void computeScores();
 	void displayHypothesis() const;
+	annotate::CycleInfo::residue_strand getResIds(const std::string& aResidues) const;
+	annotate::CycleInfo getCycleInfo(
+		const std::string& astrIdentifier,
+		const std::string& astrProfile,
+		const std::string& astrResIds,
+		const std::string& astrSequence) const;
 };
 #endif // _mc3dihg_H_
