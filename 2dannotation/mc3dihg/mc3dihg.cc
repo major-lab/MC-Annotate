@@ -284,6 +284,7 @@ void MC3DInteractionHypothesisGenerator::readTerm1()
 
 void MC3DInteractionHypothesisGenerator::readTerm2()
 {
+	/*
 	unsigned int uiNbProfiles = mProfileMap.size();
 	mTerm2.resize(uiNbProfiles);
 	for(unsigned int i = 0; i < uiNbProfiles; ++ i)
@@ -333,6 +334,8 @@ void MC3DInteractionHypothesisGenerator::readTerm2()
 		}
 		infile.close();
 	}
+	*/
+	mTerm2.read(mstrTerm2File);
 }
 
 void MC3DInteractionHypothesisGenerator::readTerm3()
@@ -500,26 +503,30 @@ void MC3DInteractionHypothesisGenerator::computeScores()
 			std::string strProf2 = it2->first.getProfile().toString();
 			unsigned int uiProfile1 = mProfileMap[strProf1];
 			unsigned int uiProfile2 = mProfileMap[strProf2];
+
+			ScoringTerm::enProfile eProf1 = (ScoringTerm::enProfile)uiProfile1;
+			ScoringTerm::enProfile eProf2 = (ScoringTerm::enProfile)uiProfile2;
+
 			unsigned int uiProfSize1 = profileSize(uiProfile1);
 			unsigned int uiProfSize2 = profileSize(uiProfile2);
 			float fTerm1 = mTerm1[uiProfile1][uiProfile2];
-			std::vector<float>& vTerm2 = mTerm2[uiProfile1][uiProfile2];
 			for(unsigned int uiTypeId = 0; uiTypeId < this->mInteractionTypeMap.size(); ++ uiTypeId)
 			{
-				float fTerm2 = vTerm2[uiTypeId];
-				float fTerm1_2 = fTerm1 * fTerm2;
 				std::vector<std::vector<float> >& vTerm3 = mTerm3[uiProfile1][uiProfile2][uiTypeId];
 				for(unsigned int uiPos1 = 0; uiPos1 < uiProfSize1; ++ uiPos1)
 				{
 					unsigned int uiNuc1 = nucleotideId(it1->first.getSequence()[uiPos1]);
+					ScoringTerm::enNucleotide eNuc1 = (ScoringTerm::enNucleotide)uiNuc1;
 					std::vector<float>& vTerm3a = vTerm3[uiPos1];
 					for(unsigned int uiPos2 = 0; uiPos2 < uiProfSize2; ++ uiPos2)
 					{
 						unsigned int uiNuc2 = nucleotideId(it2->first.getSequence()[uiPos2]);
+						ScoringTerm::enNucleotide eNuc2 = (ScoringTerm::enNucleotide)uiNuc2;
+						float fTerm2 = mTerm2.score(eProf1, eProf2, uiPos1, uiPos2, uiTypeId, eNuc1, eNuc2);
 						float fTerm3 = vTerm3a[uiPos2];
-						float fTerm1_2_3 = fTerm1_2 * fTerm3;
+						float fTerm1_2_3 = fTerm1 * fTerm2 * fTerm3;
 
-						float fTerm4 = mTerm4[uiNuc1][uiNuc2][uiTypeId];
+						float fTerm4 = mTerm4[eNuc1][eNuc2][uiTypeId];
 						float fScore = fTerm4 * fTerm1_2_3;
 
 						InteractionHypothesis hyp(it1->first,it2->first, uiTypeId, uiPos1, uiPos2, it1->second, it2->second);

@@ -16,6 +16,9 @@
 #include "BasePair.h"
 #include "CycleInfo.h"
 
+#include "ScoringTermTypeKnowingNCMs.h"
+#include "ScoringTermPositionKnowingNCMs.h"
+
 class InteractionHypothesis
 {
 public:
@@ -114,7 +117,7 @@ private:
 	indexed_cycles mIndexedCycleFile1;
 	indexed_cycles mIndexedCycleFile2;
 	std::vector<std::vector<float> > mTerm1; // NCM x NCM
-	std::vector<std::vector<std::vector<float> > > mTerm2; // NCM x NCM x type
+	ScoringTermPositionKnowingNCMs mTerm2;
 	std::vector<std::vector<std::vector<std::vector<std::vector<float> > > > > mTerm3; // NCM x NCM x type x pos1 x pos2
 	std::vector<std::vector<std::vector<float> > > mTerm4; // Nuc1 x Nuc2 x type
 
