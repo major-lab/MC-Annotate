@@ -14,6 +14,7 @@
 
 #include "pdb2db.h"
 
+#include <cassert>
 #include <cerrno>
 #include <cstdlib>
 #include <sstream>
@@ -33,9 +34,14 @@
 #endif
 #include "mccore/Version.h"
 
+// libmcannotate
+#include "AlgorithmExtra.h"
 #include "AnnotateModel.h"
 #include "AnnotationChains.h"
 #include "AnnotationInteractions.h"
+
+
+#include "AnnotationStemsLoose.h"
 
 bool binary = false;
 unsigned int environment = 0;
@@ -48,6 +54,21 @@ unsigned char gucRelationMask =
 	| mccore::Relation::backbone_mask;
 ResIdSet residueSelection;
 const char* shortopts = "Vbe:f:hlr:vm:";
+const unsigned int guiMaxLayer = 10;
+
+std::string gNotationSymbols[] =
+{
+	"()ab", // 0
+	"[]cd", // 1
+	"<>ef", // 2
+	"{}gh", // 3
+	"+-ij", // 4
+	"12kl", // 5
+	"34mn", // 6
+	"56op", // 7
+	"78qr", // 8
+	"90st", // 9
+};
 
 PDB2DotBracket::PDB2DotBracket(int argc, char * argv [])
 {
@@ -77,19 +98,28 @@ PDB2DotBracket::PDB2DotBracket(int argc, char * argv [])
 					am.id(uiCurrentModel);
 					annotate::AnnotationInteractions annInteractions;
 					annotate::AnnotationChains annChains;
-					annotate::AnnotationStems annStems;
+					AnnotationStemsLoose annStems;
 
 					am.addAnnotation(annInteractions);
 					am.addAnnotation(annChains);
 					am.addAnnotation(annStems);
 
+					am.keepNucleicAcid();
 					am.annotate (gucRelationMask);
 
 					// Stems to dot bracket
-					// TODO : Fix this so the chains are handled properly.
-					std::string strDotBrackets = toDotBracket(annStems, annChains);
-					mccore::gOut(0) << strDotBrackets << std::endl;
-
+					annotate::AnnotationChains::chain_map::const_iterator itChain;
+					for(itChain = annChains.chains().begin(); itChain != annChains.chains().end(); ++ itChain)
+					{
+						mccore::gOut(0) << ">" << strPDBPrefix << ":";
+						mccore::gOut(0) << itChain->first;
+						mccore::gOut(0) << "|PDBID|CHAIN|SEQUENCE" << std::endl;
+						mccore::gOut(0) << getSequence(am, itChain->second) << std::endl;
+						std::string strDotBrackets = toDotBracketCombined(annStems, itChain->second);
+						mccore::gOut(0) << strDotBrackets << std::endl;
+						strDotBrackets = toDotBracketLayers(annStems, itChain->second);
+						mccore::gOut(0) << strDotBrackets << std::endl;
+					}
 					if (oneModel)
 					{
 						break;
@@ -301,7 +331,9 @@ std::string PDB2DotBracket::getFilePrefix(const std::string& aFileName) const
 	return filename;
 }
 
-bool PDB2DotBracket::pseudoKnots(const std::vector<annotate::Stem>& usedStems, const annotate::Stem& otherStem) const
+bool PDB2DotBracket::pseudoKnots(
+	const std::vector<annotate::Stem>& usedStems,
+	const annotate::Stem& otherStem) const
 {
 	bool bPseudoKnots = false;
 	std::vector<annotate::Stem>::const_iterator it;
@@ -312,62 +344,319 @@ bool PDB2DotBracket::pseudoKnots(const std::vector<annotate::Stem>& usedStems, c
 	return bPseudoKnots;
 }
 
-std::string PDB2DotBracket::toDotBracket(
-	const annotate::AnnotationStems& aStems,
-	const annotate::AnnotationChains& aChains) const
+std::pair<PDB2DotBracket::stem_set, PDB2DotBracket::stem_set> PDB2DotBracket::selectStems(
+	const stem_set& aStems) const
 {
-	std::ostringstream oss;
-	const std::vector< annotate::Stem >& stems = aStems.getStems();
-	std::vector< annotate::Stem> usedStems;
+	std::vector<annotate::Stem> stems;
+	stems.insert(stems.begin(), aStems.begin(), aStems.end());
+	return selectStems(stems);
+}
 
-	std::vector< annotate::Stem >::const_iterator it;
-	for(it = stems.begin(); it != stems.end(); ++ it)
+std::pair<PDB2DotBracket::stem_set, PDB2DotBracket::stem_set> PDB2DotBracket::selectStems(
+	const std::vector<annotate::Stem>& aStems) const
+{
+	std::pair<stem_set, stem_set> results;
+	std::vector<std::set<unsigned int> > working;
+	std::set<unsigned int> toTest;
+
+	working.resize(aStems.size());
+	for(unsigned int i = 0; i < aStems.size(); ++ i)
 	{
-		if(!pseudoKnots(usedStems, *it))
+		toTest.insert(i);
+		for(unsigned int j = 0; j < aStems.size(); ++ j)
 		{
-			usedStems.push_back(*it);
+			if(i != j)
+			{
+				if(aStems[i].pseudoKnots(aStems[j]) || aStems[i].overlaps(aStems[j]))
+				{
+					working[i].insert(j);
+				}
+			}
 		}
 	}
+	std::pair<unsigned int, std::list<std::set<unsigned int> > > selection;
+	selection = selectStems(toTest, working, aStems);
 
+	for(unsigned int i = 0; i < aStems.size(); ++ i)
+	{
+		if(selection.second.begin()->find(i) != selection.second.begin()->end())
+		{
+			results.first.insert(aStems[i]);
+		}else
+		{
+			results.second.insert(aStems[i]);
+
+		}
+	}
+/*
+	for(unsigned int i = 0; i < aStems.size(); ++ i)
+	{
+		if(0 == working[i].size())
+		{
+			results.first.insert(aStems[i]);
+		}else
+		{
+			int iPseudoSize = 0;
+			std::list<unsigned int>::const_iterator itCount = working[i].begin();
+			for(; itCount != working[i].end(); ++ itCount)
+			{
+				if(results.second.end() == results.second.find(aStems[*itCount]))
+				{
+					iPseudoSize += aStems[*itCount].size();
+				}
+			}
+			if(iPseudoSize < aStems[i].size())
+			{
+				results.first.insert(aStems[i]);
+				for(itCount = working[i].begin();
+					itCount != working[i].end();
+					++ itCount)
+				{
+					results.second.insert(aStems[*itCount]);
+				}
+			}else if(iPseudoSize == aStems[i].size())
+			{
+				if(results.second.end() == results.second.find(aStems[i]))
+				{
+					// First encounter
+					results.first.insert(aStems[i]);
+					for(itCount = working[i].begin();
+						itCount != working[i].end();
+						++ itCount)
+					{
+						results.second.insert(aStems[*itCount]);
+					}
+				}
+			}else
+			{
+				results.second.insert(aStems[i]);
+			}
+		}
+	}*/
+	return results;
+}
+
+std::pair<unsigned int, std::list<std::set<unsigned int> > > PDB2DotBracket::selectStems(
+	const std::set<unsigned int>& aToTest,
+	const std::vector<std::set<unsigned int> >& aConflicts,
+	const std::vector<annotate::Stem>& aStems) const
+{
+	std::pair<unsigned int, std::list<std::set<unsigned int> > > returnVal;
+
+	if(0 == aToTest.size())
+	{
+		std::set<unsigned int> emptySet;
+		std::list<std::set<unsigned int> > emptyList;
+		returnVal.first = 0;
+		returnVal.second.push_back(emptySet);
+	}else
+	{
+		unsigned int uiStem = *aToTest.begin();
+		if(0 == aConflicts[uiStem].size())
+		{
+			// No conflicts
+			std::set<unsigned int> subTest = aToTest;
+			subTest.erase(uiStem);
+			returnVal = selectStems(subTest, aConflicts, aStems);
+			std::list<std::set<unsigned int> >::iterator it;
+			for(it = returnVal.second.begin(); it != returnVal.second.end(); ++ it)
+			{
+				it->insert(uiStem);
+			}
+		}else
+		{
+			std::set<unsigned int> subTest1 = aToTest;
+			subTest1.erase(uiStem);
+
+			std::set<unsigned int> subTest2;
+			subTest2 = annotate::SetDifference<unsigned int>(subTest1, aConflicts[uiStem]);
+			std::pair<unsigned int, std::list<std::set<unsigned int> > > subVal1;
+			std::pair<unsigned int, std::list<std::set<unsigned int> > > subVal2;
+			subVal1 = selectStems(subTest2, aConflicts, aStems);
+			subVal2 = selectStems(subTest1, aConflicts, aStems);
+
+			// Compute the maximum value of the 2 occurrences
+			unsigned int uiMaxValue = std::max(subVal1.first + aStems[uiStem].size(), subVal2.first);
+			returnVal.first = uiMaxValue;
+			if(uiMaxValue == (subVal1.first + aStems[uiStem].size()))
+			{
+				returnVal.second.insert(returnVal.second.end(), subVal1.second.begin(), subVal1.second.end());
+				std::list<std::set<unsigned int> >::iterator it;
+				for(it = returnVal.second.begin(); it != returnVal.second.end(); ++ it)
+				{
+					it->insert(uiStem);
+				}
+			}
+			if(uiMaxValue == subVal2.first)
+			{
+				returnVal.second.insert(returnVal.second.end(), subVal2.second.begin(), subVal2.second.end());
+			}
+		}
+	}
+	return returnVal;
+}
+
+PDB2DotBracket::db_notation PDB2DotBracket::createDotBracket(const std::list<mccore::ResId>& aChain) const
+{
 	std::map<mccore::ResId, char> dBrackets;
-	const std::list<mccore::ResId>& chain = aChains.getChain('A');
+
+	// Initialize the dot-bracket notation to unstructured
 	std::list<mccore::ResId>::const_iterator itResId;
-	for(itResId = chain.begin(); itResId != chain.end(); ++ itResId)
+	for(itResId = aChain.begin(); itResId != aChain.end(); ++ itResId)
 	{
 		dBrackets[*itResId] = '.';
 	}
+	return dBrackets;
+}
 
-	for(it = usedStems.begin(); it != usedStems.end(); ++ it)
+std::string PDB2DotBracket::toDotBracketLayers(
+	const AnnotationStemsLoose& aStems,
+	const std::list<mccore::ResId>& aChain) const
+{
+	const char cChain = aChain.begin()->getChainId();
+	std::list<std::set<annotate::Stem> > layers = splitLayers(cChain, aStems);
+	return toDotBracket(aChain, layers);
+}
+
+std::string PDB2DotBracket::toDotBracketCombined(
+	const AnnotationStemsLoose& aStems,
+	const std::list<mccore::ResId>& aChain) const
+{
+	const char cChain = aChain.begin()->getChainId();
+	std::list<std::set<annotate::Stem> > layers = splitLayers(cChain, aStems);
+	std::ostringstream oss;
+	db_notation dBrackets = createDotBracket(aChain);
+
+	unsigned int uiLayer = 0;
+	std::list<std::set<annotate::Stem> >::const_iterator it;
+	for(it = layers.begin(); it != layers.end() && uiLayer < guiMaxLayer; ++ it)
 	{
-		mccore::ResId r1 = it->basePairs().front().fResId;
-		mccore::ResId r2 = it->basePairs().back().fResId;
-		mccore::ResId r3= it->basePairs().front().rResId;
-		mccore::ResId r4 = it->basePairs().back().rResId;
-		std::map<mccore::ResId, char>::iterator it1 = dBrackets.find(r1);
-		std::map<mccore::ResId, char>::iterator it2 = dBrackets.find(r2);
-		std::map<mccore::ResId, char>::iterator it3 = dBrackets.find(r3);
-		std::map<mccore::ResId, char>::iterator it4 = dBrackets.find(r4);
-
-		std::map<mccore::ResId, char>::iterator itWrite;
-		for(itWrite = it1; itWrite != it2; itWrite ++)
-		{
-			itWrite->second = '(';
-		}
-		itWrite->second = '(';
-		for(itWrite = it4; itWrite != it3; itWrite ++)
-		{
-			itWrite->second = ')';
-		}
-		itWrite->second = ')';
+		applyStems(dBrackets, *it, uiLayer);
+		uiLayer ++;
 	}
-	std::map<mccore::ResId, char>::iterator itDB;
 
 	// Output dot-brackets
+	std::map<mccore::ResId, char>::iterator itDB;
 	for(itDB = dBrackets.begin(); itDB != dBrackets.end(); ++ itDB)
 	{
 		oss << itDB->second;
 	}
-	oss << std::endl;
+	return oss.str();
+}
+
+std::string PDB2DotBracket::toDotBracket(
+	const std::list<mccore::ResId>& aChain,
+	const std::list<std::set<annotate::Stem> >& aLayers) const
+{
+	std::ostringstream oss;
+
+	unsigned int uiLayer = 0;
+	std::list<std::set<annotate::Stem> >::const_iterator it;
+	for(it = aLayers.begin(); it != aLayers.end() && uiLayer < guiMaxLayer; ++ it)
+	{
+		std::list<mccore::ResId>::const_iterator itResId;
+		db_notation dBrackets = createDotBracket(aChain);
+
+		applyStems(dBrackets, *it, uiLayer);
+
+		// Output dot-brackets
+		if(it != aLayers.begin())
+		{
+			oss << std::endl;
+		}
+		std::map<mccore::ResId, char>::iterator itDB;
+		for(itDB = dBrackets.begin(); itDB != dBrackets.end(); ++ itDB)
+		{
+			oss << itDB->second;
+		}
+		uiLayer ++;
+	}
+	return oss.str();
+}
+
+std::list<PDB2DotBracket::stem_set> PDB2DotBracket::splitLayers(
+	const char acChain,
+	const AnnotationStemsLoose& aStems) const
+{
+	std::list<stem_set> layers;
+	const std::vector<annotate::Stem>& stems = aStems.getStems();
+	std::set<annotate::Stem> usedStems;
+	std::vector< annotate::Stem>::const_iterator it;
+	for(it = stems.begin(); it != stems.end(); ++ it)
+	{
+		char cStemChain = it->basePairs().front().fResId.getChainId();
+		if(acChain == cStemChain)
+		{
+			usedStems.insert(*it);
+		}
+	}
+
+	// Select the non pseudo-knotted stems
+	std::pair<stem_set, stem_set> selectedStems;
+	selectedStems.second = usedStems;
+
+	while(0 < selectedStems.second.size())
+	{
+		selectedStems = selectStems(selectedStems.second);
+		layers.push_back(selectedStems.first);
+	}
+	return layers;
+}
+
+void PDB2DotBracket::applyStems(
+	PDB2DotBracket::db_notation& aDBNotation,
+	const std::set< annotate::Stem>& aStems,
+	unsigned int auiLevel) const
+{
+	assert(auiLevel < guiMaxLayer);
+	std::set< annotate::Stem >::const_iterator it;
+	for(it = aStems.begin(); it != aStems.end(); ++ it)
+	{
+		const std::vector< annotate::BasePair>& pairs = it->basePairs();
+		char cOpen = gNotationSymbols[auiLevel][0];
+		char cClose = gNotationSymbols[auiLevel][1];
+		if(it->getOrientation() == annotate::Stem::ePARALLEL)
+		{
+			cOpen = gNotationSymbols[auiLevel][2];
+			cClose = gNotationSymbols[auiLevel][3];
+		}
+
+		std::vector< annotate::BasePair>::const_iterator itPair;
+		for(itPair = pairs.begin(); itPair != pairs.end(); ++ itPair)
+		{
+			applyPair(aDBNotation, *itPair, cOpen, cClose);
+		}
+	}
+}
+
+void PDB2DotBracket::applyPair(
+	PDB2DotBracket::db_notation& aDBNotation,
+	const annotate::BasePair& aPair,
+	const char& acOpen,
+	const char& acClose) const
+{
+	std::map<mccore::ResId, char>::iterator it1 = aDBNotation.find(aPair.fResId);
+	std::map<mccore::ResId, char>::iterator it2 = aDBNotation.find(aPair.rResId);
+
+	if(it1->second == '.' && it2->second == '.')
+	{
+		it1->second = acOpen;
+		it2->second = acClose;
+	}
+}
+
+std::string PDB2DotBracket::getSequence(
+	const annotate::AnnotateModel& am,
+	const std::list<mccore::ResId>& aChain) const
+{
+	std::ostringstream oss;
+	std::list<mccore::ResId>::const_iterator it = aChain.begin();
+	for(; it != aChain.end(); ++ it)
+	{
+		annotate::AnnotateModel::const_iterator itRes = am.find(*it);
+		assert(itRes != am.end());
+		oss << mccore::Pdbstream::stringifyResidueType (itRes->getType ());
+	}
 	return oss.str();
 }
 

@@ -49,7 +49,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
 PROGRAM = pdb2db
 
-SOURCES = $(PROGRAM).cc
+SOURCES = $(PROGRAM).cc AnnotationStemsLoose.cc
 
 HEADERS = $(SOURCES:.cc=.h)
 #View.h
