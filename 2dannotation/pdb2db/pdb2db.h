@@ -45,7 +45,7 @@ private:
 	std::pair<stem_set, stem_set> selectStems(
 		const std::vector<annotate::Stem>& aStems) const;
 	std::pair<stem_set, stem_set> selectStems(const stem_set& aStems) const;
-	std::pair<unsigned int, std::list<std::set<unsigned int> > > selectStems(
+	std::pair<unsigned int, std::list<std::set<unsigned int> > > selectStemsRecursive(
 		const std::set<unsigned int>& aToTest,
 		const std::vector<std::set<unsigned int> >& aConflicts,
 		const std::vector<annotate::Stem>& aStems) const;
@@ -55,6 +55,9 @@ private:
 	std::string toDotBracket(
 		const std::list<mccore::ResId>& aChain,
 		const std::list<stem_set>& aLayers) const;
+	std::string toDotBracket(
+		const std::list<mccore::ResId>& aChain,
+		const stem_set& aLayer) const;
 	void applyStems(
 		db_notation& aDBNotation,
 		const stem_set& aStems,
@@ -68,6 +71,30 @@ private:
 	std::string getSequence(
 		const annotate::AnnotateModel& am,
 		const std::list<mccore::ResId>& aChain) const;
+	stem_set cutStem(
+		const annotate::Stem& aStem,
+		const stem_set& aStems) const;
+	stem_set cutStems(
+		const stem_set& aToCutStem,
+		const stem_set& aStems) const;
+
+	stem_set keepChain(
+		const char acChain,
+		const std::vector<annotate::Stem>& aStems) const;
+	stem_set keepChain(
+		const char acChain,
+		const std::set<annotate::Stem>& aStems) const;
+	std::vector<std::set<unsigned int> > computeConflicts(
+		const std::vector<annotate::Stem>& aStems) const;
+	std::pair<stem_set, stem_set> splitConflicts(const stem_set& aStems) const;
+
+	std::pair<std::set<annotate::Stem>, std::set<annotate::Stem> > splitImbrication(
+		const std::set<annotate::Stem>& aStems) const;
+
+	unsigned int findMaxConflictStem(
+		const std::set<unsigned int>& aToTest,
+		const std::vector<std::set<unsigned int> >& aConflicts,
+		const std::vector<annotate::Stem>& aStems) const;
 };
 
 #endif // _pdb2db_H_
