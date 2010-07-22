@@ -6,17 +6,12 @@
 // Created On       : Thu Jul 8 10:00:00 2010
 
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "pdb2db.h"
 
 #include <cassert>
 #include <cerrno>
 #include <cstdlib>
 #include <sstream>
-#include <unistd.h>
 
 #include "mccore/Binstream.h"
 #include "mccore/Exception.h"
@@ -27,10 +22,6 @@
 #include "mccore/Relation.h"
 #include "mccore/ResidueFactoryMethod.h"
 #include "mccore/ResIdSet.h"
-#ifdef HAVE_LIBRNAMLC__
-#include "mccore/RnamlReader.h"
-#endif
-#include "mccore/Version.h"
 
 // libmcannotate
 #include "AlgorithmExtra.h"
@@ -39,15 +30,6 @@
 #include "AnnotationInteractions.h"
 
 #include "AnnotationStemsLoose.h"
-
-bool binary = false;
-unsigned int environment = 0;
-bool oneModel = false;
-unsigned int modelNumber = 0;  // 1 based vector identifier, 0 means all
-ResIdSet residueSelection;
-const char* shortopts = "Vbe:f:hlr:vm:";
-const unsigned int guiMaxLayer = 10;
-unsigned int guiMaxPerfectSearch = 24;
 
 std::string gNotationSymbols[] =
 {
@@ -63,200 +45,195 @@ std::string gNotationSymbols[] =
 	"90st", // 9
 };
 
-PDB2DotBracket::PDB2DotBracket(int argc, char * argv [])
+PDB2DotBracket::PDB2DotBracket(
+	const PDB2DotBracketParams& aParams,
+	const std::vector<std::string>& aFiles)
 {
-	read_options (argc, argv);
+	mParams = aParams;
 
-	while (optind < argc)
+	std::vector<std::string>::const_iterator itFile;
+	for(itFile = aFiles.begin(); itFile != aFiles.end(); ++ itFile)
 	{
-		mccore::Molecule *molecule;
-		mccore::Molecule::iterator molIt;
-		std::string filename = (std::string) argv[optind];
+		processFile(*itFile);
+	}
+}
 
-		molecule = loadFile (filename);
-		if (0 != molecule)
+PDB2DotBracket::PDB2DotBracket(
+	const PDB2DotBracketParams& aParams,
+	const std::string& astrFile,
+	std::ostream& aFile)
+{
+	mParams = aParams;
+	processStream(astrFile, aFile);
+}
+
+void PDB2DotBracket::processFile(const std::string& astrFile) const
+{
+	mccore::Molecule *molecule;
+	mccore::Molecule::iterator molIt;
+	unsigned int uiModelNumber = mParams.muiModelNumber;
+
+	molecule = loadFile (astrFile);
+	if (0 != molecule)
+	{
+		unsigned int uiCurrentModel = 1;
+		for (molIt = molecule->begin (); molecule->end () != molIt; ++molIt)
 		{
-			unsigned int uiCurrentModel = 1;
-			for (molIt = molecule->begin (); molecule->end () != molIt; ++molIt)
+			if (0 != uiModelNumber)
 			{
-				if (0 != modelNumber)
-				{
-					--modelNumber;
-				}
-				else
-				{
-					annotate::AnnotateModel &am = (annotate::AnnotateModel&) *molIt;
-					std::string strPDBPrefix = getFilePrefix(filename);
-					am.name(strPDBPrefix);
-					am.id(uiCurrentModel);
-					annotate::AnnotationInteractions annInteractions;
-					annotate::AnnotationChains annChains;
-					AnnotationStemsLoose annStems;
-
-					am.addAnnotation(annInteractions);
-					am.addAnnotation(annChains);
-					am.addAnnotation(annStems);
-
-					am.keepNucleicAcid();
-					unsigned char ucRelationMask =
-						mccore::Relation::adjacent_mask
-						| mccore::Relation::pairing_mask;
-					am.annotate(ucRelationMask);
-
-					// Stems to dot bracket
-					annotate::AnnotationChains::chain_map::const_iterator itChain;
-					for(itChain = annChains.chains().begin(); itChain != annChains.chains().end(); ++ itChain)
-					{
-						std::cout << ">" << strPDBPrefix << ":";
-						std::cout << itChain->first;
-						std::cout << "|PDBID|CHAIN|SEQUENCE" << std::endl;
-						std::cout << getSequence(am, itChain->second) << std::endl;
-						std::string strDotBrackets;
-						strDotBrackets = toDotBracketCombined(annStems, itChain->second);
-						std::cout << strDotBrackets << std::endl;
-						strDotBrackets = toDotBracketLayers(annStems, itChain->second);
-						std::cout << strDotBrackets << std::endl;
-					}
-					if (oneModel)
-					{
-						break;
-					}
-				}
-				uiCurrentModel ++;
+				--uiModelNumber;
 			}
-			delete molecule;
-		}
-		++optind;
-	}
-}
-
-void PDB2DotBracket::version () const
-{
-	mccore::Version mccorev;
-
-	mccore::gOut(0)
-		<< PACKAGE << " " << VERSION << " (" << __DATE__ << ")" << std::endl
-		<< "  using " << mccorev << std::endl;
-}
-
-
-void PDB2DotBracket::usage () const
-{
-	mccore::gOut(0) << "usage: " << PACKAGE
-		<< " [-hlvV] [-f <model number>] [-m <relation mask>] <structure file> ..."
-		<< std::endl;
-}
-
-void PDB2DotBracket::help () const
-{
-	mccore::gOut (0)
-		<< "This program annotate structures (and more)." << std::endl
-		<< "  -s 			    " << std::endl
-		<< "  -f model number   model to annotate (default : all models) " << std::endl
-		<< "  -h                print this help" << std::endl
-		<< "  -l                be more verbose (log)" << std::endl
-		<< "  -v                be verbose" << std::endl
-		<< "  -V                print the software version info" << std::endl;
-}
-
-
-void PDB2DotBracket::read_options (int argc, char* argv[])
-{
-	int c;
-
-	while ((c = getopt (argc, argv, shortopts)) != EOF)
-	{
-		switch (c)
-		{
-		case 'V':
-			version ();
-			exit (EXIT_SUCCESS);
-			break;
-		case 'f':
-		{
-			long int tmp;
-
-			tmp = strtol (optarg, 0, 10);
-			if (ERANGE == errno	|| EINVAL == errno || 0 > tmp)
+			else
 			{
-				mccore::gErr(0) << PACKAGE << ": invalid model value.";
-				mccore::gErr(0) << std::endl;
-				exit (EXIT_FAILURE);
+				annotate::AnnotateModel &am = (annotate::AnnotateModel&) *molIt;
+				std::string strPDBPrefix = getFilePrefix(astrFile);
+				am.id(uiCurrentModel);
+				am.name(strPDBPrefix);
+				processModel(am);
+				if (mParams.mbOneModel)
+				{
+					break;
+				}
 			}
-			modelNumber = tmp;
-			oneModel = true;
-			break;
+			uiCurrentModel ++;
 		}
-		case 'h':
-			usage ();
-			help ();
-			exit (EXIT_SUCCESS);
-			break;
-		case 'l':
-			mccore::gErr.setVerboseLevel (mccore::gErr.getVerboseLevel () + 1);
-			break;
-		case 'v':
-			mccore::gOut.setVerboseLevel (mccore::gOut.getVerboseLevel () + 1);
-			break;
-		default:
-			usage ();
-			exit (EXIT_FAILURE);
-		}
-	}
-
-	if (argc - optind < 1)
-	{
-		usage ();
-		exit (EXIT_FAILURE);
+		delete molecule;
 	}
 }
 
-
-mccore::Molecule* PDB2DotBracket::loadFile (const string &filename)
+void PDB2DotBracket::processStream(
+	const std::string& astrFile,
+	const std::ostream& aFile) const
 {
-  Molecule *molecule;
-  ResidueFM rFM;
-  annotate::AnnotateModelFM aFM (residueSelection, environment, &rFM);
+	mccore::Molecule *molecule;
+	mccore::Molecule::iterator molIt;
+	unsigned int uiModelNumber = mParams.muiModelNumber;
 
-  molecule = 0;
-  if (binary)
-    {
-      izfBinstream in;
-
-      in.open (filename.c_str ());
-      if (in.fail ())
+	molecule = loadStream(aFile);
+	if (0 != molecule)
 	{
-	  gErr (0) << PACKAGE << ": cannot open binary file '" << filename << "'." << endl;
-	  return 0;
+		unsigned int uiCurrentModel = 1;
+		for (molIt = molecule->begin (); molecule->end () != molIt; ++molIt)
+		{
+			if (0 != uiModelNumber)
+			{
+				--uiModelNumber;
+			}
+			else
+			{
+				annotate::AnnotateModel &am = (annotate::AnnotateModel&) *molIt;
+				std::string strPDBPrefix = getFilePrefix(astrFile);
+				am.id(uiCurrentModel);
+				am.name(strPDBPrefix);
+				processModel(am);
+				if (mParams.mbOneModel)
+				{
+					break;
+				}
+			}
+			uiCurrentModel ++;
+		}
+		delete molecule;
 	}
-      molecule = new Molecule (&aFM);
-      in >> *molecule;
-      in.close ();
-    }
-  else
-    {
-#ifdef HAVE_LIBRNAMLC__
-      RnamlReader reader (filename.c_str (), &aFM);
+}
 
-      if (0 == (molecule = reader.read ()))
+void PDB2DotBracket::processModel(annotate::AnnotateModel& aModel) const
+{
+	annotate::AnnotationInteractions annInteractions;
+	annotate::AnnotationChains annChains;
+	AnnotationStemsLoose annStems;
+
+	aModel.addAnnotation(annInteractions);
+	aModel.addAnnotation(annChains);
+	aModel.addAnnotation(annStems);
+
+	aModel.keepNucleicAcid();
+	unsigned char ucRelationMask =
+		mccore::Relation::adjacent_mask
+		| mccore::Relation::pairing_mask;
+	aModel.annotate(ucRelationMask);
+
+	// Stems to dot bracket
+	annotate::AnnotationChains::chain_map::const_iterator itChain;
+	for(itChain = annChains.chains().begin(); itChain != annChains.chains().end(); ++ itChain)
 	{
-#endif
-	  izfPdbstream in;
-
-	  in.open (filename.c_str ());
-	  if (in.fail ())
-	    {
-	      gErr (0) << PACKAGE << ": cannot open pdb file '" << filename << "'." << endl;
-	      return 0;
-	    }
-	  molecule = new Molecule (&aFM);
-	  in >> *molecule;
-	  in.close ();
-#ifdef HAVE_LIBRNAMLC__
+		std::cout << ">" << aModel.name() << ":";
+		std::cout << itChain->first;
+		std::cout << "|PDBID|CHAIN|SEQUENCE" << std::endl;
+		std::cout << getSequence(aModel, itChain->second) << std::endl;
+		std::string strDotBrackets;
+		if(0 < mParams.muiCombinedLayers)
+		{
+			strDotBrackets = toDotBracketCombined(annStems, itChain->second);
+			std::cout << strDotBrackets << std::endl;
+		}
+		if(0 < mParams.muiSplitLayers)
+		{
+			strDotBrackets = toDotBracketLayers(annStems, itChain->second);
+			std::cout << strDotBrackets << std::endl;
+		}
 	}
+}
+
+mccore::Molecule* PDB2DotBracket::loadStream(const std::ostream& aPDBStream) const
+{
+	Molecule *molecule = 0;
+	ResidueFM rFM;
+	ResIdSet residueSelection;
+	annotate::AnnotateModelFM aFM (residueSelection, 0, &rFM);
+	// TODO : Check how to make this work for compressed PDB
+	iPdbstream in(aPDBStream.rdbuf());
+	molecule = new Molecule (&aFM);
+	in >> *molecule;
+	return molecule;
+}
+
+mccore::Molecule* PDB2DotBracket::loadFile (const string &filename) const
+{
+	Molecule *molecule;
+	ResidueFM rFM;
+	ResIdSet residueSelection;
+	annotate::AnnotateModelFM aFM (residueSelection, 0, &rFM);
+
+	molecule = 0;
+	if (mParams.mbBinary)
+	{
+		izfBinstream in;
+
+		in.open (filename.c_str ());
+		if (in.fail ())
+		{
+			mccore::gErr (0) << PACKAGE << ": cannot open binary file '" << filename << "'." << endl;
+			return 0;
+		}
+		molecule = new Molecule (&aFM);
+		in >> *molecule;
+		in.close ();
+	}
+	else
+	{
+#ifdef HAVE_LIBRNAMLC__
+		RnamlReader reader (filename.c_str (), &aFM);
+
+		if (0 == (molecule = reader.read ()))
+		{
 #endif
-    }
-  return molecule;
+		izfPdbstream in;
+
+		in.open (filename.c_str ());
+		if (in.fail ())
+		{
+			mccore::gErr (0) << PACKAGE << ": cannot open pdb file '" << filename << "'." << endl;
+			return 0;
+		}
+		molecule = new Molecule (&aFM);
+		in >> *molecule;
+		in.close ();
+#ifdef HAVE_LIBRNAMLC__
+		}
+#endif
+	}
+	return molecule;
 }
 
 std::string PDB2DotBracket::getFilePrefix(const std::string& aFileName) const
@@ -300,7 +277,7 @@ std::pair<PDB2DotBracket::stem_set, PDB2DotBracket::stem_set> PDB2DotBracket::se
 {
 	std::pair<stem_set, stem_set> results;
 
-	if(aStems.size() < guiMaxPerfectSearch)
+	if(aStems.size() < mParams.muiMaxPerfectSearch)
 	{
 		std::vector<std::set<unsigned int> > conflicts = computeConflicts(aStems);
 
@@ -573,7 +550,7 @@ std::string PDB2DotBracket::toDotBracketCombined(
 	db_notation dBrackets = createDotBracket(aChain);
 	unsigned int uiLayer = 0;
 	std::list<stem_set>::const_iterator it;
-	for(it = layers.begin(); it != layers.end() && uiLayer < guiMaxLayer; ++ it)
+	for(it = layers.begin(); it != layers.end() && uiLayer < mParams.muiCombinedLayers; ++ it)
 	{
 		applyStems(dBrackets, *it, uiLayer);
 		uiLayer ++;
@@ -596,7 +573,7 @@ std::string PDB2DotBracket::toDotBracket(
 
 	unsigned int uiLayer = 0;
 	std::list<std::set<annotate::Stem> >::const_iterator it;
-	for(it = aLayers.begin(); it != aLayers.end() && uiLayer < guiMaxLayer; ++ it)
+	for(it = aLayers.begin(); it != aLayers.end() && uiLayer < mParams.muiSplitLayers; ++ it)
 	{
 		std::list<mccore::ResId>::const_iterator itResId;
 		db_notation dBrackets = createDotBracket(aChain);
@@ -687,7 +664,6 @@ void PDB2DotBracket::applyStems(
 	const std::set<annotate::Stem>& aStems,
 	unsigned int auiLevel) const
 {
-	assert(auiLevel < guiMaxLayer);
 	std::set< annotate::Stem >::const_iterator it;
 	for(it = aStems.begin(); it != aStems.end(); ++ it)
 	{
@@ -808,8 +784,10 @@ PDB2DotBracket::stem_set PDB2DotBracket::cutStems(
 	return stems;
 }
 
+/*
 int main(int argc, char* argv[])
 {
 	PDB2DotBracket theApp(argc, argv);
 	return EXIT_SUCCESS;
 }
+*/

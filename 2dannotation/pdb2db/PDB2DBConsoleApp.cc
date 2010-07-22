@@ -11,11 +11,10 @@
 
 #include "PDB2DBConsoleApp.h"
 
-#include "mccore/Messagestream.h"
-#include "mccore/Version.h"
+#include <mccore/Messagestream.h>
+#include <mccore/Version.h>
 
 #include <cstdio>
-#include <unistd.h>
 
 static const char* shortopts = "Vbc:s:e:f:hlr:vm:";
 

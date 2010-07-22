@@ -9,30 +9,67 @@
 #define _pdb2db_H_
 
 #include <string>
+#include <vector>
 
 #include "mccore/Molecule.h"
 
 #include "AnnotationChains.h"
 #include "AnnotationStemsLoose.h"
 
+class PDB2DotBracketParams
+{
+public:
+	PDB2DotBracketParams()
+	{
+		mbOneModel = false;
+		muiModelNumber = 0;
+		mbBinary = false;
+		muiCombinedLayers = 2;
+		muiSplitLayers = 0;
+		muiMaxPerfectSearch = 24;
+	}
+
+	// ATTRIBUTES --------------------------------------------------------------
+	bool mbOneModel;
+	unsigned int muiModelNumber;  // 1 based vector identifier, 0 means all
+	unsigned int muiSplitLayers;
+	unsigned int muiCombinedLayers;
+	bool mbBinary;
+	unsigned int muiMaxPerfectSearch; // Maximum number of stems for exhaustive search
+
+	std::vector<std::string> mFiles;
+};
+
+
 class PDB2DotBracket
 {
 public:
-	PDB2DotBracket(int argc, char * argv []);
-
-	// METHODS ---------------------------------------------
-	void version () const;
-	void usage () const;
-	void help () const;
+	// LIFECYCLE -------------------------------------------
+	PDB2DotBracket(
+		const PDB2DotBracketParams& aParams,
+		const std::vector<std::string>& aFiles);
+	PDB2DotBracket(
+		const PDB2DotBracketParams& aParams,
+		const std::string& astrFile,
+		std::ostream& aFile);
 private:
 	typedef std::map<mccore::ResId, char> db_notation;
 	typedef std::set<annotate::Stem> stem_set;
 	float mfAppVersion;
 	std::string mstrAppName;
-	std::string mstrPDBFile;
 
-	void read_options (int argc, char* argv[]);
-	mccore::Molecule* loadFile (const string &filename);
+	PDB2DotBracketParams mParams;
+	std::vector<std::string> mFiles;
+
+	// void read_options (int argc, char* argv[]);
+	mccore::Molecule* loadFile (const string &filename) const;
+	mccore::Molecule* loadStream(const std::ostream& aPDBStream) const;
+
+	void processStream(
+		const std::string& astrFile,
+		const std::ostream& aFile) const;
+	void processFile(const std::string& astrFile) const;
+	void processModel(annotate::AnnotateModel& aModel) const;
 
 	std::string getFilePrefix(const std::string& aFileName) const;
 	bool pseudoKnots(const std::vector<annotate::Stem>& usedStems, const annotate::Stem& otherStem) const;
