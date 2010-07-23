@@ -134,24 +134,34 @@ AC_SUBST(LIBALLFLAGSTOP)
 AC_SUBST(ARXX)
 AC_SUBST(AROPTIONS)
 
-AC_CONFIG_FILES([
-	mcsc2resids/Makefile
-	mc3di/Makefile
-	mc3dicp/Makefile
-	mc3dihf/Makefile
-	mc3dihg/Makefile
-	mc3dssc/Makefile
-	mccm/Makefile
-	mcec/Makefile
-	mcnacs/Makefile
-	mcnaip/Makefile
-	mcrecept/Makefile
-	mcssc/Makefile
-	mctopo/Makefile
-	t1buildtable/Makefile
-	t2buildtable/Makefile
-	t2buildtable_v2/Makefile
-	t3buildtable/Makefile
-	t4buildtable/Makefile])
+AC_CONFIG_SUBDIRS(db2ncm)
+AC_CONFIG_SUBDIRS(mcsc2resids)
+AC_CONFIG_SUBDIRS(mc3di)
+AC_CONFIG_SUBDIRS(mc3dicp)
+AC_CONFIG_SUBDIRS(mc3dihf)
+AC_CONFIG_SUBDIRS(mc3dihg)
+AC_CONFIG_SUBDIRS(mc3dssc)
+
+AC_CONFIG_SUBDIRS(mccm)
+AC_CONFIG_SUBDIRS(mcec)
+AC_CONFIG_SUBDIRS(mcip)
+AC_CONFIG_SUBDIRS(mcnacs)
+AC_CONFIG_SUBDIRS(mcnaip)
+AC_CONFIG_SUBDIRS(mcrecept)
+AC_CONFIG_SUBDIRS(mcsincm)
+AC_CONFIG_SUBDIRS(mcssc)
+AC_CONFIG_SUBDIRS(mctopo)
+AC_CONFIG_SUBDIRS(molsepRNA)
+AC_CONFIG_SUBDIRS(pdb2db)
+AC_CONFIG_SUBDIRS(RNAGroups)
+AC_CONFIG_SUBDIRS(rnaselect2)
+AC_CONFIG_SUBDIRS(t1buildtable)
+AC_CONFIG_SUBDIRS(t1buildtable_v2)
+AC_CONFIG_SUBDIRS(t2buildtable)
+AC_CONFIG_SUBDIRS(t2buildtable_position)
+AC_CONFIG_SUBDIRS(t3buildtable)
+AC_CONFIG_SUBDIRS(t4buildtable)
+
+#AC_CONFIG_FILES([])
 
 AC_OUTPUT( Makefile, echo timestamp > stamp-h )
