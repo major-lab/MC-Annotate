@@ -78,7 +78,6 @@ namespace annotate
 	{
 		chain_map::const_iterator it;
 		it = mChains.find(aucChainId);
-		std::cout << "Last chain looked for : " << aucChainId << std::endl;
 		assert(it != mChains.end());
 		return it->second;
 	}
