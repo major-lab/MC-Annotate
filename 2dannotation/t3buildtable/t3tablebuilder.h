@@ -21,6 +21,7 @@ class T3TableBuilder
 public:
 	// LIFECYCLE
 	T3TableBuilder(const std::string& astrGroupFile, const std::string& aInteractions);
+	virtual ~T3TableBuilder() {}
 	void computeTable();
 
 protected:

@@ -256,10 +256,9 @@ annotate::CycleInfo T3TableBuilder::getCycleInfo(
 	annotate::CycleProfile profile(astrProfile);
 	std::vector<std::vector<mccore::ResId> > resIds;
 	resIds.resize(profile.strandProfile().size());
-	std::list<unsigned int>::const_iterator it = profile.strandProfile().begin();
+	std::vector<unsigned int>::const_iterator it = profile.strandProfile().begin();
 	unsigned int iCursor = 0;
 	unsigned int iStrand = 0;
-	// std::vector<mccore::ResId> resIdsFields = annotate::splitStringFields(astrResIds, "-");
 	std::vector<mccore::ResId> resIdsFields = getResIds(astrResIds);
 	for(; it != profile.strandProfile().end(); ++ it, ++iStrand)
 	{
@@ -432,11 +431,11 @@ unsigned int T3TableBuilder::getNucleotidePosition(
 	uiPosition = i;
 	if(2 == uiNbStrands)
 	{
-		annotate::CycleInfo::residue_profile resProf = aCycle.getStrandResIds();
-		if(resProf[0].size() == resProf[1].size())
+		std::vector<unsigned int> resProf = aCycle.getProfile().strandProfile();
+		if(resProf[0] == resProf[1])
 		{
 			// Symmetric cycle
-			uiPosition %= resProf[0].size();
+			uiPosition %= resProf[0];
 		}
 	}
 	return uiPosition;
