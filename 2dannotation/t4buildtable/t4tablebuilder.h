@@ -21,6 +21,8 @@ class T4TableBuilder
 public:
 	// LIFECYCLE
 	T4TableBuilder(const std::string& astrGroupFile, const std::string& aInteractions);
+	virtual ~T4TableBuilder() {}
+
 	void computeTable();
 
 protected:

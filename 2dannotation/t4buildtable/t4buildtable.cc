@@ -13,8 +13,8 @@
 #include "t4buildtable.h"
 #include "t4tablebuilderh1.h"
 
-#include "mccore/Messagestream.h"
-#include "mccore/Version.h"
+#include <mccore/Messagestream.h>
+#include <mccore/Version.h>
 
 #include <cassert>
 #include <cstdio>
