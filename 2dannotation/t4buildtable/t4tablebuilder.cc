@@ -217,7 +217,7 @@ annotate::CycleInfo T4TableBuilder::getCycleInfo(
 	annotate::CycleProfile profile(astrProfile);
 	std::vector<std::vector<mccore::ResId> > resIds;
 	resIds.resize(profile.strandProfile().size());
-	std::list<unsigned int>::const_iterator it = profile.strandProfile().begin();
+	std::vector<unsigned int>::const_iterator it = profile.strandProfile().begin();
 	unsigned int iCursor = 0;
 	unsigned int iStrand = 0;
 	std::vector<mccore::ResId> resIdsFields = getResIds(astrResIds);
