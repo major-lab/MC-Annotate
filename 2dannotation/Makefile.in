@@ -78,9 +78,10 @@ DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(ALLSOURCES) $(HEADERS) \
 config.guess config.h.in config.sub configure configure.in install-sh \
 mkinstalldirs stamp-h.in
 
-SUBDIRS = mc3di mc3dicp mc3dihf mc3dihg mc3dssc mccm mcec mcsc2resids mcnaip \
-	mcnacs mcrecept mcssc mctopo molsepRNA RNAGroups rnaselect2 t1buildtable \
-	t1buildtable_v2 t2buildtable t3buildtable t4buildtable
+SUBDIRS = db2ncm mc3di mc3dicp mc3dihf mc3dihg mc3dssc mccm mcec mcsc2resids \
+	mcip mcnaip mcnacs mcrecept mcsincm mcssc mctopo molsepRNA pdb2db RNAGroups \
+	rnaselect2 t1buildtable t1buildtable_v2 t2buildtable_position t2buildtable \
+	t3buildtable t4buildtable
 
 RELEASESUBDIRS = $($SUBDIRS)
 

@@ -36,7 +36,7 @@ namespace annotate
 		meType (eUNKNOWN)
 		{ }
 
-    	~BaseInteraction () { }
+    	virtual ~BaseInteraction () { }
 
     	// ACCESS --------------------------------------------------------------
     	enType& type() {return meType;}

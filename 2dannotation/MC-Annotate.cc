@@ -18,20 +18,20 @@
 #include <sstream>
 #include <unistd.h>
 
-#include "mccore/Binstream.h"
-#include "mccore/Exception.h"
-#include "mccore/Messagestream.h"
-#include "mccore/ModelFactoryMethod.h"
-#include "mccore/Molecule.h"
-#include "mccore/Pdbstream.h"
-#include "mccore/PropertyType.h"
-#include "mccore/Relation.h"
-#include "mccore/ResidueFactoryMethod.h"
-#include "mccore/ResIdSet.h"
+#include <mccore/Binstream.h>
+#include <mccore/Exception.h>
+#include <mccore/Messagestream.h>
+#include <mccore/ModelFactoryMethod.h>
+#include <mccore/Molecule.h>
+#include <mccore/Pdbstream.h>
+#include <mccore/PropertyType.h>
+#include <mccore/Relation.h>
+#include <mccore/ResidueFactoryMethod.h>
+#include <mccore/ResIdSet.h>
 #ifdef HAVE_LIBRNAMLC__
-#include "mccore/RnamlReader.h"
+#include <mccore/RnamlReader.h>
 #endif
-#include "mccore/Version.h"
+#include <mccore/Version.h>
 
 #include "AnnotateModel.h"
 #include "AnnotatedModelSQLExporter.h"

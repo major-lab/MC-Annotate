@@ -31,23 +31,30 @@ public:
 		const annotate::CycleProfile& aProfile,
 		const residue_profile& aResIds,
 		const std::vector<std::string>& aResidues);
+	CycleInfo(
+		const std::string& aFile,
+		unsigned int auiModel,
+		const annotate::CycleProfile& aFileProfile,
+		const annotate::CycleProfile& aProfile,
+		const std::vector<mccore::ResId>& aResIds,
+		const std::vector<std::string>& aResidues);
 	~CycleInfo() {}
 
 	// ACCESS ------------------------------------------------------------------
 	const ModelInfo& getModelInfo() const {return mModelInfo;}
 	const std::string& getPDBFile() const {return mModelInfo.getPDBFile();}
 	unsigned int getModel() const {return mModelInfo.getModel();}
-	const residue_profile& getStrandResIds() const {return mResIds;}
 	const annotate::CycleProfile& getProfile() const {return mProfile;}
 	const annotate::CycleProfile& getFileProfile() const {return mFileProfile;}
+	const std::vector<mccore::ResId>& getResIds() const {return mResidueIds;}
+	unsigned int getNbStrands() const {return mProfile.strandProfile().size();}
 
 	// METHOD ------------------------------------------------------------------
 	const std::vector<std::string> getSequence() const;
 	std::string getNucleotideString(const mccore::ResId& aResId) const;
 	bool contains(const InteractionInfo& aInteraction) const;
 	bool contains(const mccore::ResId& aResId) const;
-	std::vector<mccore::ResId> getResIds() const;
-	unsigned int getNbStrands() const {return mResIds.size();}
+
 	std::set<Interaction> getStrandInteractions(unsigned int auiStrand) const;
 	bool shareInteraction(const std::set<Interaction>& aInteraction) const;
 	bool isSubCycleOf(const CycleInfo& aCycleInfo) const;
@@ -55,6 +62,7 @@ public:
 	bool isSub2StrandsCycle(const CycleInfo& aCycleInfo) const;
 	bool is2StrandsSubCycleOfLoop(const CycleInfo& aCycleInfo) const;
 	bool isLoopSubCycleOf2Strands(const CycleInfo& aCycleInfo) const;
+
 
 	static CycleInfo flipStrand(const CycleInfo& aCycleInfo);
 	const std::vector<std::string> getFlipStrandSequence() const;
@@ -75,6 +83,9 @@ public:
 		unsigned int uiStrand,
 		const std::set<Interaction>& aInteractions) const;
 
+	residue_profile getStrandsResIds() const;
+	std::vector<mccore::ResId> getStrandResIds(unsigned int auiStrand) const;
+
 	// OPERATOR ----------------------------------------------------------------
 	bool operator <(const CycleInfo& aRight) const;
 	bool operator ==(const CycleInfo& aRight) const;
@@ -83,19 +94,17 @@ public:
 	std::string residuesString(const std::string& astrSeparator = "-") const;
 	std::string resIdsString(const std::string& astrSeparator = "-") const;
 	std::string groupedResIdsString() const;
+
 protected:
 	ModelInfo mModelInfo;
-	residue_profile mResIds;
-private:
-
+	std::vector<mccore::ResId> mResidueIds;
 	annotate::CycleProfile mProfile; // Profile family
 	annotate::CycleProfile mFileProfile;	// Profile in order of the file
-	std::map<mccore::ResId, std::string> mIdToResMap;
+private:
+	std::map<mccore::ResId, std::string> mIdToResMap; // TODO : Is this really needed ?
 
-	int compareStrand(
-		const residue_strand& aLeft,
-		const residue_strand& aRight) const;
 	std::pair<int, int> findResId(const mccore::ResId& astrResId) const;
+	std::pair<unsigned int, unsigned int> getStrandRange(unsigned int auiStrand) const;
 };
 
 }; // namespace annotate

@@ -41,6 +41,22 @@ namespace annotate
 		return bEqual;
 	}
 
+	bool Stem::operator <(const Stem& other) const
+	{
+		bool bLess = false;
+		if(mBasePairs.front() < other.mBasePairs.front())
+		{
+			bLess = true;
+		}else if(mBasePairs.front() == other.mBasePairs.front())
+		{
+			if(mBasePairs.back() < other.mBasePairs.back())
+			{
+				bLess = true;
+			}
+		}
+		return bLess;
+	}
+
 	bool Stem::isSame(const SecondaryStructure& aStruct) const
 	{
 		bool bSame = false;
@@ -143,6 +159,12 @@ namespace annotate
 			mccore::ResId tR2 = mBasePairs.back().fResId;
 			mccore::ResId tR3 = mBasePairs.front().rResId;
 			mccore::ResId tR4 = mBasePairs.back().rResId;
+
+			// ooooooooo...xxxxxxx
+			// xxxxxxx...ooooooooo
+			//         or
+			// xxxxxxx...ooooooooo
+			// ooooooooo...xxxxxxx
 
 			if(((tR2 < aR1 && aR2 < tR3) && (tR4 < aR3))
 				|| ((aR2 < tR1 && tR2 < aR3) && (aR4 < tR3)))

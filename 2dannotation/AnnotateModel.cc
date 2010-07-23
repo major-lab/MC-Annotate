@@ -17,12 +17,12 @@
 #include <list>
 #include <sstream>
 
-#include "mccore/Binstream.h"
-#include "mccore/Messagestream.h"
-#include "mccore/Molecule.h"
-#include "mccore/Pdbstream.h"
-#include "mccore/UndirectedGraph.h"
-#include "mccore/stlio.h"
+#include <mccore/Binstream.h>
+#include <mccore/Messagestream.h>
+#include <mccore/Molecule.h>
+#include <mccore/Pdbstream.h>
+#include <mccore/UndirectedGraph.h>
+#include <mccore/stlio.h>
 
 #include "AnnotateModel.h"
 #include "Annotation.h"

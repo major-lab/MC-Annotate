@@ -4,8 +4,8 @@
 
 #include "Cycle.h"
 
-#include <list>
 #include <string>
+#include <vector>
 
 namespace annotate
 {
@@ -16,12 +16,15 @@ namespace annotate
 		~CycleProfile();
 
 		// ACCESS --------------------------------------------------------------
-		const std::list<unsigned int>& strandProfile() const
+		const std::vector<unsigned int>& strandProfile() const
 		{
 			return mStrandProfile;
 		}
-
 		const Cycle::enType& type() const {return meType;}
+
+		// OPERATORS -----------------------------------------------------------
+		bool operator <(const CycleProfile& aRight) const;
+		bool operator ==(const CycleProfile& aRight) const;
 
 		// METHODS -------------------------------------------------------------
 		std::string toString() const;
@@ -29,7 +32,7 @@ namespace annotate
 		bool isSymmetric() const;
 		static CycleProfile Rotate(const CycleProfile& aProfile);
 	private:
-		std::list<unsigned int> mStrandProfile;
+		std::vector<unsigned int> mStrandProfile;
 		Cycle::enType			meType;
 
 		void clear();

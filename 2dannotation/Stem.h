@@ -38,6 +38,12 @@ namespace annotate
     	 */
     	 bool operator ==(const Stem& other) const;
 
+    	 /**
+		 * @brief Checks if the other stem is after this one in 5' to 3' order.
+		 * @return true if this stem appears first.
+		 */
+    	 bool operator <(const Stem& other) const;
+
 		// ACCESS ---------------------------------------------------------------
 		enOrientation getOrientation () const { return meOrientation; }
 

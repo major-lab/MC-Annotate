@@ -17,17 +17,17 @@
 #include <utility>
 #include <vector>
 
-#include "mccore/GraphModel.h"
-#include "mccore/Model.h"
-#include "mccore/ModelFactoryMethod.h"
+#include <mccore/GraphModel.h>
+#include <mccore/Model.h>
+#include <mccore/ModelFactoryMethod.h>
 // Temporary until cycle annotation is fully moved into AnnotationCycles.
-#include "mccore/Molecule.h"
-#include "mccore/PropertyType.h"
-#include "mccore/Relation.h"
-#include "mccore/ResId.h"
-#include "mccore/ResIdSet.h"
-#include "mccore/Residue.h"
-#include "mccore/ResidueType.h"
+#include <mccore/Molecule.h>
+#include <mccore/PropertyType.h>
+#include <mccore/Relation.h>
+#include <mccore/ResId.h>
+#include <mccore/ResIdSet.h>
+#include <mccore/Residue.h>
+#include <mccore/ResidueType.h>
 
 namespace mccore
 {

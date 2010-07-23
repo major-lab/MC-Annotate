@@ -8,7 +8,7 @@ namespace graphtest
 	CGraphIsomorphism::CGraphIsomorphism()
 	{
 	}
-	
+
 	//------------------------------------------------------------
 	void CGraphIsomorphism::update(
 		unsigned int auiM1NbNodes,
@@ -16,21 +16,21 @@ namespace graphtest
 		IsoContext* apContext)
 	{
 		m_M0.clear();
-				
+
 		// save parameter
 		m_pContext = apContext;
-	
+
 		// get dims of matrices
 		m_iAlpha = auiM1NbNodes;
 		m_iBeta  = auiM2NbNodes;
-		
+
 		if(m_iAlpha <= m_iBeta)
 		{
 			// set M; the vector of permutations
 			//----------------------------------------
 			m_M.clear();
-			m_M.resize(m_iAlpha, 0);	
-		
+			m_M.resize(m_iAlpha, 0);
+
 			// set and fill M0
 			//----------------------------------------
 			unsigned int i, j;
@@ -49,14 +49,14 @@ namespace graphtest
 					}
 				}
 			}
-	
+
 			// optimize M0 matrix
-			
+
 			// do the work
 			// ---------------------------------------
 			checkIsomorphism( 0 );
-		
-		
+
+
 			// delete temp matrices
 			m_M.clear();
 		}
@@ -72,7 +72,7 @@ namespace graphtest
 		}
 		return bAssigned;
 	}
-	
+
 	//------------------------------------------------------------
 	bool CGraphIsomorphism::checkIsomorphism( unsigned int I )
 	{
@@ -100,5 +100,5 @@ namespace graphtest
 		}
 		return bContinue;
 	}
-	
+
 } // namespace graphtest

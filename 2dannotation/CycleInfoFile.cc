@@ -96,7 +96,7 @@ std::vector<std::vector<mccore::ResId> > CycleInfoFile::getStrandResidues(
 	CycleInfo::residue_profile strandResidues;
 
 	CycleInfo::residue_strand::const_iterator itRes = residues.begin();
-	std::list<unsigned int>::const_iterator itProf;
+	std::vector<unsigned int>::const_iterator itProf;
 	for(itProf = aProfile.strandProfile().begin();
 		itProf != aProfile.strandProfile().end();
 		++ itProf)

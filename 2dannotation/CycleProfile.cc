@@ -27,7 +27,7 @@ namespace annotate
 	std::string CycleProfile::toString() const
 	{
 		std::ostringstream oss;
-		std::list<unsigned int>::const_iterator it;
+		std::vector<unsigned int>::const_iterator it;
 		for(it = mStrandProfile.begin(); it != mStrandProfile.end(); ++ it)
 		{
 			if(it != mStrandProfile.begin())
@@ -107,7 +107,7 @@ namespace annotate
 	// A profile is symmetric if all the strands have the same length
 	bool CycleProfile::isSymmetric() const
 	{
-		std::list<unsigned int>::const_iterator it;
+		std::vector<unsigned int>::const_iterator it;
 		bool bSymmetric = true;
 		unsigned int uiLength = 0;
 
@@ -127,9 +127,64 @@ namespace annotate
 	CycleProfile CycleProfile::Rotate(const CycleProfile& aProfile)
 	{
 		CycleProfile profile = aProfile;
-		std::list<unsigned int>::iterator it = profile.mStrandProfile.begin();
+		std::vector<unsigned int>::iterator it = profile.mStrandProfile.begin();
 		it ++;
 		std::rotate(profile.mStrandProfile.begin(),it, profile.mStrandProfile.end());
 		return profile;
+	}
+
+	bool CycleProfile::operator <(const CycleProfile& aRight) const
+	{
+		bool bLess = false;
+
+		if(mStrandProfile.size() < aRight.mStrandProfile.size())
+		{
+			bLess = true;
+		}
+		else if(mStrandProfile.size() == aRight.mStrandProfile.size())
+		{
+			std::vector<unsigned int>::const_iterator it1;
+			std::vector<unsigned int>::const_iterator it2;
+			for(it1 = mStrandProfile.begin(), it2 = aRight.mStrandProfile.begin();
+				it1 != mStrandProfile.end();
+				++ it1, ++ it2)
+			{
+				if(*it1 < *it2)
+				{
+					bLess = true;
+					break;
+				}else if(*it2 < *it1)
+				{
+					break;
+				}
+			}
+		}
+		return bLess;
+	}
+
+	bool CycleProfile::operator ==(const CycleProfile& aRight) const
+	{
+		bool bEqual = true;
+
+		if(mStrandProfile.size() == aRight.mStrandProfile.size())
+		{
+			std::vector<unsigned int>::const_iterator it1;
+			std::vector<unsigned int>::const_iterator it2;
+			for(it1 = mStrandProfile.begin(), it2 = aRight.mStrandProfile.begin();
+				it1 != mStrandProfile.end();
+				++ it1, ++ it2)
+			{
+				if(*it1 != *it2)
+				{
+					bEqual = false;
+					break;
+				}
+			}
+		}
+		else
+		{
+			bEqual = false;
+		}
+		return bEqual;
 	}
 };

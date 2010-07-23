@@ -28,19 +28,42 @@ CycleInfo::CycleInfo(
 	mProfile(aProfile),
 	mFileProfile(aFileProfile)
 {
-	mResIds = aResIds;
-
-	std::vector<std::string>::const_iterator it = aResidues.begin();
-	residue_profile::const_iterator itStrand;
-	for(itStrand = mResIds.begin(); itStrand != mResIds.end(); ++ itStrand)
+	unsigned int uiNbRes = 0;
+	for(unsigned int uiStrand = 0; uiStrand < aResIds.size(); ++ uiStrand)
 	{
-		residue_strand::const_iterator itRes;
-		for(itRes = itStrand->begin(); itRes != itStrand->end(); ++ itRes)
+		uiNbRes += aResIds[uiStrand].size();
+	}
+	mResidueIds.resize(uiNbRes);
+	unsigned int uiIndex = 0;
+	for(unsigned int uiStrand = 0; uiStrand < aResIds.size(); ++ uiStrand)
+	{
+		for(unsigned int uiRes = 0; uiRes < aResIds[uiStrand].size(); ++ uiRes)
 		{
-			mIdToResMap.insert(std::pair<mccore::ResId, std::string>(*itRes, *it));
-			++ it;
+			mResidueIds[uiIndex] = aResIds[uiStrand][uiRes];
+			mIdToResMap.insert(std::pair<mccore::ResId, std::string>(aResIds[uiStrand][uiRes], aResidues[uiIndex]));
+			uiIndex ++;
 		}
 	}
+	assert(mIdToResMap.size() == mResidueIds.size());
+}
+
+CycleInfo::CycleInfo(
+		const std::string& aFile,
+		unsigned int auiModel,
+		const annotate::CycleProfile& aFileProfile,
+		const annotate::CycleProfile& aProfile,
+		const std::vector<mccore::ResId>& aResIds,
+		const std::vector<std::string>& aResidues)
+	: 	mModelInfo(aFile, auiModel),
+		mProfile(aProfile),
+		mFileProfile(aFileProfile)
+{
+	mResidueIds = aResIds;
+	for(unsigned int uiRes = 0; uiRes < mResidueIds.size(); ++ uiRes)
+	{
+		mIdToResMap.insert(std::pair<mccore::ResId, std::string>(mResidueIds[uiRes], aResidues[uiRes]));
+	}
+	assert(mIdToResMap.size() == mResidueIds.size());
 }
 
 bool CycleInfo::operator <(const CycleInfo& aRight) const
@@ -53,25 +76,20 @@ bool CycleInfo::operator <(const CycleInfo& aRight) const
 	}
 	else if(mModelInfo == aRight.mModelInfo)
 	{
-		if(mResIds.size() < aRight.mResIds.size())
+		if(mProfile < aRight.mProfile)
 		{
 			bLess = true;
-		}
-		else if(mResIds.size() == aRight.mResIds.size())
+		}else if(mProfile == aRight.mProfile)
 		{
-			residue_profile::const_iterator itLeft = mResIds.begin();
-			residue_profile::const_iterator itRight = aRight.mResIds.begin();
-			for(;
-				itLeft != mResIds.end() && itRight != aRight.mResIds.end();
-				++ itLeft, ++ itRight)
+			for(unsigned int uiIndex = 0; uiIndex < mResidueIds.size(); ++ uiIndex)
 			{
-				int iCompare = compareStrand(*itLeft, *itRight);
-				if(iCompare < 0)
+				if(mResidueIds[uiIndex] < aRight.mResidueIds[uiIndex])
 				{
 					bLess = true;
 					break;
-				}else if(iCompare > 0)
+				}else if(aRight.mResidueIds[uiIndex] < mResidueIds[uiIndex])
 				{
+					// Greather than
 					break;
 				}
 			}
@@ -82,86 +100,42 @@ bool CycleInfo::operator <(const CycleInfo& aRight) const
 
 bool CycleInfo::operator ==(const CycleInfo& aRight) const
 {
-	bool bLess = true;
+	bool bEqual = true;
 
-	if(mModelInfo == aRight.mModelInfo && mResIds.size() == aRight.mResIds.size())
+	if(mModelInfo == aRight.mModelInfo)
 	{
-		residue_profile::const_iterator itLeft = mResIds.begin();
-		residue_profile::const_iterator itRight = aRight.mResIds.begin();
-		for(;
-			itLeft != mResIds.end() && itRight != aRight.mResIds.end() && bLess;
-			++ itLeft, ++ itRight)
+		if(mProfile == aRight.mProfile)
 		{
-			int iCompare = compareStrand(*itLeft, *itRight);
-			bLess = (iCompare == 0);
-		}
-	}else
-	{
-		bLess = false;
-	}
-	return bLess;
-}
-
-int CycleInfo::compareStrand(
-	const residue_strand& aLeft,
-	const residue_strand& aRight) const
-{
-	int iCompare = 0;
-
-	if(aLeft.size() == aRight.size())
-	{
-		residue_strand::const_iterator leftIt = aLeft.begin();
-		residue_strand::const_iterator rightIt = aRight.begin();
-		for(;
-			leftIt != aLeft.end() && rightIt != aRight.end() && 0 == iCompare;
-			++leftIt, ++rightIt)
-		{
-			if(*leftIt < *rightIt)
+			for(unsigned int uiIndex = 0; uiIndex < mResidueIds.size(); ++ uiIndex)
 			{
-				iCompare = -1;
-			}else if(*rightIt < *leftIt)
-			{
-				iCompare = 1;
+				if(!(mResidueIds[uiIndex] == aRight.mResidueIds[uiIndex]))
+				{
+					bEqual = false;
+					break;
+				}
 			}
-		}
-	}
-	else if(aLeft.size() < aRight.size())
-	{
-		iCompare = -1;
-	}
-	else
-	{
-		iCompare = 1;
-	}
-	return iCompare;
-}
-
-std::vector<mccore::ResId> CycleInfo::getResIds() const
-{
-	std::vector<mccore::ResId> residues;
-	residue_profile::const_iterator itStrand;
-	for(itStrand = mResIds.begin(); itStrand != mResIds.end(); ++ itStrand)
-	{
-		residue_strand::const_iterator itRes;
-		for(itRes = itStrand->begin(); itRes != itStrand->end(); ++ itRes)
+		}else
 		{
-			residues.push_back(*itRes);
+			bEqual = false;
 		}
 	}
-	return residues;
+	return bEqual;
 }
 
+// TODO : Check if this can be removed
 std::pair<int, int> CycleInfo::findResId(const mccore::ResId& astrResId) const
 {
 	std::pair<int, int> coord(-1, -1);
-	for(int iRow = 0; iRow < (int)mResIds.size(); ++ iRow)
+	for(int iRow = 0; iRow < (int)mProfile.strandProfile().size(); ++ iRow)
 	{
-		for(int iCol = 0; iCol < (int)mResIds[iRow].size(); ++ iCol)
+		std::vector<mccore::ResId> resids = getStrandResIds(iRow);
+		for(int iCol = 0; iCol < (int)resids.size(); ++ iCol)
 		{
-			if(mResIds[iRow][iCol] == astrResId)
+			if(resids[iCol] == astrResId)
 			{
 				coord.first = iRow;
 				coord.second = iCol;
+				break;
 			}
 		}
 	}
@@ -239,15 +213,14 @@ std::set<Interaction> CycleInfo::getStrandInteractions(
 {
 	std::set<Interaction> interactions;
 
-	assert(auiStrand < mResIds.size());
+	assert(auiStrand < mProfile.strandProfile().size());
 
 	std::vector<mccore::ResId>::const_iterator it;
 	std::vector<mccore::ResId>::const_iterator itPrev;
-	for(it = mResIds[auiStrand].begin();
-		it != mResIds[auiStrand].end();
-		++ it)
+	std::vector<mccore::ResId> resids = getStrandResIds(auiStrand);
+	for(it = resids.begin(); it != resids.end(); ++ it)
 	{
-		if(it != mResIds[auiStrand].begin())
+		if(it != resids.begin())
 		{
 			interactions.insert(Interaction(*itPrev, *it));
 		}
@@ -261,7 +234,7 @@ bool CycleInfo::shareInteraction(
 {
 	bool bShares = false;
 	for(unsigned int uiStrand = 0;
-		uiStrand < mResIds.size() && !bShares;
+		uiStrand < mProfile.strandProfile().size() && !bShares;
 		++ uiStrand)
 	{
 		std::set<Interaction> interactions = getStrandInteractions(uiStrand);
@@ -275,22 +248,24 @@ bool CycleInfo::shareInteraction(
 bool CycleInfo::isSubCycleOf(const CycleInfo& aCycleInfo) const
 {
 	bool bSubCycle = false;
+	unsigned int uiNbStrands = mProfile.strandProfile().size();
+	unsigned int uiRightNbStrands = aCycleInfo.mProfile.strandProfile().size();
 
-	if(1 == mResIds.size() && 1 == aCycleInfo.mResIds.size())
+	if(1 == uiNbStrands && 1 == uiRightNbStrands)
 	{
 		// Loop
 		bSubCycle = isSubLoopOf(aCycleInfo);
-	}else if(2 == mResIds.size() && 2 == aCycleInfo.mResIds.size())
+	}else if(2 == uiNbStrands && 2 == uiRightNbStrands)
 	{
 		// 2 Strand
 		bSubCycle = isSub2StrandsCycle(aCycleInfo);
 	}
 	else
 	{
-		assert(1 == mResIds.size() || 2 == mResIds.size());
-		assert(1 == aCycleInfo.mResIds.size() || 2 == aCycleInfo.mResIds.size());
+		assert(1 == uiNbStrands || 2 == uiNbStrands);
+		assert(1 == uiRightNbStrands || 2 == uiRightNbStrands);
 
-		if(2 == mResIds.size())
+		if(2 == uiNbStrands)
 		{
 			bSubCycle = is2StrandsSubCycleOfLoop(aCycleInfo);
 		}else
@@ -305,10 +280,10 @@ bool CycleInfo::isSubCycleOf(const CycleInfo& aCycleInfo) const
 bool CycleInfo::isSubLoopOf(const CycleInfo& aCycleInfo) const
 {
 	bool bSubLoop = false;
-	assert(mResIds.size() == 1);
-	assert(aCycleInfo.mResIds.size() == 1);
+	assert(mProfile.strandProfile().size() == 1);
+	assert(aCycleInfo.mProfile.strandProfile().size() == 1);
 
-	if(mResIds[0].size() < aCycleInfo.mResIds[0].size())
+	if(mProfile.strandProfile()[0] < aCycleInfo.mProfile.strandProfile()[0])
 	{
 		std::set<Interaction> interactionsLeft;
 		std::set<Interaction> interactionsRight;
@@ -328,13 +303,15 @@ bool CycleInfo::isSubLoopOf(const CycleInfo& aCycleInfo) const
 bool CycleInfo::isSub2StrandsCycle(const CycleInfo& aCycleInfo) const
 {
 	bool bSubLoop = false;
-	assert(mResIds.size() == 2);
-	assert(aCycleInfo.mResIds.size() == 2);
+	unsigned int uiNbStrands = mProfile.strandProfile().size();
+	unsigned int uiRightNbStrands = aCycleInfo.mProfile.strandProfile().size();
+	assert(uiNbStrands == 2);
+	assert(uiRightNbStrands == 2);
 
 	unsigned int iStrand;
-	for(iStrand = 0; iStrand < mResIds.size(); ++ iStrand)
+	for(iStrand = 0; iStrand < uiNbStrands; ++ iStrand)
 	{
-		if(mResIds[iStrand].size() <= aCycleInfo.mResIds[iStrand].size())
+		if(mProfile.strandProfile()[iStrand] <= aCycleInfo.mProfile.strandProfile()[iStrand])
 		{
 			std::set<Interaction> interactionsLeft;
 			std::set<Interaction> interactionsRight;
@@ -357,7 +334,7 @@ bool CycleInfo::isSub2StrandsCycle(const CycleInfo& aCycleInfo) const
 	}
 
 	// If we got through, than it is a sub cycle
-	bSubLoop = (iStrand == mResIds.size());
+	bSubLoop = (iStrand == uiNbStrands);
 
 	return bSubLoop;
 }
@@ -365,8 +342,10 @@ bool CycleInfo::isSub2StrandsCycle(const CycleInfo& aCycleInfo) const
 bool CycleInfo::is2StrandsSubCycleOfLoop(const CycleInfo& aCycleInfo) const
 {
 	bool bSubLoop = false;
-	assert(mResIds.size() == 2);
-	assert(aCycleInfo.mResIds.size() == 1);
+	unsigned int uiNbStrands = mProfile.strandProfile().size();
+	unsigned int uiRightNbStrands = aCycleInfo.mProfile.strandProfile().size();
+	assert(uiNbStrands == 2);
+	assert(uiRightNbStrands == 1);
 
 
 	std::set<Interaction> interactionsRight;
@@ -392,8 +371,10 @@ bool CycleInfo::is2StrandsSubCycleOfLoop(const CycleInfo& aCycleInfo) const
 bool CycleInfo::isLoopSubCycleOf2Strands(const CycleInfo& aCycleInfo) const
 {
 	bool bSubLoop = false;
-	assert(mResIds.size() == 1);
-	assert(aCycleInfo.mResIds.size() == 2);
+	unsigned int uiNbStrands = mProfile.strandProfile().size();
+	unsigned int uiRightNbStrands = aCycleInfo.mProfile.strandProfile().size();
+	assert(uiNbStrands == 1);
+	assert(uiRightNbStrands == 2);
 
 	std::set<Interaction> interactionsRight;
 	interactionsRight = aCycleInfo.getStrandInteractions(0);
@@ -435,7 +416,7 @@ bool CycleInfo::hasStrandCoveringInteractions(
 {
 	bool bMatch = false;
 	unsigned int uiStrand = 0;
-	for(uiStrand = 0; uiStrand < mResIds.size() && !bMatch; ++ uiStrand)
+	for(uiStrand = 0; uiStrand < mProfile.strandProfile().size() && !bMatch; ++ uiStrand)
 	{
 		bMatch = strandCoversInteractions(uiStrand, aInteractions);
 	}
@@ -445,17 +426,12 @@ bool CycleInfo::hasStrandCoveringInteractions(
 const std::vector<std::string> CycleInfo::getSequence() const
 {
 	std::vector<std::string> sequence;
-	residue_profile::const_iterator itStrand;
-	for(itStrand = mResIds.begin(); itStrand != mResIds.end(); ++ itStrand)
+	for(unsigned int i = 0; i < mResidueIds.size(); ++ i)
 	{
-		residue_strand::const_iterator itRes;
-		for(itRes = itStrand->begin(); itRes != itStrand->end(); ++ itRes)
-		{
-			std::map<mccore::ResId, std::string>::const_iterator it;
-			it = mIdToResMap.find(*itRes);
-			assert(it != mIdToResMap.end());
-			sequence.push_back(it->second);
-		}
+		std::map<mccore::ResId, std::string>::const_iterator it;
+		it = mIdToResMap.find(mResidueIds[i]);
+		assert(it != mIdToResMap.end());
+		sequence.push_back(it->second);
 	}
 	return sequence;
 }
@@ -501,24 +477,14 @@ std::string CycleInfo::resIdsString(const std::string& astrSeparator) const
 {
 	std::ostringstream oss;
 
-	CycleInfo::residue_profile::const_iterator itResStrand;
-	for(itResStrand = mResIds.begin();
-		itResStrand != mResIds.end();
-		++ itResStrand)
+	for(unsigned int i = 0; i < mResidueIds.size(); ++ i)
 	{
-		CycleInfo::residue_strand::const_iterator itRes;
-		for(itRes = itResStrand->begin();
-			itRes != itResStrand->end();
-			++ itRes)
+		if(0 < i)
 		{
-			if(!(itResStrand == mResIds.begin() && itRes == itResStrand->begin()))
-			{
-				oss << "-";
-			}
-			oss << *itRes;
+			oss << astrSeparator;
 		}
+		oss << mResidueIds[i];
 	}
-
 	return oss.str();
 }
 
@@ -526,26 +492,23 @@ std::string CycleInfo::groupedResIdsString() const
 {
 	std::ostringstream oss;
 
+	unsigned int uiNbStrands = mProfile.strandProfile().size();
 	CycleInfo::residue_profile::const_iterator itResStrand;
-	for(itResStrand = mResIds.begin();
-		itResStrand != mResIds.end();
-		++ itResStrand)
+	for(unsigned int uiStrand = 0; uiStrand < uiNbStrands; ++ uiStrand)
 	{
-		if(itResStrand != mResIds.begin())
+		if(0 != uiStrand)
 		{
 			oss << ",";
 		}
 		oss << "{";
-		CycleInfo::residue_strand::const_iterator itRes;
-		for(itRes = itResStrand->begin();
-			itRes != itResStrand->end();
-			++ itRes)
+		std::vector<mccore::ResId> res = getStrandResIds(uiStrand);
+		for(unsigned int uiRes = 0; uiRes < res.size(); ++ uiRes)
 		{
-			if(itRes != itResStrand->begin())
+			if(0 != uiRes)
 			{
 				oss << "-";
 			}
-			oss << *itRes;
+			oss << res[uiRes];
 		}
 		oss << "}";
 	}
@@ -555,16 +518,19 @@ std::string CycleInfo::groupedResIdsString() const
 
 const std::vector<std::string> CycleInfo::getFlipStrandSequence() const
 {
+	assert(2 == mProfile.strandProfile().size());
 	std::vector<std::string> sequence;
 	residue_strand::const_iterator itRes;
-	for(itRes = mResIds[1].begin(); itRes != mResIds[1].end(); ++ itRes)
+	std::vector<mccore::ResId> resIds1 = getStrandResIds(0);
+	std::vector<mccore::ResId> resIds2 = getStrandResIds(1);
+	for(itRes = resIds2.begin(); itRes != resIds2.end(); ++ itRes)
 	{
 		std::map<mccore::ResId, std::string>::const_iterator it;
 		it = mIdToResMap.find(*itRes);
 		assert(it != mIdToResMap.end());
 		sequence.push_back(it->second);
 	}
-	for(itRes = mResIds[0].begin(); itRes != mResIds[0].end(); ++ itRes)
+	for(itRes = resIds1.begin(); itRes != resIds1.end(); ++ itRes)
 	{
 		std::map<mccore::ResId, std::string>::const_iterator it;
 		it = mIdToResMap.find(*itRes);
@@ -584,8 +550,8 @@ CycleInfo CycleInfo::flipStrand(const CycleInfo& aCycleInfo)
 		std::vector<std::string> flipResidues;
 
 		flipResidueProfile.resize(2);
-		flipResidueProfile[0] = aCycleInfo.mResIds[1];
-		flipResidueProfile[1] = aCycleInfo.mResIds[0];
+		flipResidueProfile[0] = aCycleInfo.getStrandResIds(1);
+		flipResidueProfile[1] = aCycleInfo.getStrandResIds(0);
 
 		flipResidues = aCycleInfo.getFlipStrandSequence();
 
@@ -608,30 +574,56 @@ CycleInfo CycleInfo::flipStrand(const CycleInfo& aCycleInfo)
 std::set<char> CycleInfo::getChains() const
 {
 	std::set<char> chains;
-	residue_profile::const_iterator it;
-	for(it = mResIds.begin();it != mResIds.end(); ++ it)
+	for(unsigned int i = 0; i < mResidueIds.size(); ++ i)
 	{
-		residue_strand::const_iterator itRes = it->begin();
-		for(itRes = it->begin(); itRes != it->end(); ++ itRes)
-		{
-			chains.insert(itRes->getChainId());
-		}
+		chains.insert(mResidueIds[i].getChainId());
 	}
 	return chains;
 }
 
 void CycleInfo::setChainAndOffset(char acChain, int aiOffset)
 {
-	residue_profile::iterator it;
-	for(it = mResIds.begin();it != mResIds.end(); ++ it)
+	for(unsigned int i = 0; i < mResidueIds.size(); ++ i)
 	{
-		residue_strand::iterator itRes = it->begin();
-		for(itRes = it->begin(); itRes != it->end(); ++ itRes)
+		mccore::ResId& res = mResidueIds[i];
+		res.setChainId(acChain);
+		res.setResNo(res.getResNo() + aiOffset);
+	}
+}
+
+std::pair<unsigned int, unsigned int> CycleInfo::getStrandRange(unsigned int auiStrand) const
+{
+	std::pair<unsigned int, unsigned int> range(0,0);
+	unsigned int uiNbStrand = mProfile.strandProfile().size();
+	assert(auiStrand < uiNbStrand);
+
+	unsigned int uiStartIndex = 0;
+
+	for(unsigned int i = 0; i < uiNbStrand; ++ i)
+	{
+		if(i != auiStrand)
 		{
-			itRes->setChainId(acChain);
-			itRes->setResNo(itRes->getResNo() + aiOffset);
+			uiStartIndex += mProfile.strandProfile()[i];
+		}else
+		{
+			break;
 		}
 	}
+	range.first = uiStartIndex;
+	range.second = uiStartIndex + mProfile.strandProfile()[auiStrand];
+	return range;
+}
+
+std::vector<mccore::ResId> CycleInfo::getStrandResIds(unsigned int auiStrand) const
+{
+	std::vector<mccore::ResId> resids;
+	std::pair<unsigned int, unsigned int> range = getStrandRange(auiStrand);
+	resids.resize(range.second - range.first);
+	for(unsigned int i = range.first; i < range.second; ++ i)
+	{
+		resids[i - range.first] = mResidueIds[i];
+	}
+	return resids;
 }
 
 }; // namespace annotate
