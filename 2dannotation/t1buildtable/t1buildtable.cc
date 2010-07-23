@@ -24,7 +24,7 @@
 #include <fstream>
 #include <sstream>
 
-static const char* shortopts = "Vhlvc:s:";
+static const char* shortopts = "Vhlvc:s:g:";
 
 T1BuildTable::T1BuildTable(int argc, char * argv [])
 {
@@ -44,6 +44,9 @@ T1BuildTable::T1BuildTable(int argc, char * argv [])
 	mProfileMap["3_4"] = 10;
 	mProfileMap["3_5"] = 11;
 	mProfileMap["4_4"] = 12;
+
+	// Read the PDB groups
+	readPDBGroups();
 
 	// Read the cycle count
 	readCyclesCount();
@@ -68,7 +71,7 @@ void T1BuildTable::version () const
 void T1BuildTable::usage () const
 {
 	mccore::gOut(0) << "usage: " << PACKAGE
-		<< " [-hlvV] -s <cycle count> -c <3D interacting cycle pairs>"
+		<< " [-hlvV] -g <PDB Groups File> -s <cycle count file> -c <3D interacting cycle pairs file>"
 		<< std::endl;
 }
 
@@ -76,6 +79,7 @@ void T1BuildTable::help () const
 {
 	mccore::gOut (0)
 		<< "This program computes a table of frequency of interacting cycle pairs." << std::endl
+		<< "  -g    file containing the PDB File group for normalization" << std::endl
 		<< "  -s	file containing the count of each type of NCM" << std::endl
 		<< "  -c	file containing the identified 3D interacting cycles pairs" << std::endl
 		<< "  -h	print this help" << std::endl
@@ -95,6 +99,11 @@ void T1BuildTable::readOptions (int argc, char* argv[])
 		case 'c':
 		{
 			mstrCyclesPairsFile = optarg;
+			break;
+		}
+		case 'g':
+		{
+			mstrPDBGroupsFile = optarg;
 			break;
 		}
 		case 's':
@@ -123,10 +132,21 @@ void T1BuildTable::readOptions (int argc, char* argv[])
 		}
 	}
 
-	if(0 == mstrCyclesCountFile.size() || 0 == mstrCyclesPairsFile.size())
+	if(0 == mstrCyclesCountFile.size() || 0 == mstrCyclesPairsFile.size() || 0 == mstrPDBGroupsFile.size())
 	{
 		usage ();
 		exit (EXIT_FAILURE);
+	}
+}
+
+void T1BuildTable::readPDBGroups()
+{
+	// Read the file
+	mGroupFile.read(mstrPDBGroupsFile);
+	std::map<unsigned int, std::list<annotate::RNAGroupFileEntry> >::const_iterator it;
+	for(it = mGroupFile.groups().begin(); it != mGroupFile.groups().end(); ++ it)
+	{
+		mGroupModelMap[it->first] = annotate::RNAGroupModel(it->second);
 	}
 }
 
@@ -154,16 +174,22 @@ void T1BuildTable::readCyclesCount()
 
 	infile.open (mstrCyclesCountFile.c_str(), std::ifstream::in);
 	std::string strLine;
-
 	while (std::getline(infile, strLine).good())
 	{
 		annotate::cleanString(strLine, ' ');
 		std::vector<std::string> fields = annotate::splitStringFields(strLine, ":");
-
 		if(1 < fields.size())
 		{
-			unsigned int uiProfile = profileId(fields[0]);
-			mCycleCount[uiProfile] = atol(fields[1].c_str());
+			std::string strPDB = fields[0];
+			unsigned int uiModel = atol(fields[1].c_str());
+			annotate::CycleInfo cycle = getCycleInfo(strPDB, uiModel, fields[2], fields[3], fields[4]);
+			unsigned int uiGroup = mGroupFile.getGroup(cycle);
+			if(mGroupModelMap[uiGroup].isNew(cycle))
+			{
+				mGroupModelMap[uiGroup].addCycle(cycle);
+				unsigned int uiProfile = profileId(fields[2]);
+				mCycleCount[uiProfile] = 1 + mCycleCount[uiProfile];
+			}
 		}
 	}
 	infile.close();
@@ -188,21 +214,78 @@ void T1BuildTable::readCyclesPairs()
 		annotate::cleanString(strLine, ' ');
 		std::vector<std::string> fields = annotate::splitStringFields(strLine, ";");
 
+		std::vector<std::string> modelFields = annotate::splitStringFields(fields[0], ":");
+		std::string strPDB = modelFields[0];
+		unsigned int uiModel = atol(modelFields[1].c_str());
+
 		if(2 < fields.size())
 		{
 			std::vector<std::string> fields1 =  annotate::splitStringFields(fields[1], ":");
 			std::vector<std::string> fields2 =  annotate::splitStringFields(fields[2], ":");
 
+			annotate::CycleInfo cycle1 = getCycleInfo(strPDB, uiModel, fields1[0], fields1[1], fields1[2]);
+			annotate::CycleInfo cycle2 = getCycleInfo(strPDB, uiModel, fields2[0], fields2[1], fields2[2]);
+
 			unsigned int uiProfile1 = profileId(fields1[0]);
 			unsigned int uiProfile2 = profileId(fields2[0]);
+			unsigned int uiGroup = mGroupFile.getGroup(cycle1);
 
-			mCyclesPairsCount[uiProfile1][uiProfile2] += 1;
-			mCyclesPairsCount[uiProfile2][uiProfile1] += 1;
+			if(mGroupModelMap[uiGroup].isNew(cycle1, cycle2))
+			{
+				// Interaction has not been considered yet
+				mGroupModelMap[uiGroup].addCyclePair(cycle1, cycle2);
+				mCyclesPairsCount[uiProfile1][uiProfile2] += 1;
+				mCyclesPairsCount[uiProfile2][uiProfile1] += 1;
+			}
 		}
 	}
 	infile.close();
 
 	computeNormalizedFrequencies();
+}
+
+annotate::CycleInfo T1BuildTable::getCycleInfo(
+	const std::string& astrPDB,
+	unsigned int uiModel,
+	const std::string& astrProfile,
+	const std::string& astrResIds,
+	const std::string& astrSequence) const
+{
+	annotate::CycleProfile profile(astrProfile);
+	std::vector<std::vector<mccore::ResId> > resIds;
+	resIds.resize(profile.strandProfile().size());
+	std::vector<unsigned int>::const_iterator it = profile.strandProfile().begin();
+	unsigned int iCursor = 0;
+	unsigned int iStrand = 0;
+	std::vector<mccore::ResId> resIdsFields = getResIds(astrResIds);
+	for(; it != profile.strandProfile().end(); ++ it, ++iStrand)
+	{
+		resIds[iStrand].resize(*it);
+		for(unsigned int i = 0; i < *it; ++ i)
+		{
+			resIds[iStrand][i] = resIdsFields[i + iCursor];
+		}
+		iCursor += *it;
+	}
+	std::vector<std::string> sequenceFields = annotate::splitStringFields(astrResIds, "-");
+	return annotate::CycleInfo(astrPDB, uiModel, profile, profile, resIds, sequenceFields);
+}
+
+annotate::CycleInfo::residue_strand T1BuildTable::getResIds(
+	const std::string& aResidues) const
+{
+	annotate::CycleInfo::residue_strand residues;
+	std::string strResidues = aResidues;
+
+	annotate::cleanString(strResidues, ' ');
+	std::vector<std::string> residuesString = annotate::splitStringFields(strResidues, "-");
+	std::vector<std::string>::const_iterator it = residuesString.begin();
+	for(it = residuesString.begin(); it != residuesString.end(); ++it)
+	{
+		mccore::ResId res(it->c_str());
+		residues.push_back(res);
+	}
+	return residues;
 }
 
 void T1BuildTable::computeNormalizedFrequencies()
@@ -216,13 +299,13 @@ void T1BuildTable::computeNormalizedFrequencies()
 	}
 	for(unsigned int i = 0; i < uiNbProfiles; ++ i)
 	{
-		unsigned int uiCount1 = mCycleCount[i];
+		float fCount1 = (float)mCycleCount[i];
 		for(unsigned int j = 0; j < uiNbProfiles; ++ j)
 		{
-			unsigned int uiCount2 = mCycleCount[j];
-			unsigned int uiInterCount = mCyclesPairsCount[i][j];
-			unsigned int uiTotalCount = uiCount1 * uiCount2;
-			float fFreq = ((float)(uiInterCount)) / ((float)(uiTotalCount));
+			float fCount2 = (float)mCycleCount[j];
+			float fInterCount = (float)mCyclesPairsCount[i][j];
+			float fTotalCount = fCount1 * fCount2;
+			float fFreq = fInterCount / fTotalCount;
 			mInteractionFrequencies[i][j] = fFreq;
 		}
 	}
