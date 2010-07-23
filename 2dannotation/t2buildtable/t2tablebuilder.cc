@@ -238,10 +238,9 @@ annotate::CycleInfo T2TableBuilder::getCycleInfo(
 	annotate::CycleProfile profile(astrProfile);
 	std::vector<std::vector<mccore::ResId> > resIds;
 	resIds.resize(profile.strandProfile().size());
-	std::list<unsigned int>::const_iterator it = profile.strandProfile().begin();
+	std::vector<unsigned int>::const_iterator it = profile.strandProfile().begin();
 	unsigned int iCursor = 0;
 	unsigned int iStrand = 0;
-	// std::vector<mccore::ResId> resIdsFields = annotate::splitStringFields(astrResIds, "-");
 	std::vector<mccore::ResId> resIdsFields = getResIds(astrResIds);
 	for(; it != profile.strandProfile().end(); ++ it, ++iStrand)
 	{
@@ -252,7 +251,7 @@ annotate::CycleInfo T2TableBuilder::getCycleInfo(
 		}
 		iCursor += *it;
 	}
-	std::vector<std::string> sequenceFields = annotate::splitStringFields(astrResIds, "-");
+	std::vector<std::string> sequenceFields = annotate::splitStringFields(astrSequence, "-");
 	return annotate::CycleInfo(astrPDB, uiModel, profile, profile, resIds, sequenceFields);
 }
 

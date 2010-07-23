@@ -20,7 +20,10 @@ class T2TableBuilder
 {
 public:
 	// LIFECYCLE
-	T2TableBuilder(const std::string& astrGroupFile, const std::string& aInteractions);
+	T2TableBuilder(
+		const std::string& astrGroupFile,
+		const std::string& aInteractions);
+	virtual ~T2TableBuilder() {}
 
 	void computeTable();
 
