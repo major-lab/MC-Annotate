@@ -21,6 +21,8 @@ private:
 	typedef std::pair<unsigned int, unsigned int> index_pair;
 	void readOptions(int argc, char* argv[]);
 
+	double mfProbability;
+
 	std::string mstrIdentifier;
 	std::string mstrSequence;
 	std::string mstrDotBracket;

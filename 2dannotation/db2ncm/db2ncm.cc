@@ -25,7 +25,7 @@
 #include <cstdlib>
 #include <sstream>
 
-static const char* shortopts = "Vhlvi:s:d:";
+static const char* shortopts = "Vhlvi:s:d:p:";
 
 DotBracketToNCM::DotBracketToNCM(int argc, char * argv [])
 {
@@ -44,6 +44,8 @@ DotBracketToNCM::DotBracketToNCM(int argc, char * argv [])
 		std::cout << " : " << it->getFileProfile().toString();
 		std::cout << " : " << it->residuesString("-");
 		std::cout << " : " << it->resIdsString("-");
+		std::cout.precision(10);
+		std::cout << " : " << mfProbability;
 		std::cout << std::endl;
 	}
 }
@@ -74,6 +76,7 @@ void DotBracketToNCM::help () const
 		<< "  -s	Sequence" << std::endl
 		<< "  -r    Residue IDs" << std::endl
 		<< "  -d	Dot Brackets" << std::endl
+		<< "  -p    Probability associated" << std::endl
 		<< "  -h    print this help" << std::endl
 		<< "  -l    be more verbose (log)" << std::endl
 		<< "  -v    be verbose" << std::endl
@@ -102,6 +105,11 @@ void DotBracketToNCM::readOptions (int argc, char* argv[])
 		case 'd':
 		{
 			mstrDotBracket = optarg;
+			break;
+		}
+		case 'p':
+		{
+			mfProbability = atof(optarg);
 			break;
 		}
 		case 'V':
@@ -295,7 +303,7 @@ annotate::CycleInfo DotBracketToNCM::getCycleInfo(
 	sequence.resize(aStrand1.size());
 	for(unsigned int i = 0; i < aStrand1.size(); ++ i)
 	{
-		sequence[i] = mstrSequence[aStrand1[i].getResNo()];
+		sequence[i] = mstrSequence[aStrand1[i].getResNo() - 1];
 	}
 
 	return annotate::CycleInfo(
