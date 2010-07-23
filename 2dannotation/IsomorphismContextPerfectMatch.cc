@@ -11,7 +11,7 @@ namespace graphtest
 	{
 		mG1 = aG1;
 		mG2 = aG2;
-		
+
 		unsigned int i;
 		mccore::GraphModel::const_iterator it = aG1.begin();
 		for(it = aG1.begin(), i = 0; it != aG1.end(); ++ it, ++ i)
@@ -48,7 +48,7 @@ namespace graphtest
 			unsigned int uiNbStacks2 = 0;
 			unsigned int uiNbPairs2 = 0;
 			unsigned int uiNbLinks2 = 0;
-			
+
 			std::list<mccore::GraphModel::label>::const_iterator it;
 			std::list<mccore::GraphModel::label> neighbors1;
 			neighbors1 = mG1.internalNeighborhood(mMapping1[i]);
@@ -98,23 +98,23 @@ namespace graphtest
 					// No relation, no count, no problem
 				}
 			}
-			bPotential = ((uiNbPairs1 == uiNbPairs2) 
-				&& (uiNbStacks1 == uiNbStacks2) 
-				&& (uiNbLinks1 == uiNbLinks2));			
+			bPotential = ((uiNbPairs1 == uiNbPairs2)
+				&& (uiNbStacks1 == uiNbStacks2)
+				&& (uiNbLinks1 == uiNbLinks2));
 		}
 		return bPotential;
 	}
-	
+
 	bool PerfectMatchContext::processMatch(std::vector<unsigned int>& match)
 	{
 		mMatches.push_back(match);
 		return false; // We only care for one match for our test
 	}
-	
+
 	bool PerfectMatchContext::isomorphismCheck(const std::vector<unsigned int>& match)
 	{
 		bool isomorphism = true;
-		
+
 		for(unsigned int i = 0; i < match.size() && (isomorphism); ++i)
 		{
 			std::list<mccore::GraphModel::label>::const_iterator it;
