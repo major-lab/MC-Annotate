@@ -16,7 +16,7 @@
 
 #include <cstdio>
 
-static const char* shortopts = "Vbc:s:e:f:hlr:vm:";
+static const char* shortopts = "Vbc:s:e:f:ghlr:vm:";
 
 PDB2DotBracketParamsConsole::PDB2DotBracketParamsConsole(int argc, char * argv []) : PDB2DotBracketParams()
 {
@@ -36,7 +36,7 @@ void PDB2DotBracketParamsConsole::version () const
 void PDB2DotBracketParamsConsole::usage () const
 {
 	mccore::gOut(0) << "usage: " << PACKAGE
-		<< " [-hlsvV] [-f <model number>] [-c <max layer>] [-s <max layer>] <structure file> ..."
+		<< " [-ghlsvV] [-f <model number>] [-c <max layer>] [-s <max layer>] <structure file> ..."
 		<< std::endl;
 }
 
@@ -47,6 +47,7 @@ void PDB2DotBracketParamsConsole::help () const
 		<< "  -c max layer      specify the number of layers to display as combined notation." << std::endl
 		<< "  -s max layer	    display the number of layers to display separately" << std::endl
 		<< "  -f model number   model to annotate (default : all models) " << std::endl
+		<< "  -g                Insert \'X\' in sequence and \'.\' in dot bracket notation where nucleotides are missing from the model." << std::endl
 		<< "  -h                print this help" << std::endl
 		<< "  -l                be more verbose (log)" << std::endl
 		<< "  -v                be verbose" << std::endl
@@ -80,6 +81,9 @@ void PDB2DotBracketParamsConsole::read_options (int argc, char* argv[])
 			mbOneModel = true;
 			break;
 		}
+		case 'g':
+			mbCompleteGaps = true;
+			break;
 		case 's':
 			muiSplitLayers = strtol(optarg, 0, 10);
 			break;

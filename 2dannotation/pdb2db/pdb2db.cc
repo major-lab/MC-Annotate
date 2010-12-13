@@ -139,6 +139,7 @@ void PDB2DotBracket::processStream(
 
 void PDB2DotBracket::processModel(annotate::AnnotateModel& aModel) const
 {
+	std::map<char, index_pair_list> gaps;
 	annotate::AnnotationInteractions annInteractions;
 	annotate::AnnotationChains annChains;
 	AnnotationStemsLoose annStems;
@@ -147,30 +148,56 @@ void PDB2DotBracket::processModel(annotate::AnnotateModel& aModel) const
 	aModel.addAnnotation(annChains);
 	aModel.addAnnotation(annStems);
 
-	aModel.keepNucleicAcid();
+	aModel.keepRNA();
 	unsigned char ucRelationMask =
 		mccore::Relation::adjacent_mask
 		| mccore::Relation::pairing_mask;
 	aModel.annotate(ucRelationMask);
+	// aModel.sort();
+
+	if(mParams.mbCompleteGaps)
+	{
+		gaps = identifyGaps(aModel);
+	}
 
 	// Stems to dot bracket
 	annotate::AnnotationChains::chain_map::const_iterator itChain;
 	for(itChain = annChains.chains().begin(); itChain != annChains.chains().end(); ++ itChain)
 	{
-		std::cout << ">" << aModel.name() << ":";
+		std::cout << '>' << aModel.name() << ':' << aModel.id() << ':';
 		std::cout << itChain->first;
-		std::cout << "|PDBID|CHAIN|SEQUENCE" << std::endl;
-		std::cout << getSequence(aModel, itChain->second) << std::endl;
+		std::cout << "|PDBID|MODEL|CHAIN|SEQUENCE" << std::endl;
+		std::string strSequence = getSequence(aModel, itChain->second);
+		if(mParams.mbCompleteGaps)
+		{
+			strSequence = insertGapsInString(strSequence, gaps[itChain->first], 'X');
+		}
+		std::cout << strSequence << std::endl;
 		std::string strDotBrackets;
 		if(0 < mParams.muiCombinedLayers)
 		{
 			strDotBrackets = toDotBracketCombined(annStems, itChain->second);
+			if(mParams.mbCompleteGaps)
+			{
+				strDotBrackets = insertGapsInString(strDotBrackets, gaps[itChain->first], '.');
+			}
 			std::cout << strDotBrackets << std::endl;
 		}
 		if(0 < mParams.muiSplitLayers)
 		{
-			strDotBrackets = toDotBracketLayers(annStems, itChain->second);
-			std::cout << strDotBrackets << std::endl;
+			list<std::string> multiDBs;
+			multiDBs = toDotBracketLayers(annStems, itChain->second);
+			list<std::string>::const_iterator itLayer = multiDBs.begin();
+			for(; itLayer != multiDBs.end(); ++ itLayer)
+			{
+				strDotBrackets = *itLayer;
+				if(mParams.mbCompleteGaps)
+				{
+					strDotBrackets = insertGapsInString(strDotBrackets, gaps[itChain->first], '.');
+				}
+				std::cout << strDotBrackets << std::endl;
+			}
+
 		}
 	}
 }
@@ -498,13 +525,27 @@ PDB2DotBracket::db_notation PDB2DotBracket::createDotBracket(const std::list<mcc
 	return dBrackets;
 }
 
-std::string PDB2DotBracket::toDotBracketLayers(
+std::list<std::string> PDB2DotBracket::toDotBracketLayers(
 	const AnnotationStemsLoose& aStems,
 	const std::list<mccore::ResId>& aChain) const
 {
 	const char cChain = aChain.begin()->getChainId();
 	std::list<std::set<annotate::Stem> > layers = splitLayers(cChain, aStems);
 	return toDotBracket(aChain, layers);
+}
+
+
+ ostream& PDB2DotBracket::outputDotBracket(
+	std::ostream &aOutputStream,
+	const db_notation& aDBNotation) const
+{
+	 // Output dot-brackets
+	std::map<mccore::ResId, char>::const_iterator itDB;
+	for(itDB = aDBNotation.begin(); itDB != aDBNotation.end(); ++ itDB)
+	{
+		aOutputStream << itDB->second;
+	}
+	return aOutputStream;
 }
 
 std::string PDB2DotBracket::toDotBracketCombined(
@@ -557,42 +598,32 @@ std::string PDB2DotBracket::toDotBracketCombined(
 	}
 
 	// Output dot-brackets
-	std::map<mccore::ResId, char>::iterator itDB;
-	for(itDB = dBrackets.begin(); itDB != dBrackets.end(); ++ itDB)
-	{
-		oss << itDB->second;
-	}
+	outputDotBracket(oss, dBrackets);
 	return oss.str();
 }
 
-std::string PDB2DotBracket::toDotBracket(
+std::list<std::string> PDB2DotBracket::toDotBracket(
 	const std::list<mccore::ResId>& aChain,
 	const std::list<std::set<annotate::Stem> >& aLayers) const
 {
-	std::ostringstream oss;
+	std::list<std::string> dotBrackets;
 
 	unsigned int uiLayer = 0;
 	std::list<std::set<annotate::Stem> >::const_iterator it;
 	for(it = aLayers.begin(); it != aLayers.end() && uiLayer < mParams.muiSplitLayers; ++ it)
 	{
+		std::ostringstream oss;
 		std::list<mccore::ResId>::const_iterator itResId;
 		db_notation dBrackets = createDotBracket(aChain);
 
 		applyStems(dBrackets, *it, uiLayer);
 
-		// Output dot-brackets
-		if(it != aLayers.begin())
-		{
-			oss << std::endl;
-		}
-		std::map<mccore::ResId, char>::iterator itDB;
-		for(itDB = dBrackets.begin(); itDB != dBrackets.end(); ++ itDB)
-		{
-			oss << itDB->second;
-		}
+		outputDotBracket(oss, dBrackets);
 		uiLayer ++;
+		dotBrackets.push_back(oss.str());
 	}
-	return oss.str();
+	return dotBrackets;
+	// return oss.str();
 }
 
 std::string PDB2DotBracket::toDotBracket(
@@ -784,10 +815,115 @@ PDB2DotBracket::stem_set PDB2DotBracket::cutStems(
 	return stems;
 }
 
-/*
-int main(int argc, char* argv[])
+std::map<char, PDB2DotBracket::index_pair_list> PDB2DotBracket::identifyGaps(
+	const annotate::AnnotateModel& aModel) const
 {
-	PDB2DotBracket theApp(argc, argv);
-	return EXIT_SUCCESS;
+	// Identify the gaps in the sequence, and return the missing ranges
+	std::map<char, index_pair_list> gaps;
+
+	try
+	{
+		bool bBreak = false;
+		unsigned int uiPosition = 0;
+		annotate::AnnotateModel::const_iterator itPrev = aModel.begin();
+		annotate::AnnotateModel::const_iterator it = itPrev;
+		++ it;
+		for(; it != aModel.end() && !bBreak; ++ it)
+		{
+			uiPosition ++;
+			if(it->getResId().getChainId() == itPrev->getResId().getChainId() && !areContiguous(aModel, *itPrev, *it))
+			{
+				if(it->getResId() < itPrev->getResId())
+				{
+					throw mccore::Exception("Unable to follow sequence to identify gaps.");
+				}
+
+				// Nucleotides are not adjacent by atoms
+				index_pair gap;
+				gap.first = uiPosition;
+				// Find the number of required insertions
+				mccore::ResId prevTest = itPrev->getResId();
+				prevTest = prevTest + 1;
+				unsigned int uiInsertionCount = 1;
+				while(!prevTest.areContiguous(it->getResId()))
+				{
+					if(uiInsertionCount < 1000)
+					{
+						prevTest = prevTest + 1;
+						uiInsertionCount ++;
+					}else
+					{
+						std::ostringstream oss;
+						oss << "Gap at " << gap.first << " too long (" << aModel.name() << ")";
+						oss << " (" << itPrev->getResId() << "," << it->getResId() << ").";
+						throw mccore::Exception(oss.str());
+					}
+				}
+				gap.second = uiInsertionCount;
+				std::map<char, index_pair_list>::iterator itGap;
+				itGap = gaps.find(it->getResId().getChainId());
+				if(itGap != gaps.end())
+				{
+					itGap->second.push_back(gap);
+				}else
+				{
+					gaps[it->getResId().getChainId()] = index_pair_list();
+					gaps[it->getResId().getChainId()].push_back(gap);
+				}
+			}else if(it->getResId().getChainId() != itPrev->getResId().getChainId())
+			{
+				uiPosition = 1;
+			}
+			itPrev = it;
+		}
+	}catch(const mccore::Exception& e)
+	{
+		std::cerr << e.GetMessage() << std::endl;
+		gaps.clear();
+	}
+	return gaps;
 }
-*/
+
+bool PDB2DotBracket::areContiguous(
+	const annotate::AnnotateModel& aModel,
+	const mccore::Residue& aRes1,
+	const mccore::Residue& aRes2) const
+{
+	bool bAreContiguous;
+	bAreContiguous = (aRes1.getResId().getChainId() == aRes2.getResId().getChainId());
+	if(bAreContiguous)
+	{
+		if(!aRes1.getResId().areContiguous(aRes2.getResId()))
+		{
+			// Circumvent a weird side effect of the templates
+			mccore::Residue* pRes1 = const_cast<mccore::Residue*>(&aRes1);
+			mccore::Residue* pRes2 = const_cast<mccore::Residue*>(&aRes2);
+			const mccore::Relation *r = 0;
+			try
+			{
+				r = aModel.getEdge(pRes1, pRes2);
+			}catch(mccore::NoSuchElementException& e){}
+			if(0 == r || !(r->is (mccore::PropertyType::pAdjacent)))
+			{
+				bAreContiguous = false;
+			}
+		}
+	}
+	return bAreContiguous;
+}
+
+std::string PDB2DotBracket::insertGapsInString(
+	const std::string& aString,
+	const index_pair_list& aGaps,
+	const char aCharacter) const
+{
+	std::string strSequence = aString;
+	index_pair_list gaps = aGaps;
+	while(0 < gaps.size())
+	{
+		index_pair gap = gaps.back();
+		strSequence.insert(gap.first, gap.second, aCharacter);
+		gaps.pop_back();
+	}
+	return strSequence;
+}

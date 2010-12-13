@@ -27,6 +27,7 @@ public:
 		muiCombinedLayers = 2;
 		muiSplitLayers = 0;
 		muiMaxPerfectSearch = 24;
+		mbCompleteGaps = false;
 	}
 
 	// ATTRIBUTES --------------------------------------------------------------
@@ -36,6 +37,7 @@ public:
 	unsigned int muiCombinedLayers;
 	bool mbBinary;
 	unsigned int muiMaxPerfectSearch; // Maximum number of stems for exhaustive search
+	bool mbCompleteGaps;
 
 	std::vector<std::string> mFiles;
 };
@@ -55,6 +57,8 @@ public:
 private:
 	typedef std::map<mccore::ResId, char> db_notation;
 	typedef std::set<annotate::Stem> stem_set;
+	typedef std::pair<unsigned int, unsigned int> index_pair;
+	typedef std::list<index_pair> index_pair_list;
 	float mfAppVersion;
 	std::string mstrAppName;
 
@@ -73,7 +77,7 @@ private:
 
 	std::string getFilePrefix(const std::string& aFileName) const;
 	bool pseudoKnots(const std::vector<annotate::Stem>& usedStems, const annotate::Stem& otherStem) const;
-	std::string toDotBracketLayers(
+	std::list<std::string> toDotBracketLayers(
 		const AnnotationStemsLoose& aStems,
 		const std::list<mccore::ResId>& aChain) const;
 	std::string toDotBracketCombined(
@@ -89,7 +93,7 @@ private:
 	std::list<stem_set> splitLayers(
 		const char acChain,
 		const AnnotationStemsLoose& aStems) const;
-	std::string toDotBracket(
+	std::list<std::string> toDotBracket(
 		const std::list<mccore::ResId>& aChain,
 		const std::list<stem_set>& aLayers) const;
 	std::string toDotBracket(
@@ -132,6 +136,21 @@ private:
 		const std::set<unsigned int>& aToTest,
 		const std::vector<std::set<unsigned int> >& aConflicts,
 		const std::vector<annotate::Stem>& aStems) const;
+
+	std::map<char, index_pair_list> identifyGaps(const annotate::AnnotateModel& aModel) const;
+	std::string insertGapsInString(
+		const std::string& aString,
+		const index_pair_list& aGaps,
+		const char aCharacter) const;
+
+	ostream& outputDotBracket(
+		std::ostream &aOutputStream,
+		const db_notation& aDBNotation) const;
+
+	bool areContiguous(
+		const annotate::AnnotateModel& aModel,
+		const mccore::Residue& aRes1,
+		const mccore::Residue& aRes2) const;
 };
 
 #endif // _pdb2db_H_

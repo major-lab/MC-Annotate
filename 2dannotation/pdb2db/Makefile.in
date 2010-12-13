@@ -48,58 +48,74 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 	$(CXX) $(CXXFLAGS) $(DEFS) -I. -I.. -I$(srcdir) -c $<
 
 PROGRAM = pdb2db
+PROGRAM_CONSOLE = $(PROGRAM)
+PROGRAM_CGI = $(PROGRAM).cgi
+PROGRAM_CONSOLE_VERSION = $(PROGRAM_CONSOLE)-$(VERSION)
+PROGRAM_CGI_VERSION = $(PROGRAM)-$(VERSION).cgi
+ALL_PROGRAMS = $(PROGRAM_CONSOLE) $(PROGRAM_CGI)
 
 SOURCES = $(PROGRAM).cc AnnotationStemsLoose.cc
+SOURCES_CONSOLE = PDB2DBConsoleApp.cc
+SOURCES_CGI = PDB2DBCGIApp.cc
+ALL_SOURCES = $(SOURCES) $(SOURCES_CONSOLE) $(SOURCES_CGI)
 
-HEADERS = $(SOURCES:.cc=.h)
-#View.h
+HEADERS_CONSOLE = $(SOURCES:.cc=.h) $(SOURCES_CONSOLE:.cc=.h)
+HEADERS_CGI = $(SOURCES:.cc=.h) $(SOURCES_CGI:.cc=.h)
 
 OBJECTS = $(SOURCES:.cc=.o)
+OBJECTS_CONSOLE = $(SOURCES_CONSOLE:.cc=.o)
+OBJECTS_CGI = $(SOURCES_CGI:.cc=.o)
+ALL_OBJECTS = $(ALL_SOURCES:.cc=.o)
 
 LOCALLIBS = ../libmcannotate.a
 
-DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(SOURCES) $(HEADERS) \
-config.guess config.h.in config.sub configure configure.in install-sh \
-mkinstalldirs $(PROGRAM).cc
+DISTFILES = ChangeLog INSTALL Makefile.in NEWS $(SOURCES_CONSOLE) $(SOURCES_CGI) $(HEADERS_CONSOLE) $(HEADERS_CGI) \
+	config.guess config.h.in config.sub configure configure.in install-sh \
+	mkinstalldirs $(PROGRAM).cc
 
 SUBDIRS =
 
 RELEASESUBDIRS =
 
-all: $(PROGRAM) TAGS
+all: $(PROGRAM_CONSOLE) $(PROGRAM_CGI) TAGS
 	@ for subdir in $(SUBDIRS); do \
 	   (cd $$subdir && $(MAKE) $@) || exit 1; \
 	  done
 
--include $(SOURCES:%.cc=%.d)
-
-$(PROGRAM): $(OBJECTS)
+$(PROGRAM_CONSOLE): $(OBJECTS) $(OBJECTS_CONSOLE)
 	$(LD) $(LINKOPTIONS) -o $@ $^ $(LDFLAGS) $(LOCALLIBS) $(LIBS)
+	
+$(PROGRAM_CGI): $(OBJECTS) $(OBJECTS_CGI)
+	$(LD) $(LINKOPTIONS) -o $@ $^ $(LDFLAGS) $(LOCALLIBS) -lcgicc $(LIBS)
 
-TAGS: $(SOURCES) $(HEADERS)
+-include $(ALL_SOURCES:%.cc=%.d)
+	
+TAGS: $(ALL_SOURCES) $(ALL_HEADERS)
 	@ etags $^
 
 doc: html texi docbook
 
 
-html: $(HEADERS)
+html: $(ALL_HEADERS)
 	@ kdoc -f html -d html -p --strip-h-path -lmccore -z $^
 
-texi: $(HEADERS)
+texi: $(ALL_HEADERS)
 	@ kdoc -f texinfo -d texi -p --strip-h-path -lmccore $^
 
-docbook: $(HEADERS)
+docbook:$(ALL_HEADERS)
 	@ kdoc -f docbook -d docbook -p --strip-h-path -lmccore $^
 
-
-
-install: $(PROGRAM)
+install: $(PROGRAM_CONSOLE) $(PROGRAM_CGI)
 	@ echo Installing $(PROGRAM) in $(bindir)
 	@ $(srcdir)/mkinstalldirs $(bindir)
-	@ $(RM) $(bindir)/$(PROGRAM)
-	@ $(INSTALL_PROGRAM) $(PROGRAM) $(bindir)/$(PROGRAM)-$(VERSION)
-	@ echo Creating symbolic link $(bindir)/$(PROGRAM)
-	@ ln -f -s $(bindir)/$(PROGRAM)-$(VERSION) $(bindir)/$(PROGRAM)
+	@ $(RM) $(bindir)/$(PROGRAM_CONSOLE)
+	@ $(RM) $(bindir)/$(PROGRAM_CGI)
+	@ $(INSTALL_PROGRAM) $(PROGRAM_CONSOLE) $(bindir)/$(PROGRAM_CONSOLE_VERSION)
+	@ $(INSTALL_PROGRAM) $(PROGRAM_CGI) $(bindir)/$(PROGRAM_CGI_VERSION)
+	@ echo Creating symbolic link $(bindir)/$(PROGRAM_CONSOLE)
+	@ echo Creating symbolic link $(bindir)/$(PROGRAM_CGI)
+	@ ln -f -s $(bindir)/$(PROGRAM_CONSOLE_VERSION) $(bindir)/$(PROGRAM_CONSOLE)
+	@ ln -f -s $(bindir)/$(PROGRAM_CGI_VERSION) $(bindir)/$(PROGRAM_CGI)
 	@ for subdir in $(SUBDIRS); do \
 	   (cd $$subdir && $(MAKE) $@) || exit 1; \
 	  done
@@ -108,9 +124,10 @@ uninstall:
 	@ for subdir in $(SUBDIRS); do \
 	   (cd $$subdir && $(MAKE) $@) || exit 1; \
 	  done
-	@ $(RM) $(bindir)/$(PROGRAM)-$(VERSION)
-	@ $(RM) $(bindir)/$(PROGRAM)
-
+	@ $(RM) $(bindir)/$(PROGRAM_CONSOLE_VERSION)
+	@ $(RM) $(bindir)/$(PROGRAM_CGI_VERSION)
+	@ $(RM) $(bindir)/$(PROGRAM_CONSOLE)
+	@ $(RM) $(bindir)/$(PROGRAM_CGI)
 
 
 mostlyclean: mostlyclean-recursive mostlyclean-local
@@ -121,7 +138,7 @@ mostlyclean-local:
 clean: clean-recursive clean-local
 
 clean-local: mostlyclean-local
-	@ $(RM) $(OBJECTS) $(PROGRAM)
+	@ $(RM) $(ALL_OBJECTS) $(ALL_PROGRAMS)
 	@ $(RM) *.d TAGS
 	@- rm -rf ii_files
 

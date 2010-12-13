@@ -18,45 +18,6 @@ PDB2DotBracketParamsCGI::PDB2DotBracketParamsCGI() : PDB2DotBracketParams()
 {
 }
 
-/*
-void PDB2DotBracketParamsConsole::read_options (int argc, char* argv[])
-{
-	int c;
-
-	while ((c = getopt (argc, argv, shortopts)) != EOF)
-	{
-		switch (c)
-		{
-		case 'f':
-		{
-			long int tmp;
-
-			tmp = strtol (optarg, 0, 10);
-			if (ERANGE == errno	|| EINVAL == errno || 0 > tmp)
-			{
-				mccore::gErr(0) << PACKAGE << ": invalid model value.";
-				mccore::gErr(0) << std::endl;
-				exit (EXIT_FAILURE);
-			}
-			muiModelNumber = tmp;
-			mbOneModel = true;
-			break;
-		}
-		case 's':
-			muiSplitLayers = strtol(optarg, 0, 10);
-			break;
-		case 'c':
-			muiCombinedLayers = strtol(optarg, 0, 10);
-			break;
-		case 'h':
-			usage ();
-			help ();
-			exit (EXIT_SUCCESS);
-			break;
-		}
-	}
-}*/
-
 int main(int argc, char* argv[])
 {
 	PDB2DotBracketParamsCGI params;
@@ -85,6 +46,12 @@ int main(int argc, char* argv[])
 		if(itElem != cgi.getElements().end())
 		{
 			params.muiSplitLayers = itElem->getIntegerValue();
+		}
+
+		itElem = cgi.getElement("completegaps");
+		if(itElem != cgi.getElements().end())
+		{
+			params.mbCompleteGaps = (itElem->getIntegerValue() == 1);
 		}
 
 
