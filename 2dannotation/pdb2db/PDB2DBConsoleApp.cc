@@ -15,6 +15,7 @@
 #include <mccore/Version.h>
 
 #include <cstdio>
+#include <cstdlib>
 
 static const char* shortopts = "Vbc:s:e:f:ghlr:vm:";
 
