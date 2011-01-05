@@ -54,7 +54,7 @@ PROGRAM_CONSOLE_VERSION = $(PROGRAM_CONSOLE)-$(VERSION)
 PROGRAM_CGI_VERSION = $(PROGRAM)-$(VERSION).cgi
 ALL_PROGRAMS = $(PROGRAM_CONSOLE) $(PROGRAM_CGI)
 
-SOURCES = $(PROGRAM).cc AnnotationStemsLoose.cc ModelDotBracketAnnotator.cc
+SOURCES = $(PROGRAM).cc AnnotationStemsLoose.cc ChainDotBracketAnnotator.cc ModelDotBracketAnnotator.cc
 SOURCES_CONSOLE = PDB2DBConsoleApp.cc
 SOURCES_CGI = PDB2DBCGIApp.cc
 ALL_SOURCES = $(SOURCES) $(SOURCES_CONSOLE) $(SOURCES_CGI)
