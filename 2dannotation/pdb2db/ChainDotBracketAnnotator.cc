@@ -33,6 +33,44 @@ static std::string gNotationSymbols[] =
 	"90st", // 9
 };
 
+DBNotation::DBNotation(const std::list<mccore::ResId>& aResidues)
+{
+	std::list<mccore::ResId>::const_iterator it;
+	unsigned int i = 0;
+	for(it = aResidues.begin(); it != aResidues.end(); ++ it, ++ i)
+	{
+		mIndexMapping[*it] = i;
+	}
+
+	mRepresentation.resize(aResidues.size(), '.');
+}
+
+std::string DBNotation::toString() const
+{
+	std::ostringstream oss;
+
+	for(unsigned int i = 0; i < mRepresentation.size(); ++ i)
+	{
+		oss << mRepresentation[i];
+	}
+	return oss.str();
+}
+
+void DBNotation::applyPair(
+	const annotate::BasePair& aPair,
+	const char& acOpen,
+	const char& acClose)
+{
+	std::map<mccore::ResId, unsigned int>::iterator it1 = mIndexMapping.find(aPair.fResId);
+	std::map<mccore::ResId, unsigned int>::iterator it2 = mIndexMapping.find(aPair.rResId);
+
+	if(mRepresentation[it1->second] == '.' && mRepresentation[it2->second] == '.')
+	{
+		mRepresentation[it1->second] = acOpen;
+		mRepresentation[it2->second] = acClose;
+	}
+}
+
 ChainDotBracketAnnotator::ChainDotBracketAnnotator(
 	annotate::AnnotateModel& aModel,
 	char acChain,
@@ -175,7 +213,6 @@ std::string ChainDotBracketAnnotator::getDotBracketCombined(
 	const AnnotationStemsLoose* pAnnotationStems;
 	pAnnotationStems = mpModel->getAnnotation<AnnotationStemsLoose>();
 	assert(0 != pAnnotationStems);
-	std::ostringstream oss;
 	std::list<std::set<annotate::Stem> > layers;
 
 	// Select the non pseudo-knotted stems
@@ -211,7 +248,7 @@ std::string ChainDotBracketAnnotator::getDotBracketCombined(
 		selectedStems.second = cutStems(selectedStems.second, assignedStems);
 	}
 
-	db_notation dBrackets = createDotBracket();
+	DBNotation dBrackets(mResidues);
 	unsigned int uiLayer = 0;
 	std::list<std::set<annotate::Stem> >::const_iterator it;
 	for(it = layers.begin(); it != layers.end() && uiLayer < auiNbCombinedLayers; ++ it)
@@ -221,8 +258,7 @@ std::string ChainDotBracketAnnotator::getDotBracketCombined(
 	}
 
 	// Output dot-brackets
-	outputDotBracket(oss, dBrackets);
-	return insertGapsInString(oss.str(), mGaps, acGap);
+	return insertGapsInString(dBrackets.toString(), mGaps, acGap);
 }
 
 std::pair<std::set<annotate::Stem>, std::set<annotate::Stem> > ChainDotBracketAnnotator::selectStems(
@@ -337,21 +373,8 @@ std::set<annotate::Stem> ChainDotBracketAnnotator::cutStems(
  	return stems;
  }
 
-ChainDotBracketAnnotator::db_notation ChainDotBracketAnnotator::createDotBracket() const
-{
-	std::map<mccore::ResId, char> dBrackets;
-
-	// Initialize the dot-bracket notation to unstructured
-	std::list<mccore::ResId>::const_iterator itResId;
-	for(itResId = mResidues.begin(); itResId != mResidues.end(); ++ itResId)
-	{
-		dBrackets[*itResId] = '.';
-	}
-	return dBrackets;
-}
-
 void ChainDotBracketAnnotator::applyStems(
-	db_notation& aDBNotation,
+	DBNotation& aDBNotation,
 	const std::set<annotate::Stem>& aStems,
 	unsigned int auiLevel) const
 {
@@ -370,22 +393,9 @@ void ChainDotBracketAnnotator::applyStems(
 		std::vector< annotate::BasePair>::const_iterator itPair;
 		for(itPair = pairs.begin(); itPair != pairs.end(); ++ itPair)
 		{
-			applyPair(aDBNotation, *itPair, cOpen, cClose);
+			aDBNotation.applyPair(*itPair, cOpen, cClose);
 		}
 	}
-}
-
-ostream& ChainDotBracketAnnotator::outputDotBracket(
-	std::ostream &aOutputStream,
-	const db_notation& aDBNotation) const
-{
-	 // Output dot-brackets
-	std::map<mccore::ResId, char>::const_iterator itDB;
-	for(itDB = aDBNotation.begin(); itDB != aDBNotation.end(); ++ itDB)
-	{
-		aOutputStream << itDB->second;
-	}
-	return aOutputStream;
 }
 
 std::vector<std::set<unsigned int> > ChainDotBracketAnnotator::computeConflicts(
@@ -573,22 +583,6 @@ std::set<annotate::Stem> ChainDotBracketAnnotator::cutStem(
  	return stems;
 }
 
-void ChainDotBracketAnnotator::applyPair(
-	db_notation& aDBNotation,
-	const annotate::BasePair& aPair,
-	const char& acOpen,
-	const char& acClose) const
-{
-	std::map<mccore::ResId, char>::iterator it1 = aDBNotation.find(aPair.fResId);
-	std::map<mccore::ResId, char>::iterator it2 = aDBNotation.find(aPair.rResId);
-
-	if(it1->second == '.' && it2->second == '.')
-	{
-		it1->second = acOpen;
-		it2->second = acClose;
-	}
-}
-
 std::list<std::string> ChainDotBracketAnnotator::getDotBracketLayers(
 	unsigned int auiNbSplitLayers,
 	unsigned int auiMaxPerfectSearch,
@@ -631,15 +625,13 @@ std::list<std::string> ChainDotBracketAnnotator::toDotBracket(
 	std::list<std::set<annotate::Stem> >::const_iterator it;
 	for(it = aLayers.begin(); it != aLayers.end() && uiLayer < auiNbSplitLayers; ++ it)
 	{
-		std::ostringstream oss;
 		std::list<mccore::ResId>::const_iterator itResId;
-		db_notation dBrackets = createDotBracket();
+		DBNotation dBrackets(mResidues);
 
 		applyStems(dBrackets, *it, uiLayer);
 
-		outputDotBracket(oss, dBrackets);
 		uiLayer ++;
-		std::string strDB = insertGapsInString(oss.str(), mGaps, acGap);
+		std::string strDB = insertGapsInString(dBrackets.toString(), mGaps, acGap);
 		dotBrackets.push_back(strDB);
 	}
 	return dotBrackets;

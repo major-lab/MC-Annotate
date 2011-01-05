@@ -15,6 +15,20 @@
 
 #include <list>
 
+class DBNotation
+{
+public:
+	DBNotation(const std::list<mccore::ResId>& aResidues);
+	std::string toString() const;
+	void applyPair(
+		const annotate::BasePair& aPair,
+		const char& acOpen,
+		const char& acClose);
+private:
+	std::map<mccore::ResId, unsigned int> mIndexMapping;
+	std::vector<char> mRepresentation;
+};
+
 class ChainDotBracketAnnotator
 {
 public:
@@ -36,7 +50,6 @@ public:
 		unsigned int auiMaxPerfectSearch,
 		char acGap = '.') const;
 private:
-	typedef std::map<mccore::ResId, char> db_notation;
 	char mcChain;
 	std::list<mccore::ResId> mResidues;
 	annotate::AnnotateModel* mpModel;
@@ -72,25 +85,17 @@ private:
 	std::set<annotate::Stem> cutStem(
 	 	const annotate::Stem& aStem,
 	 	const std::set<annotate::Stem>& aStems) const;
-	db_notation createDotBracket() const;
+	// db_notation createDotBracket() const;
 	void applyStems(
-		db_notation& aDBNotation,
+		DBNotation& aDBNotation,
 		const std::set<annotate::Stem>& aStems,
 		unsigned int auiLevel) const;
-	ostream& outputDotBracket(
-		std::ostream &aOutputStream,
-		const db_notation& aDBNotation) const;
 	std::pair<unsigned int, std::list<std::set<unsigned int> > > selectStemsRecursive(
 		const std::set<unsigned int>& aToTest,
 		const std::vector<std::set<unsigned int> >& aConflicts,
 		const std::vector<annotate::Stem>& aStems) const;
 	std::pair<std::set<annotate::Stem>, std::set<annotate::Stem> > splitImbrication(
 		const std::set<annotate::Stem>& aStems) const;
-	void applyPair(
-		db_notation& aDBNotation,
-		const annotate::BasePair& aPair,
-		const char& acOpen,
-		const char& acClose) const;
 	std::list<std::set<annotate::Stem> > splitLayers(unsigned int auiMaxPerfectSearch) const;
 	std::list<std::string> toDotBracket(
 		const std::list<std::set<annotate::Stem> >& aLayers,
