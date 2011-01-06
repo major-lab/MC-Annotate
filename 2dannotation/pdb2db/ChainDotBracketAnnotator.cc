@@ -66,8 +66,15 @@ void DBNotation::applyPair(
 
 	if(mRepresentation[it1->second] == '.' && mRepresentation[it2->second] == '.')
 	{
-		mRepresentation[it1->second] = acOpen;
-		mRepresentation[it2->second] = acClose;
+		if(it1->second < it2->second)
+		{
+			mRepresentation[it1->second] = acOpen;
+			mRepresentation[it2->second] = acClose;
+		}else
+		{
+			mRepresentation[it1->second] = acClose;
+			mRepresentation[it2->second] = acOpen;
+		}
 	}
 }
 

@@ -85,7 +85,6 @@ private:
 	std::set<annotate::Stem> cutStem(
 	 	const annotate::Stem& aStem,
 	 	const std::set<annotate::Stem>& aStems) const;
-	// db_notation createDotBracket() const;
 	void applyStems(
 		DBNotation& aDBNotation,
 		const std::set<annotate::Stem>& aStems,
