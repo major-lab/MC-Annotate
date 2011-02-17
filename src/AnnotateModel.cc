@@ -8,9 +8,8 @@
 // $Id: AnnotateModel.cc 58 2006-11-15 21:09:19Z larosem $
 
 
-#ifdef HAVE_CONFIG_H
+// cmake generated defines
 #include <config.h>
-#endif
 
 #include <algorithm>
 #include <iterator>

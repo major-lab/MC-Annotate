@@ -1,16 +1,15 @@
 //                              -*- Mode: C++ -*- 
-// BasePair.cc
+// BaseLink.cc
 // Copyright Â© 2006 Laboratoire de Biologie Informatique et ThÃ©orique
 //                  UniversitÃ© de MontrÃ©al.
 // Author           : Martin Larose <larosem@iro.umontreal.ca>
-// Created On       : Wed Aug  2 17:43:21 2006
+// Created On       : Wed Aug  2 18:35:35 2006
 // $Revision: 59 $
-// $Id: BasePair.cc 59 2006-11-15 21:25:50Z larosem $
+// $Id: BaseLink.cc 59 2006-11-15 21:25:50Z larosem $
 // 
 
 
-#ifdef HAVE_CONFIG_H
+// cmake generated defines
 #include <config.h>
-#endif
 
-#include "BasePair.h"
+#include "BaseLink.h"

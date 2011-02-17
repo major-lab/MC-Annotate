@@ -8,9 +8,8 @@
 // $Id: MC-Annotate.cc 58 2006-11-15 21:09:19Z larosem $
 
 
-#ifdef HAVE_CONFIG_H
+// cmake generated defines
 #include <config.h>
-#endif
 
 #include <cerrno>
 #include <cstdlib>
@@ -52,7 +51,7 @@ version ()
 {
   mccore::Version mccorev;
   
-  gOut (0) << PACKAGE << " " << VERSION << " (" << __DATE__ << ")" << endl
+  gOut (0) << PACKAGE_NAME << " " << PACKAGE_VERSION_STRING << " (" << __DATE__ << ")" << endl
 	   << "  using " << mccorev << endl;
 }
 
@@ -60,7 +59,7 @@ version ()
 void
 usage ()
 {
-  gOut (0) << "usage: " << PACKAGE
+  gOut (0) << "usage: " << PACKAGE_NAME
 	   << " [-bhlvV] [-e num] [-f <model number>] [-r <residue ids>] <structure file> ..."
 	   << endl;
 }
@@ -107,7 +106,7 @@ read_options (int argc, char* argv[])
 		|| EINVAL == errno
 		|| 0 > tmp)
 	      {
-		gErr (0) << PACKAGE << ": invalid environment value." << endl;
+		gErr (0) << PACKAGE_NAME << ": invalid environment value." << endl;
 		exit (EXIT_FAILURE);
 	      }
 	    environment = tmp;
@@ -122,7 +121,7 @@ read_options (int argc, char* argv[])
 		|| EINVAL == errno
 		|| 0 > tmp)
 	      {
-		gErr (0) << PACKAGE << ": invalid model value." << endl;
+		gErr (0) << PACKAGE_NAME << ": invalid model value." << endl;
 		exit (EXIT_FAILURE);
 	      }
 	    modelNumber = tmp;
@@ -144,7 +143,7 @@ read_options (int argc, char* argv[])
 	    }
 	  catch (IntLibException &e)
 	    {
-	      gErr (0) << PACKAGE << ": invalid residue selection." << endl;
+	      gErr (0) << PACKAGE_NAME << ": invalid residue selection." << endl;
 	      exit (EXIT_FAILURE);
 	    }
 	  break;
@@ -180,7 +179,7 @@ loadFile (const string &filename)
       in.open (filename.c_str ());
       if (in.fail ())
 	{
-	  gErr (0) << PACKAGE << ": cannot open binary file '" << filename << "'." << endl;
+	  gErr (0) << PACKAGE_NAME << ": cannot open binary file '" << filename << "'." << endl;
 	  return 0;
 	}
       molecule = new Molecule (&aFM);
@@ -200,7 +199,7 @@ loadFile (const string &filename)
 	  in.open (filename.c_str ());
 	  if (in.fail ())
 	    {
-	      gErr (0) << PACKAGE << ": cannot open pdb file '" << filename << "'." << endl;
+	      gErr (0) << PACKAGE_NAME << ": cannot open pdb file '" << filename << "'." << endl;
 	      return 0;
 	    }
 	  molecule = new Molecule (&aFM);
