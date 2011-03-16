@@ -123,7 +123,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   # The OS X PackageMaker doesn't seem to like files with no extension
 else()
   set (CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README")
-  set (CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
+  #set (CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
 endif()
 
 # CPack spéficique à RPM
