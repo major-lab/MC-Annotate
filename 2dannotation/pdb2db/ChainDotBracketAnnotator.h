@@ -50,6 +50,7 @@ public:
 		unsigned int auiMaxPerfectSearch,
 		char acGap = '.') const;
 private:
+	typedef std::set<annotate::Stem> stem_set;
 	char mcChain;
 	std::list<mccore::ResId> mResidues;
 	annotate::AnnotateModel* mpModel;
@@ -79,6 +80,8 @@ private:
 		const std::set<annotate::Stem>& aStems) const;
 	std::vector<std::set<unsigned int> > computeConflicts(
 		const std::vector<annotate::Stem>& aStems) const;
+	bool checkConflict(const annotate::Stem& aStem1, const annotate::Stem& aStem2) const;
+	stem_set selectNonConflictedStems(const stem_set& aTarget, const stem_set& aSource) const;
 	std::set<annotate::Stem> cutStems(
 	 	const std::set<annotate::Stem>& aToCutStems,
 	 	const std::set<annotate::Stem>& aStems) const;
@@ -100,6 +103,13 @@ private:
 		const std::list<std::set<annotate::Stem> >& aLayers,
 		unsigned int auiNbSplitLayers,
 		char acGap) const;
+
+	/*
+	 * @brief Get the set of residue id contained in a set of stems.
+	 * @param aStems : Set of stems from which to get the residue id.
+	 * @return Set of residue id found.
+	 */
+	std::set<mccore::ResId> getResIdSet(const stem_set& aStems) const;
 };
 
 #endif /* CHAINDOTBRACKETANNOTATOR_H_ */

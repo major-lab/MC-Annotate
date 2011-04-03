@@ -231,7 +231,8 @@ std::string ChainDotBracketAnnotator::getDotBracketCombined(
 	while(0 < selectedStems.second.size())
 	{
 		// Split the conflicting stems from the simple ones
-		std::pair<std::set<annotate::Stem>, std::set<annotate::Stem> > conflictSplit = splitConflicts(selectedStems.second);
+		std::pair<std::set<annotate::Stem>, std::set<annotate::Stem> > conflictSplit;
+		conflictSplit = splitConflicts(selectedStems.second);
 		selectedStems.second = conflictSplit.second;
 
 		// Apply selection on conflicting stems
@@ -240,19 +241,24 @@ std::string ChainDotBracketAnnotator::getDotBracketCombined(
 		// Keep the selected stems and the unconflicted ones for this layer
 		selectedStems.first.insert(conflictSplit.first.begin(), conflictSplit.first.end());
 		assignedStems.insert(selectedStems.first.begin(), selectedStems.first.end());
-		layers.push_back(selectedStems.first);
 
 		// Remove the already assigned residues from the remaining stems
-		unsigned int i = 0;
-		std::set<annotate::Stem>::const_iterator it = selectedStems.second.begin();
-		for(;it != selectedStems.second.end(); ++ it)
-		{
-			std::set<annotate::Stem> test;
-			test.insert(*it);
-			test = cutStems(test, assignedStems);
-			++ i;
-		}
 		selectedStems.second = cutStems(selectedStems.second, assignedStems);
+
+		// If the cut stems no longer conflict with the already selected stems, add them to the layer
+		stem_set resolved;
+		do
+		{
+			resolved = selectNonConflictedStems(assignedStems, selectedStems.second);
+			if(0 < resolved.size())
+			{
+				selectedStems.first.insert(resolved.begin(), resolved.end());
+				assignedStems.insert(resolved.begin(), resolved.end());
+			}
+		} while(0 < resolved.size());
+
+		// Put the selected stems in the layers
+		layers.push_back(selectedStems.first);
 	}
 
 	DBNotation dBrackets(mResidues);
@@ -266,6 +272,33 @@ std::string ChainDotBracketAnnotator::getDotBracketCombined(
 
 	// Output dot-brackets
 	return insertGapsInString(dBrackets.toString(), mGaps, acGap);
+}
+
+std::set<annotate::Stem> ChainDotBracketAnnotator::selectNonConflictedStems(const stem_set& aTarget, const stem_set& aSource) const
+{
+	std::set<annotate::Stem> nonConflicted;
+
+	// Select stems that are not conflicting with one another to start with
+	std::pair<stem_set, stem_set > conflictSplit;
+	conflictSplit = splitConflicts(aSource);
+
+	stem_set::const_iterator itSource;
+	for(itSource = conflictSplit.first.begin();
+		itSource != conflictSplit.first.end();
+		++ itSource)
+	{
+		stem_set::const_iterator itTarget;
+		bool bConflicts = false;
+		for(itTarget = aTarget.begin(); itTarget != aTarget.end() && !bConflicts; ++ itTarget)
+		{
+			bConflicts = checkConflict(*itTarget, *itSource);
+		}
+		if(!bConflicts)
+		{
+			nonConflicted.insert(*itSource);
+		}
+	}
+	return nonConflicted;
 }
 
 std::pair<std::set<annotate::Stem>, std::set<annotate::Stem> > ChainDotBracketAnnotator::selectStems(
@@ -305,7 +338,6 @@ std::pair<std::set<annotate::Stem>, std::set<annotate::Stem> > ChainDotBracketAn
 			}else
 			{
 				results.second.insert(aStems[i]);
-
 			}
 		}
 	}else
@@ -416,7 +448,9 @@ std::vector<std::set<unsigned int> > ChainDotBracketAnnotator::computeConflicts(
 		{
 			if(i != j)
 			{
-				if(aStems[i].pseudoKnots(aStems[j]) || aStems[i].overlaps(aStems[j]))
+				// if(aStems[i].pseudoKnots(aStems[j]) || aStems[i].overlaps(aStems[j]))
+				bool bConflicts = checkConflict(aStems[i], aStems[j]);
+				if(bConflicts)
 				{
 					conflicts[i].insert(j);
 				}
@@ -424,6 +458,14 @@ std::vector<std::set<unsigned int> > ChainDotBracketAnnotator::computeConflicts(
 		}
 	}
 	return conflicts;
+}
+
+bool ChainDotBracketAnnotator::checkConflict(
+	const annotate::Stem& aStem1,
+	const annotate::Stem& aStem2) const
+{
+	bool bConflicts = aStem1.pseudoKnots(aStem2) || aStem1.overlaps(aStem2);
+	return bConflicts;
 }
 
 std::pair<unsigned int, std::list<std::set<unsigned int> > > ChainDotBracketAnnotator::selectStemsRecursive(
@@ -459,7 +501,7 @@ std::pair<unsigned int, std::list<std::set<unsigned int> > > ChainDotBracketAnno
 			subTest1.erase(uiStem);
 
 			std::set<unsigned int> subTest2;
-			subTest2 = annotate::SetDifference<unsigned int>(subTest1, aConflicts[uiStem]);
+			subTest2 = mccorex::SetDifference<unsigned int>(subTest1, aConflicts[uiStem]);
 			std::pair<unsigned int, std::list<std::set<unsigned int> > > subVal1;
 			std::pair<unsigned int, std::list<std::set<unsigned int> > > subVal2;
 			subVal1 = selectStemsRecursive(subTest2, aConflicts, aStems);
@@ -544,19 +586,12 @@ std::set<annotate::Stem> ChainDotBracketAnnotator::cutStem(
  	std::set<annotate::Stem> stems;
  	std::set<annotate::Stem>::const_iterator itStem;
 
+ 	// Make a copy of all the base pairs of the stem
  	std::set<annotate::BasePair> stemPairs;
  	stemPairs.insert(aStem.basePairs().begin(), aStem.basePairs().end());
 
- 	std::set<mccore::ResId> removedResId;
- 	for(itStem = aStems.begin(); itStem != aStems.end(); ++ itStem)
- 	{
- 		std::vector<annotate::BasePair>::const_iterator it;
- 		for(it = itStem->basePairs().begin(); it != itStem->basePairs().end(); ++ it)
- 		{
- 			removedResId.insert(it->fResId);
- 			removedResId.insert(it->rResId);
- 		}
- 	}
+ 	// Get the set of all residues in the set of stems
+ 	std::set<mccore::ResId> removedResId = getResIdSet(aStems);
 
  	std::set<annotate::BasePair> remainingPairs;
  	std::set<annotate::BasePair>::const_iterator itPair;
@@ -588,6 +623,22 @@ std::set<annotate::Stem> ChainDotBracketAnnotator::cutStem(
  	}
 
  	return stems;
+}
+
+std::set<mccore::ResId> ChainDotBracketAnnotator::getResIdSet(const stem_set& aStems) const
+{
+	stem_set::const_iterator itStem;
+	std::set<mccore::ResId> resIdSet;
+	for(itStem = aStems.begin(); itStem != aStems.end(); ++ itStem)
+	{
+		std::vector<annotate::BasePair>::const_iterator it;
+		for(it = itStem->basePairs().begin(); it != itStem->basePairs().end(); ++ it)
+		{
+			resIdSet.insert(it->fResId);
+			resIdSet.insert(it->rResId);
+		}
+	}
+	return resIdSet;
 }
 
 std::list<std::string> ChainDotBracketAnnotator::getDotBracketLayers(
