@@ -45,7 +45,10 @@ namespace annotate
     	 bool operator <(const Stem& other) const;
 
 		// ACCESS ---------------------------------------------------------------
-		enOrientation getOrientation () const { return meOrientation; }
+		enOrientation getOrientation () const { return meOrientation; } // Obsolete, use the new one
+		const enOrientation& orientation() const { return meOrientation; }
+		void orientation(const enOrientation& aeOrientation) { meOrientation = aeOrientation; }
+
 
 		const std::vector< BasePair >& basePairs() const { return mBasePairs; }
 
