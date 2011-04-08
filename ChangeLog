@@ -1,0 +1,167 @@
+2011-02-17 18:32  joroy
+
+	* .: Move the cmake branch to the branches directory
+	  
+	  (It was a mistake on my side to create it in the tags directory)
+
+2011-02-17 15:22  joroy
+
+	* Update the build system from autoconf to cmake
+
+2011-02-16 22:39  joroy
+
+	* Create an experimental cmake branch
+
+2007-04-05 21:30  larosem
+
+	* condor compilation option added.
+
+2007-02-07 22:24  larosem
+
+	* Stable version corresponding to mccore-1.6.2.
+
+2007-02-07 22:21  larosem
+
+	* This file should not be there.
+
+2007-02-07 22:19  larosem
+
+	* Removing old non-working files.
+
+2007-01-23 22:02  larosem
+
+	* test
+
+2007-01-23 22:01  larosem
+
+	* test
+
+2004-12-08 22:23  larosem
+
+	* Working update. Version unstable.
+
+2004-12-06 21:26  larosem
+
+	* Unneeded file.
+
+2004-12-06 20:02  larosem
+
+	* Version 1.2
+
+2004-10-20 20:11  thibaup
+
+	* corrections to match last mccore's types update
+
+2004-07-06 18:58  thibaup
+
+	* Displaying of undefined residue types as 'X'
+
+2004-07-06 18:57  thibaup
+
+	* removed model validation and nucleic acid filtering
+
+2004-07-06 18:56  thibaup
+
+	* removed pdf lib
+
+2004-06-30 18:24  thibaup
+
+	* Updated to last mccore update
+
+2004-06-10 18:03  thibaup
+
+	* *** empty log message ***
+
+2004-06-10 18:03  thibaup
+
+	* *** empty log message ***
+
+2004-06-10 18:02  thibaup
+
+	* *** empty log message ***
+
+2004-06-10 18:01  thibaup
+
+	* *** empty log message ***
+
+2004-06-10 17:58  thibaup
+
+	* file.cc
+
+2004-06-10 13:16  thibaup
+
+	* *** empty log message ***
+
+2004-06-10 13:12  thibaup
+
+	* AnnotatedModel.cc
+
+2004-05-27 17:42  thibaup
+
+	* - correction to reflect last modifications in mccore-1.4
+
+2004-01-09 21:48  gendrop
+
+	* *** empty log message ***
+
+2004-01-09 20:14  gendrop
+
+	* Restored dump in mcsym format
+
+2003-12-17 21:39  gendrop
+
+	* New files
+
+2003-12-17 21:38  gendrop
+
+	* Removed Graph
+
+2002-04-03 20:49  adbit
+
+	* Default values on function definitions are not always accepted by
+	  compilers.
+
+2002-03-07 23:31  thibaup
+
+	* Added a correction pass to keep a valid backtrack statement
+
+2002-02-22 20:16  adbit
+
+	* release rule changed.
+
+2002-02-22 16:54  adbit
+
+	* New distribution file.
+
+2002-02-22 16:36  gendrop
+
+	* Reduced bulge maximal length to 2
+
+2002-02-22 16:35  gendrop
+
+	* Reduced bulge maximal length to 2
+
+2002-02-19 21:19  gendrop
+
+	* Corrected the output for mcsym 3.3 compatibility
+
+2002-02-19 18:58  gendrop
+
+	* small modif
+
+2002-02-19 18:55  gendrop
+
+	* Remove duplicate graph
+
+2002-02-19 16:21  adbit
+
+	* Removed some files
+
+2002-02-19 16:19  adbit
+
+	* Initial revision
+
+2002-02-19 16:19  
+
+	* New repository initialized by cvs2svn.
+
