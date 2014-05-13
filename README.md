@@ -8,6 +8,6 @@ and their spatial interactions.
 
 Credits
 -------
-**Gendron P, Lemieux S, Major F (2001) Quantitative analysis of nucleic acid three-dimensional structures. J Mol Biol 308:919–936.**
+Gendron P, Lemieux S, Major F (2001) Quantitative analysis of nucleic acid three-dimensional structures. J Mol Biol 308:919–936.
 
-**Lemieux S, Major F (2002) RNA canonical and noncanonical base pairing types: A recognition method and complete repertoire. Nucleic Acids Res 30:4250–4263.**
+Lemieux S, Major F (2002) RNA canonical and noncanonical base pairing types: A recognition method and complete repertoire. Nucleic Acids Res 30:4250–4263.
