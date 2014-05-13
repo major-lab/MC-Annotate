@@ -1,10 +1,4 @@
-/* This file is part of mcannotate.
- *
- * mcannotate is an annotation tools for PDB files that produce information about nucleotides 
- * conformation and their spatials interfactions
- * Copyright (C) 2008,2009,2010,2011 Institut de recherche en immunologie et en cancérologie
- *
- */  
+// This file is part of mcannotate.
 
 #ifndef CONFIG_H
 #define CONFIG_H

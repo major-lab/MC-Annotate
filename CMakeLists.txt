@@ -2,13 +2,13 @@
 ##
 ## mcannotate is an annotation tools for PDB files that produce information about nucleotides 
 ## conformation and their spatials interfactions
-## Copyright (C) 2008,2009,2010, 2011 Université de Montréal
+## Copyright (C) 2008,2009,2010, 2011 Universite de Montreal
 ##
 
  
 cmake_minimum_required (VERSION 2.6)
 
-# ajouter les FindXXX.cmake supplémentaire
+# ajouter les FindXXX.cmake supplementaire
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 project (MCANNOTATE)
@@ -39,7 +39,7 @@ option(HANDLE_GCC_VAR "Handle GCC environment variables" ON)
 ############################################################ 
 
 # note: Bug dans CMake, selon la doc les paths devraient être
-# sépararés par des ":" et on doit plutôt les sépararés par des ";"
+# separares par des ":" et on doit plutôt les separares par des ";"
 if (HANDLE_GCC_VAR)
   if (NOT $ENV{CPLUS_INCLUDE_PATH}  STREQUAL "")
     string (REPLACE ":" " " INCLUDES_CPP $ENV{CPLUS_INCLUDE_PATH})
@@ -73,11 +73,11 @@ else()
 endif()
 
 ############################################################
-# Définition utile plus loin                               #
+# Definition utile plus loin                               #
 ############################################################
 
 ############################################################
-# Dépendance  (fonctions, libs, etc)                       #
+# Dependance  (fonctions, libs, etc)                       #
 ############################################################
 
 find_package(ZLIB REQUIRED)
@@ -100,11 +100,11 @@ configure_file (
   "${PROJECT_BINARY_DIR}/config.h"
   )
 
-# ajoute le répertoire de build à la liste des "include_directories"
-# pour que config.h puisse être trouvé
+# ajoute le repertoire de build à la liste des "include_directories"
+# pour que config.h puisse être trouve
 include_directories ("${PROJECT_BINARY_DIR}")
 
-# ajoute le sous-répertoire de la librarie pour que le CMakeList.txt soit exécuter
+# ajoute le sous-repertoire de la librarie pour que le CMakeList.txt soit executer
 add_subdirectory ("${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 # CPack 
@@ -115,7 +115,7 @@ set (CPACK_PACKAGE_VERSION ${MCANNOTATE_VERSION_STRING})
 set (CPACK_PACKAGE_VERSION_MAJOR ${MCANNOTATE_VERSION_MAJOR})
 set (CPACK_PACKAGE_VERSION_MINOR ${MCANNOTATE_VERSION_MINOR})
 set (CPACK_PACKAGE_VERSION_PATCH ${MCANNOTATE_VERSION_PATCH})
-set (CPACK_PACKAGE_VENDOR "Laboratoire d'ingénierie des ARN")
+set (CPACK_PACKAGE_VENDOR "Laboratoire d'ingenierie des ARN")
 set (CPACK_PACKAGE_CONTACT "Jonathan Roy <mctools@iric.ca>")
 set (CPACK_PACKAGE_FILE_NAME ${MCANNOTATE_COMPLETE_PACKAGE_NAME})
 
@@ -126,7 +126,7 @@ else()
   #set (CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
 endif()
 
-# CPack spéficique à RPM
+# CPack speficique à RPM
 set (CPACK_RPM_PACKAGE_NAME ${CPACK_PACKAGE_NAME}) 
 set (CPACK_RPM_PACKAGE_SUMMARY ${CPACK_PACKAGE_DESCRIPTION_SUMMARY})
 set (CPACK_RPM_PACKAGE_DESCRIPTION ${PACKAGE_DESCRIPTION}) 
@@ -137,7 +137,7 @@ set (CPACK_RPM_PACKAGE_GROUP "Applications/Science")
 
 set (CPACK_RPM_PACKAGE_REQUIRES "")
 
-# CPack spécifique à Debian (TODO au besoin)
+# CPack specifique à Debian (TODO au besoin)
 #set (CPACK_DEBIAN_PACKAGE_NAME ${CPACK_PACKAGE_NAME})
 #set (CPACK_DEBIAN_PACKAGE_DEPENDS "")
 #set (CPACK_DEBIAN_PACKAGE_DESCRIPTION ${PACKAGE_DESCRIPTION)
@@ -145,7 +145,7 @@ set (CPACK_RPM_PACKAGE_REQUIRES "")
 
 INCLUDE(CPack)
 
-# TODO: ajouter des tests de base et possiblement l'exécution de tests unitaires
+# TODO: ajouter des tests de base et possiblement l'execution de tests unitaires
 
 # enable dashboard scripting
 #include (CTest)
