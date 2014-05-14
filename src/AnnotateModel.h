@@ -288,6 +288,7 @@ namespace annotate
     void dumpSequences (bool detailed = true) ;
     void dumpPairs () const;
     void dumpConformations () const;
+    void dumpNucleotides () const;
     void dumpTriples () ;
     void dumpStacks () const;
 
@@ -298,6 +299,13 @@ namespace annotate
      * @return the used output stream.
      */
     virtual ostream& output (ostream &os) const;
+
+    /**
+     * Ouputs the nucleotides of the model to the stream.
+     * @param os the output stream.
+     * @return the used output stream.
+     */
+    virtual ostream& outputNts (ostream &os) const;
 
     /**
      * Reads the model from a pdb input stream.

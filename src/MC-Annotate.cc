@@ -40,12 +40,13 @@ using namespace mccore;
 using namespace std;
 using namespace annotate;
 
+bool onlyNts = false;
 bool binary = false;
 unsigned int environment = 0;
 bool oneModel = false;
 unsigned int modelNumber = 0;  // 1 based vector identifier, 0 means all
 ResIdSet residueSelection;
-const char* shortopts = "Vbe:f:hlr:v";
+const char* shortopts = "Vbe:f:hlr:v:n";
 
 
 void version ()
@@ -57,14 +58,12 @@ void version ()
   << "  using " << mccorev << endl;
 }
 
-
 void usage ()
 {
   gOut (0) << "usage: " << PACKAGE_NAME
-  << " [-bhlvV] [-e num] [-f <model number>] [-r <residue ids>] <structure file> ..."
+  << " [-bhlnvV] [-e num] [-f <model number>] [-r <residue ids>] <structure file> ..."
   << endl;
 }
-
 
 void help ()
 {
@@ -75,11 +74,11 @@ void help ()
   << "  -f model number   model to print" << endl
   << "  -h                print this help" << endl
   << "  -l                be more verbose (log)" << endl
-  << "  -r sel            extract these residues from the structure" << endl 
+  << "  -n                outputs only nucleotide annotation" << endl
+  << "  -r sel            extract these residues from the structure" << endl
   << "  -v                be verbose" << endl
   << "  -V                print the software version info" << endl;
 }
-
 
 void read_options (int argc, char* argv[])
 {
@@ -133,6 +132,10 @@ void read_options (int argc, char* argv[])
         break;
       }
 
+      case 'n':
+        onlyNts = true;
+        break;
+
       case 'h':
         usage ();
         help ();
@@ -172,7 +175,6 @@ void read_options (int argc, char* argv[])
     exit (EXIT_FAILURE);
   }
 }
-
 
 mccore::Molecule* loadFile (const string &filename)
 {
@@ -221,9 +223,9 @@ mccore::Molecule* loadFile (const string &filename)
 
 #endif
   }
+
   return molecule;
 }
-
 
 int main (int argc, char *argv[])
 {
@@ -249,7 +251,14 @@ int main (int argc, char *argv[])
         {
           AnnotateModel &am = (AnnotateModel&) *molIt;
           am.annotate ();
-          gOut(0) << am;
+          if (! onlyNts)
+          {
+            gOut(0) << am;
+          }
+          else
+          {
+            am.outputNts(gOut(0));
+          }
 
           if (oneModel)
           {
@@ -264,4 +273,3 @@ int main (int argc, char *argv[])
   }
   return EXIT_SUCCESS;
 }
-
