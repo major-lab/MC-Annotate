@@ -30,7 +30,6 @@ The actual code documentation is on its way.
 -----------
 The general concepts were developped by Sebastien Lemieux and Patrick Gendron (see References).
 The software was mainly developed by Martin Larose and Philippe Thibault.
-This particular branch was launched by Gabriel C-Parent.
 
 **License**
 -----------
