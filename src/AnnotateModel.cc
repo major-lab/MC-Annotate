@@ -296,7 +296,6 @@ namespace annotate
 
   ostream& AnnotateModel::outputNts(ostream &os) const
   {
-    gOut (0) << ">Nucleotides" << endl;
     dumpNucleotides ();
     gOut (0) << ">Base pairs" << endl;
     dumpPairs ();
